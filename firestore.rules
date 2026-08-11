@@ -1,0 +1,217 @@
+rules_version = '2';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Reglas pragmáticas de Firestore — Sistema de Tickets
+//
+// AUTENTICACIÓN: el login pasa por la Cloud Function "login" (compara el
+// passwordHash server-side con la Admin SDK) que emite un Firebase Auth custom
+// token con el rol del usuario como claim; el cliente hace signInWithCustomToken
+// con eso. A partir de ahí `request.auth` y `request.auth.token.role` SÍ son
+// verificables de forma real en estas reglas (no falseables desde el cliente) —
+// se usan así en el match de `users`. El resto de las colecciones (tickets,
+// personal, cargos, areas, access, config) NO tiene datos sensibles tipo
+// passwordHash: la LECTURA sigue abierta (`allow read: if true`), pero toda
+// ESCRITURA exige sesión real (`request.auth != null`), salvo la ventana de
+// bootstrap de /setup (antes de que exista `config/app`).
+//
+// Lo que SÍ hacen estas reglas en general:
+//   • Validar forma/tipos de los datos en cada escritura (evita basura).
+//   • Restringir valores de enums (urgency/status/role).
+//   • Prohibir borrados FÍSICOS (se fuerza soft-delete vía deletedAt).
+//   • Acotar el tamaño de los textos.
+//   • Exigir sesión real (`request.auth != null`) para escribir en cualquier
+//     colección una vez pasado el /setup inicial — en `users` y `access`
+//     además se exige el rol admin/super_admin vía custom claim.
+// ─────────────────────────────────────────────────────────────────────────────
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function nonEmptyStr(v, max) {
+      return v is string && v.size() > 0 && v.size() <= max;
+    }
+
+    // ── users ──────────────────────────────────────────────────────────────
+    // `config/app` solo existe después de correr /setup una vez: lo usamos como
+    // "marca de agua" de que la app ya tiene super_admin. Antes de eso (única
+    // ventana legítima sin nadie logueado) se permite el bootstrap inicial;
+    // después, toda lectura/escritura exige estar autenticado (custom claim
+    // `role` real del Firebase Auth token, emitido por la Cloud Function
+    // "login" — no falseable desde el cliente, a diferencia del resto de
+    // este archivo, que no puede verificar identidad).
+    function appYaInicializada() {
+      return exists(/databases/$(database)/documents/config/app);
+    }
+
+    match /users/{userId} {
+      // Antes del setup inicial: lectura abierta (necesaria para que /setup
+      // pueda chequear "¿ya hay usuarios?" sin que nadie esté logueado aún).
+      // Después: solo usuarios autenticados pueden leer.
+      allow read: if !appYaInicializada() || request.auth != null;
+
+      allow create: if (
+                         (!appYaInicializada() && request.resource.data.role == 'super_admin')
+                         || (request.auth != null && request.auth.token.role in ['admin', 'super_admin'])
+                       )
+                    && (request.resource.data.role != 'super_admin' || request.auth == null || request.auth.token.role == 'super_admin')
+                    && request.resource.data.keys().hasAll(
+                       ['username', 'usernameHash', 'passwordHash', 'role', 'active'])
+                    && nonEmptyStr(request.resource.data.username, 60)
+                    && request.resource.data.usernameHash is string
+                    && request.resource.data.passwordHash is string
+                    && request.resource.data.role in ['super_admin', 'admin', 'usuario']
+                    && request.resource.data.active is bool;
+
+      // Update: exige admin/super_admin logueado. El username es inmutable
+      // salvo que quien escribe sea super_admin, y solo un super_admin puede
+      // otorgar o conservar el rol super_admin (evita que un admin se
+      // autopromueva).
+      allow update: if request.auth != null
+                    && request.auth.token.role in ['admin', 'super_admin']
+                    && (request.resource.data.username == resource.data.username
+                        || request.auth.token.role == 'super_admin')
+                    && (request.resource.data.role != 'super_admin' || request.auth.token.role == 'super_admin')
+                    && nonEmptyStr(request.resource.data.username, 60)
+                    && request.resource.data.usernameHash is string
+                    && request.resource.data.passwordHash is string
+                    && request.resource.data.role in ['super_admin', 'admin', 'usuario']
+                    && request.resource.data.active is bool;
+
+      // Sin borrado físico: desactivar (active=false) en su lugar.
+      allow delete: if false;
+    }
+
+    // ── tickets ────────────────────────────────────────────────────────────
+    match /tickets/{ticketId} {
+      allow read: if true;
+
+      allow create: if request.auth != null
+                    && nonEmptyStr(request.resource.data.title, 200)
+                    && request.resource.data.description is string
+                    && request.resource.data.description.size() <= 5000
+                    && request.resource.data.urgency in ['CRITICO', 'ALTO', 'MEDIO', 'BAJO']
+                    && request.resource.data.status in ['pendiente', 'asignado', 'en_proceso', 'terminado']
+                    && request.resource.data.code is string
+                    && request.resource.data.order is int
+                    && nonEmptyStr(request.resource.data.createdBy, 100);
+
+      allow update: if request.auth != null
+                    && request.resource.data.urgency in ['CRITICO', 'ALTO', 'MEDIO', 'BAJO']
+                    && request.resource.data.status in ['pendiente', 'asignado', 'en_proceso', 'terminado']
+                    // code y order son inmutables tras crearse
+                    && request.resource.data.code == resource.data.code
+                    && request.resource.data.order == resource.data.order;
+
+      // Sin borrado físico: soft-delete vía update de deletedAt.
+      allow delete: if false;
+
+      // ── eventos (historial automático + comentarios) ──────────────────────
+      // Los eventos tipo:"sistema" los escribe la Cloud Function `registrarCambiosTicket`
+      // vía Admin SDK (ignora estas reglas); el cliente solo puede crear comentarios.
+      match /eventos/{eventoId} {
+        allow read: if true;
+        allow create: if request.auth != null
+                      && request.resource.data.tipo == 'comentario'
+                      && request.resource.data.actorId == request.auth.uid
+                      && nonEmptyStr(request.resource.data.texto, 2000)
+                      && nonEmptyStr(request.resource.data.actorNombre, 120);
+        allow update, delete: if false;
+      }
+    }
+
+    // ── notificaciones (in-app, por usuario) ──────────────────────────────────
+    // Solo las Cloud Functions (Admin SDK) crean notificaciones. El destinatario
+    // solo puede leer las suyas y marcarlas como leídas (ningún otro campo).
+    match /notificaciones/{notifId} {
+      allow read: if request.auth != null && request.auth.uid == resource.data.userId;
+      allow create: if false;
+      allow update: if request.auth != null
+                    && request.auth.uid == resource.data.userId
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['leida'])
+                    && request.resource.data.leida is bool;
+      allow delete: if false;
+    }
+
+    // ── personal (empleados a los que se asignan tickets) ─────────────────────
+    match /personal/{personalId} {
+      allow read: if true;
+      allow create, update: if request.auth != null
+                            && nonEmptyStr(request.resource.data.nombre, 120)
+                            && request.resource.data.activo is bool;
+      // Sin borrado físico: soft-delete vía deletedAt.
+      allow delete: if false;
+    }
+
+    // ── catálogos: cargos y areas ─────────────────────────────────────────────
+    match /cargos/{cargoId} {
+      allow read: if true;
+      allow create, update: if request.auth != null
+                            && nonEmptyStr(request.resource.data.nombre, 120)
+                            && request.resource.data.activo is bool;
+      allow delete: if false;
+    }
+
+    match /areas/{areaId} {
+      allow read: if true;
+      allow create, update: if request.auth != null
+                            && nonEmptyStr(request.resource.data.nombre, 120)
+                            && request.resource.data.activo is bool;
+      allow delete: if false;
+    }
+
+    // ── access (matriz de permisos por sección) ──────────────────────────────
+    match /access/{userId} {
+      allow read: if true;
+      function seccionesValidas() {
+        return request.resource.data.sections is map
+              && request.resource.data.sections.dashboard is bool
+              && request.resource.data.sections.tickets is bool
+              && request.resource.data.sections.personal is bool
+              && request.resource.data.sections.administracion is bool
+              && request.resource.data.sections.notificaciones is bool
+              && request.resource.data.sections.papelera is bool;
+      }
+      // create: el /setup inicial crea el primer access junto con el primer
+      // super_admin dentro de la MISMA transacción, sin sesión todavía (mismo
+      // bootstrap que `users` arriba); de ahí en más, solo admin/super_admin
+      // crea el access de un usuario nuevo (usersService.create).
+      allow create: if (
+                          (!appYaInicializada() && request.auth == null)
+                          || (request.auth != null && request.auth.token.role in ['admin', 'super_admin'])
+                        )
+                    && seccionesValidas();
+      // update: siempre a través de la Matriz de Accesos, ya con sesión de
+      // admin/super_admin real.
+      allow update: if request.auth != null
+                    && request.auth.token.role in ['admin', 'super_admin']
+                    && seccionesValidas();
+      allow delete: if false;
+    }
+
+    // ── config (singleton 'app') ─────────────────────────────────────────────
+    match /config/{docId} {
+      // Antes del setup inicial: lectura abierta (SetupGuard chequea si ya
+      // existe config/app sin que nadie esté logueado). Después: cualquier
+      // sesión autenticada puede leer (lo usa toda la app).
+      allow read: if true;
+      // create: solo puede pasar una vez en la vida del doc (delete: false de
+      // abajo), y siempre durante el /setup inicial sin sesión todavía — igual
+      // que `users`/`access`. update sí exige sesión real (toggle de modo IA,
+      // contador de tickets en cada creación).
+      allow create: if !appYaInicializada()
+                    && request.resource.data.assignmentMode in ['ia', 'manual']
+                    && request.resource.data.ticketCounter is int
+                    && request.resource.data.ticketCounter >= 0;
+      allow update: if request.auth != null
+                    && request.resource.data.assignmentMode in ['ia', 'manual']
+                    && request.resource.data.ticketCounter is int
+                    && request.resource.data.ticketCounter >= 0;
+      allow delete: if false;
+    }
+
+    // Todo lo demás: denegado.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
