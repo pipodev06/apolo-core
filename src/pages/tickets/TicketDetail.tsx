@@ -196,7 +196,7 @@ export const TicketDetail: React.FC = () => {
                   <div className="flex items-center text-sm">
                     <UserIcon className="mr-3 h-4 w-4 text-primary" />
                     <span className="mr-2 font-medium">Asignado a:</span>
-                    {asignado ? asignado.nombre : ticket.assignedTo ? ticket.assignedTo : "No asignado"}
+                    {asignado ? asignado.nombre : ticket.assignedTo ? "Empleado eliminado" : "No asignado"}
                   </div>
                   {ticket.assignedTo && ticket.assignedAt && (
                     <div className="flex items-center text-sm">

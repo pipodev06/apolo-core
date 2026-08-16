@@ -258,7 +258,14 @@ export const TicketsList: React.FC<Props> = ({ soloPapelera = false }) => {
         </div>
         <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
           <User className="h-4 w-4" />
-          {empleadoNombre(ticket.assignedTo) || "Sin asignar"}
+          {/* empleadosService.getAll() incluye inactivos (solo excluye
+              eliminados) — si assignedTo está seteado y no aparece acá, es
+              porque el empleado fue eliminado, no que el ticket esté sin
+              asignar. Distinguirlo evita que parezca "sin asignar" cuando en
+              realidad sí tiene a alguien (borrado) asignado. */}
+          {ticket.assignedTo
+            ? empleadoNombre(ticket.assignedTo) || "Empleado eliminado"
+            : "Sin asignar"}
         </div>
         <div className="flex items-center justify-end gap-1 border-t pt-3">
           {acciones(ticket)}

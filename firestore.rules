@@ -8,11 +8,14 @@ rules_version = '2';
 // token con el rol del usuario como claim; el cliente hace signInWithCustomToken
 // con eso. A partir de ahí `request.auth` y `request.auth.token.role` SÍ son
 // verificables de forma real en estas reglas (no falseables desde el cliente) —
-// se usan así en el match de `users`. El resto de las colecciones (tickets,
-// personal, cargos, areas, access, config) NO tiene datos sensibles tipo
-// passwordHash: la LECTURA sigue abierta (`allow read: if true`), pero toda
-// ESCRITURA exige sesión real (`request.auth != null`), salvo la ventana de
-// bootstrap de /setup (antes de que exista `config/app`).
+// se usan así en el match de `users`. La mayoría del resto de las colecciones
+// (personal, cargos, areas, access, config) NO tiene datos sensibles tipo
+// passwordHash: la LECTURA sigue abierta (`allow read: if true`). `tickets`
+// (y su subcolección `eventos`) es la excepción — título/descripción son
+// texto libre que puede describir un incidente sensible, así que exige
+// sesión real también para leer. Toda ESCRITURA exige sesión real
+// (`request.auth != null`), salvo la ventana de bootstrap de /setup (antes
+// de que exista `config/app`).
 //
 // Lo que SÍ hacen estas reglas en general:
 //   • Validar forma/tipos de los datos en cada escritura (evita basura).
@@ -29,6 +32,20 @@ service cloud.firestore {
 
     function nonEmptyStr(v, max) {
       return v is string && v.size() > 0 && v.size() <= max;
+    }
+
+    // Máquina de estados de ticket: no se puede saltar pasos hacia adelante
+    // (pendiente → en_proceso/terminado directo, o asignado → terminado
+    // directo) — hay que pasar por "asignado"/"en_proceso" en el camino.
+    // Hacia atrás (incluido reabrir un terminado) no tiene restricción:
+    // decisión explícita del usuario, para no trabar correcciones de admin.
+    function transicionDeEstadoValida(actual, nuevo) {
+      return actual == nuevo
+             || !(
+                  (actual == 'pendiente' && nuevo == 'en_proceso')
+                  || (actual == 'pendiente' && nuevo == 'terminado')
+                  || (actual == 'asignado' && nuevo == 'terminado')
+                );
     }
 
     // ── users ──────────────────────────────────────────────────────────────
@@ -83,14 +100,19 @@ service cloud.firestore {
 
     // ── tickets ────────────────────────────────────────────────────────────
     match /tickets/{ticketId} {
-      allow read: if true;
+      // A diferencia del resto de este archivo, el contenido de un ticket SÍ
+      // puede ser sensible (título/descripción libres, ej. reportar un
+      // incidente de seguridad) — exige sesión real, no lectura pública.
+      allow read: if request.auth != null;
 
       allow create: if request.auth != null
                     && nonEmptyStr(request.resource.data.title, 200)
                     && request.resource.data.description is string
                     && request.resource.data.description.size() <= 5000
                     && request.resource.data.urgency in ['CRITICO', 'ALTO', 'MEDIO', 'BAJO']
-                    && request.resource.data.status in ['pendiente', 'asignado', 'en_proceso', 'terminado']
+                    // Todo ticket nace "pendiente" — si no, se saltea toda la
+                    // máquina de estados de abajo (que solo corre en update).
+                    && request.resource.data.status == 'pendiente'
                     && request.resource.data.code is string
                     && request.resource.data.order is int
                     && nonEmptyStr(request.resource.data.createdBy, 100);
@@ -98,6 +120,7 @@ service cloud.firestore {
       allow update: if request.auth != null
                     && request.resource.data.urgency in ['CRITICO', 'ALTO', 'MEDIO', 'BAJO']
                     && request.resource.data.status in ['pendiente', 'asignado', 'en_proceso', 'terminado']
+                    && transicionDeEstadoValida(resource.data.status, request.resource.data.status)
                     // code y order son inmutables tras crearse
                     && request.resource.data.code == resource.data.code
                     && request.resource.data.order == resource.data.order;
@@ -109,7 +132,9 @@ service cloud.firestore {
       // Los eventos tipo:"sistema" los escribe la Cloud Function `registrarCambiosTicket`
       // vía Admin SDK (ignora estas reglas); el cliente solo puede crear comentarios.
       match /eventos/{eventoId} {
-        allow read: if true;
+        // Mismo criterio que el ticket padre: comentarios/historial pueden
+        // tener info sensible, exige sesión real.
+        allow read: if request.auth != null;
         allow create: if request.auth != null
                       && request.resource.data.tipo == 'comentario'
                       && request.resource.data.actorId == request.auth.uid

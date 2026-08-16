@@ -3,7 +3,7 @@ import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Timestamp } from "firebase/firestore";
-import type { Ticket } from "../../types/ticket";
+import type { Ticket, TicketStatus } from "../../types/ticket";
 import type { Empleado } from "../../types/empleado";
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
@@ -18,6 +18,7 @@ import { empleadosService } from "../../services/empleadosService";
 import { ticketsService } from "../../services/ticketsService";
 import { configService } from "../../services/configService";
 import { calcularCarga, estaOcupado } from "../../lib/carga";
+import { transicionEstadoValida } from "../../lib/ticketStatus";
 import { ahoraLimaInputValue } from "../../lib/fecha";
 
 const ticketSchema = z.object({
@@ -106,6 +107,20 @@ export const TicketForm: React.FC<TicketFormProps> = ({ initialData, onSubmit, l
     .filter((e) => e.activo || e.id === initialData?.assignedTo)
     .map((e) => ({ ...e, carga: calcularCarga(ticketsParaCarga, e.id) }))
     .sort((a, b) => (a.carga !== b.carga ? a.carga - b.carga : a.nombre.localeCompare(b.nombre)));
+
+  // No dejar elegir un salto de estado hacia adelante invalido (ver
+  // lib/ticketStatus.ts) — comparado contra el status que el ticket tiene
+  // guardado hoy, no contra lo que haya en el form sin guardar todavia.
+  const todosLosEstados: { value: TicketStatus; label: string }[] = [
+    { value: "pendiente", label: "Pendiente" },
+    { value: "asignado", label: "Asignado" },
+    { value: "en_proceso", label: "En Proceso" },
+    { value: "terminado", label: "Terminado" },
+  ];
+  const estadoActual = initialData?.status;
+  const estadosDisponibles = estadoActual
+    ? todosLosEstados.filter((e) => transicionEstadoValida(estadoActual, e.value))
+    : todosLosEstados;
 
   const submit = (data: TicketFormData) =>
     onSubmit({
@@ -210,12 +225,7 @@ export const TicketForm: React.FC<TicketFormProps> = ({ initialData, onSubmit, l
                   control={control}
                   render={({ field }) => (
                     <Select
-                      items={[
-                        { value: "pendiente", label: "Pendiente" },
-                        { value: "asignado", label: "Asignado" },
-                        { value: "en_proceso", label: "En Proceso" },
-                        { value: "terminado", label: "Terminado" },
-                      ]}
+                      items={estadosDisponibles}
                       value={field.value}
                       onValueChange={field.onChange}
                     >
@@ -224,10 +234,11 @@ export const TicketForm: React.FC<TicketFormProps> = ({ initialData, onSubmit, l
                       </SelectTrigger>
                       <SelectContent>
                         <SelectGroup>
-                          <SelectItem value="pendiente">Pendiente</SelectItem>
-                          <SelectItem value="asignado">Asignado</SelectItem>
-                          <SelectItem value="en_proceso">En Proceso</SelectItem>
-                          <SelectItem value="terminado">Terminado</SelectItem>
+                          {estadosDisponibles.map((e) => (
+                            <SelectItem key={e.value} value={e.value}>
+                              {e.label}
+                            </SelectItem>
+                          ))}
                         </SelectGroup>
                       </SelectContent>
                     </Select>

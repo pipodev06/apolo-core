@@ -82,6 +82,21 @@ export const EmpleadosTab = forwardRef<EmpleadosTabHandle, Props>(({ soloPapeler
   };
 
   const handleToggle = async (e: Empleado) => {
+    // Solo advertir al desactivar (e.activo === true, va a pasar a false) —
+    // reactivar no tiene efecto sobre tickets. Desactivar no reasigna ni
+    // desasigna nada, los tickets se quedan apuntando a este empleado.
+    if (e.activo) {
+      const carga = calcularCarga(tickets, e.id);
+      if (carga > 0) {
+        const ok = await confirmar({
+          title: "Empleado con tickets abiertos",
+          text: `${e.nombre} tiene ${carga} ${carga === 1 ? "ticket abierto" : "tickets abiertos"} asignados. Al desactivarlo van a seguir asignados a él/ella — nadie los reasigna automáticamente. ¿Desactivar igual?`,
+          confirmText: "Desactivar igual",
+          danger: true,
+        });
+        if (!ok) return;
+      }
+    }
     try {
       await empleadosService.toggleActivo(e.id, e.activo);
       fetch();
@@ -91,9 +106,13 @@ export const EmpleadosTab = forwardRef<EmpleadosTabHandle, Props>(({ soloPapeler
   };
 
   const handleDelete = async (e: Empleado) => {
+    const carga = calcularCarga(tickets, e.id);
     const ok = await confirmar({
       title: "Eliminar empleado",
-      text: `¿Seguro que deseas eliminar a ${e.nombre}? Se enviará a la papelera.`,
+      text:
+        carga > 0
+          ? `${e.nombre} tiene ${carga} ${carga === 1 ? "ticket abierto" : "tickets abiertos"} asignados — van a quedar asignados a un empleado eliminado, nadie los reasigna automáticamente. ¿Enviar a la papelera igual?`
+          : `¿Seguro que deseas eliminar a ${e.nombre}? Se enviará a la papelera.`,
       confirmText: "Eliminar",
       danger: true,
     });

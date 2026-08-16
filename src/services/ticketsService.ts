@@ -102,6 +102,11 @@ export const ticketsService = {
 
     if (data.status === "terminado") {
       updateData.finishedAt = serverTimestamp();
+    } else if (data.status) {
+      // Reabrir un ticket que ya había sido terminado: limpiar finishedAt,
+      // si no queda con una fecha de "finalizado" vieja y falsa (rompe
+      // cualquier métrica de tiempo de resolución que se calcule a futuro).
+      updateData.finishedAt = null;
     }
 
     await updateDoc(ticketRef, updateData);
