@@ -25,11 +25,13 @@ pnpm build
 
 1. **Crear un proyecto Firebase** ([console.firebase.google.com](https://console.firebase.google.com)) y habilitar: Authentication, Firestore, Cloud Functions y Hosting.
 2. **Apuntar el frontend a tu proyecto**: reemplaza el objeto `firebaseConfig` de `src/firebase.ts` por el de tu propio proyecto (Project Settings → General → tu app web). No hace falta ocultarlo, ver nota arriba.
-3. **Configurar el secreto de la IA** (SambaNova, usado por las Cloud Functions de asignación automática):
+3. **Apuntar la CLI de Firebase a tu proyecto**: reemplaza el id de proyecto en `.firebaserc` (campo `projects.default`) por el tuyo — si no, `firebase deploy` y el resto de comandos de la CLI van a intentar apuntar al proyecto original de este repo (y van a fallar por permisos).
+4. **Conseguir una API key de SambaNova**: creá una cuenta en [SambaNova Cloud](https://cloud.sambanova.ai) y generá una API key desde su panel — es el proveedor de IA que usa `analizarYAsignar` para clasificar y asignar tickets automáticamente.
+5. **Configurar el secreto de la IA** (con la key del paso anterior):
    ```bash
    firebase functions:secrets:set SAMBANOVA_API_KEY
    ```
-4. **Desplegar reglas y funciones**:
+6. **Desplegar reglas y funciones**:
    ```bash
    firebase deploy --only firestore:rules,functions
    ```
