@@ -36,7 +36,7 @@ export const PersonalPage: React.FC = () => {
     <div className="space-y-2">
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-gray-800 dark:text-gray-100">Personal</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Personal</h1>
         </div>
         <Button onClick={handleNuevo}>
           <Plus className="h-4 w-4" />
@@ -44,7 +44,7 @@ export const PersonalPage: React.FC = () => {
         </Button>
       </div>
 
-      <div className="border-b border-gray-200 dark:border-gray-800">
+      <div className="border-b">
         <nav className="-mb-px flex gap-8">
           {tabs.map((t) => (
             <button
@@ -53,8 +53,8 @@ export const PersonalPage: React.FC = () => {
               className={cn(
                 "cursor-pointer whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium transition-colors",
                 tab === t.id
-                  ? "border-indigo-600 text-indigo-600"
-                  : "border-transparent text-gray-800 hover:border-gray-200 hover:text-gray-800 dark:text-gray-100 dark:hover:border-gray-800 dark:hover:text-gray-100"
+                  ? "border-primary text-primary"
+                  : "border-transparent text-muted-foreground hover:border-border hover:text-foreground"
               )}
             >
               {t.label}

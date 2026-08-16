@@ -95,7 +95,7 @@ export const Dashboard: React.FC = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-gray-800 dark:text-gray-100">Dashboard de Métricas</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Dashboard de Métricas</h1>
       </div>
 
       {/* Stat cards */}
@@ -188,7 +188,7 @@ export const Dashboard: React.FC = () => {
           <CardContent>
             <div className="h-72">
               {porEmpleado.length === 0 ? (
-                <p className="py-12 text-center text-gray-800 dark:text-gray-100">Sin datos.</p>
+                <p className="py-12 text-center text-muted-foreground">Sin datos.</p>
               ) : (
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={porEmpleado} layout="vertical" margin={{ left: 24 }}>
@@ -235,8 +235,8 @@ const StatCard: React.FC<{ title: string; value: number | string; icon: LucideIc
       <Icon className="h-6 w-6" />
     </div>
     <div className="min-w-0">
-      <p className="truncate text-xs font-medium text-gray-800 dark:text-gray-100">{title}</p>
-      <p className="text-2xl font-bold text-gray-800 dark:text-gray-100">{value}</p>
+      <p className="truncate text-xs font-medium text-muted-foreground">{title}</p>
+      <p className="text-2xl font-bold">{value}</p>
     </div>
   </Card>
 );

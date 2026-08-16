@@ -163,7 +163,7 @@ export const UsuariosTab: React.FC<Props> = ({ soloPapelera = false }) => {
     <div className="space-y-2">
       {!soloPapelera && (
         <div className="flex items-center justify-between">
-          <h3 className="text-lg font-medium text-gray-800 dark:text-gray-100">Gestión de Usuarios</h3>
+          <h3 className="text-lg font-medium">Gestión de Usuarios</h3>
           <Button size="sm" onClick={() => setShowNuevo(true)}>
             <Plus className="h-4 w-4" />
             Nuevo Usuario
@@ -172,7 +172,7 @@ export const UsuariosTab: React.FC<Props> = ({ soloPapelera = false }) => {
       )}
 
       {/* Filtros */}
-      <div className="flex flex-wrap items-end gap-3 rounded-lg border border-gray-200 bg-white p-2 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+      <div className="flex flex-wrap items-end gap-3 rounded-lg border bg-card p-2 shadow-sm">
         <div>
           <Select
             items={[
@@ -197,7 +197,7 @@ export const UsuariosTab: React.FC<Props> = ({ soloPapelera = false }) => {
         </div>
         <div className="min-w-55 flex-1">
           <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-800 dark:text-gray-100" />
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               type="text"
               value={dQuery}
@@ -223,12 +223,12 @@ export const UsuariosTab: React.FC<Props> = ({ soloPapelera = false }) => {
       {loading ? (
         <PageSpinner />
       ) : filtered.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-gray-200 bg-white py-12 text-center dark:border-gray-800 dark:bg-gray-900">
-          <UserIcon className="mx-auto mb-4 h-12 w-12 text-gray-800/40 dark:text-gray-100/40" />
-          <h3 className="text-lg font-medium text-gray-800 dark:text-gray-100">
+        <div className="rounded-lg border border-dashed bg-card py-12 text-center">
+          <UserIcon className="mx-auto mb-4 h-12 w-12 text-muted-foreground/40" />
+          <h3 className="text-lg font-medium">
             {soloPapelera ? "Papelera vacía" : "Sin usuarios"}
           </h3>
-          <p className="text-gray-800 dark:text-gray-100">
+          <p className="text-muted-foreground">
             {soloPapelera
               ? "No hay usuarios eliminados."
               : hayFiltrosActivos
@@ -238,7 +238,7 @@ export const UsuariosTab: React.FC<Props> = ({ soloPapelera = false }) => {
         </div>
       ) : (
         <>
-          <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
+          <div className="overflow-hidden rounded-lg border bg-card shadow-sm">
           <Table>
             <TableHeader>
               <TableRow>
@@ -256,19 +256,19 @@ export const UsuariosTab: React.FC<Props> = ({ soloPapelera = false }) => {
                 <TableCell>{(pageSafe - 1) * PAGE_SIZE + i + 1}</TableCell>
                 <TableCell>
                   <div className="flex items-center">
-                    <div className="mr-3 flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800">
-                      <UserIcon className="h-4 w-4 text-gray-800 dark:text-gray-100" />
+                    <div className="mr-3 flex h-8 w-8 items-center justify-center rounded-full bg-muted">
+                      <UserIcon className="h-4 w-4 text-muted-foreground" />
                     </div>
                     <span className="font-medium">{user.username}</span>
                   </div>
                 </TableCell>
-                <TableCell className="text-gray-800 dark:text-gray-100">{user.email || "-"}</TableCell>
+                <TableCell className="text-muted-foreground">{user.email || "-"}</TableCell>
                 <TableCell>
                   <div className="flex items-center">
                     {esAdmin(user.role) ? (
-                      <Shield className={cn("mr-1 h-4 w-4", esSuperAdmin(user.role) ? "text-indigo-600" : "text-gray-800 dark:text-gray-100")} />
+                      <Shield className={cn("mr-1 h-4 w-4", esSuperAdmin(user.role) ? "text-primary" : "text-muted-foreground")} />
                     ) : (
-                      <UserIcon className="mr-1 h-4 w-4 text-gray-800 dark:text-gray-100" />
+                      <UserIcon className="mr-1 h-4 w-4 text-muted-foreground" />
                     )}
                     <span>{roleLabel(user.role)}</span>
                   </div>
@@ -290,7 +290,7 @@ export const UsuariosTab: React.FC<Props> = ({ soloPapelera = false }) => {
                       <>
                         <button
                           onClick={() => restaurar(user)}
-                          className="cursor-pointer rounded-md p-1.5 text-gray-800 transition-colors hover:bg-green-500/10 hover:text-green-600 dark:text-gray-100"
+                          className="cursor-pointer rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-green-500/10 hover:text-green-600"
                           title="Restaurar"
                         >
                           <RotateCcw className="h-5 w-5" />
@@ -298,7 +298,7 @@ export const UsuariosTab: React.FC<Props> = ({ soloPapelera = false }) => {
                         <button
                           onClick={() => purgar(user)}
                           disabled={esSuperAdmin(user.role)}
-                          className="cursor-pointer rounded-md p-1.5 text-gray-800 transition-colors hover:bg-red-600/10 hover:text-red-600 disabled:cursor-not-allowed disabled:text-gray-800/40 disabled:hover:bg-transparent dark:text-gray-100 dark:disabled:text-gray-100/40"
+                          className="cursor-pointer rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
                           title="Eliminar definitivo"
                         >
                           <Trash2 className="h-5 w-5" />
@@ -309,10 +309,8 @@ export const UsuariosTab: React.FC<Props> = ({ soloPapelera = false }) => {
                         <button
                           onClick={() => handleToggleActive(user.id, user.active, user.role)}
                           className={cn(
-                            "cursor-pointer rounded-md p-1.5 transition-colors",
-                            user.active
-                              ? "text-gray-800 hover:bg-gray-100 hover:text-gray-800 dark:text-gray-100 dark:hover:bg-gray-800 dark:hover:text-gray-100"
-                              : "text-gray-800 hover:bg-green-500/10 hover:text-green-600 dark:text-gray-100"
+                            "cursor-pointer rounded-md p-1.5 text-muted-foreground transition-colors",
+                            user.active ? "hover:bg-muted hover:text-foreground" : "hover:bg-green-500/10 hover:text-green-600"
                           )}
                           title={user.active ? "Desactivar" : "Activar"}
                         >
@@ -320,7 +318,7 @@ export const UsuariosTab: React.FC<Props> = ({ soloPapelera = false }) => {
                         </button>
                         <button
                           onClick={() => setEditandoUsuario(user)}
-                          className="cursor-pointer rounded-md p-1.5 text-gray-800 transition-colors hover:bg-gray-100 hover:text-indigo-600 dark:text-gray-100 dark:hover:bg-gray-800"
+                          className="cursor-pointer rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-primary"
                           title="Editar"
                         >
                           <Pencil className="h-5 w-5" />
@@ -328,7 +326,7 @@ export const UsuariosTab: React.FC<Props> = ({ soloPapelera = false }) => {
                         <button
                           onClick={() => handleDelete(user)}
                           disabled={esSuperAdmin(user.role)}
-                          className="cursor-pointer rounded-md p-1.5 text-gray-800 transition-colors hover:bg-red-600/10 hover:text-red-600 disabled:cursor-not-allowed disabled:text-gray-800/40 disabled:hover:bg-transparent dark:text-gray-100 dark:disabled:text-gray-100/40"
+                          className="cursor-pointer rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
                           title="Eliminar"
                         >
                           <Trash2 className="h-5 w-5" />

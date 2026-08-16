@@ -50,6 +50,11 @@ export const TicketsList: React.FC<Props> = ({ soloPapelera = false }) => {
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [empleados, setEmpleados] = useState<Empleado[]>([]);
   const [loading, setLoading] = useState(true);
+  // Empleados se carga aparte de tickets (fetch normal, no listener) y tarda
+  // mas — sin esto la lista se pinta con "Sin asignar" en cada card hasta
+  // que resuelve, aunque el ticket si tenga assignedTo. Mismo bug que en
+  // TicketDetail.tsx.
+  const [empleadosListos, setEmpleadosListos] = useState(false);
 
   // Borrador: lo que el usuario va eligiendo antes de aplicar.
   // dEstado/dUrgencia: "" = todos.
@@ -75,13 +80,13 @@ export const TicketsList: React.FC<Props> = ({ soloPapelera = false }) => {
   }, [soloPapelera]);
 
   useEffect(() => {
-    empleadosService.getAll().then(setEmpleados).catch(() => {});
+    empleadosService.getAll().then(setEmpleados).catch(() => {}).finally(() => setEmpleadosListos(true));
   }, []);
 
   const empleadoNombre = (id?: string) => empleados.find((e) => e.id === id)?.nombre;
 
   // Cards: solo el contenedor scrollea (viewport estático), ~15px de margen inferior.
-  const { ref: cardsRef, style: cardsStyle } = useAlturaScrollViewport(15, [loading]);
+  const { ref: cardsRef, style: cardsStyle } = useAlturaScrollViewport(15, [loading, empleadosListos]);
 
   // Orden: última edición primero.
   const ordenados = useMemo(() => {
@@ -176,14 +181,14 @@ export const TicketsList: React.FC<Props> = ({ soloPapelera = false }) => {
       <>
         <button
           onClick={() => restaurar(ticket)}
-          className="cursor-pointer rounded-md p-1.5 text-gray-800 transition-colors hover:bg-green-500/10 hover:text-green-600 dark:text-gray-100"
+          className="cursor-pointer rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-green-500/10 hover:text-green-600"
           title="Restaurar"
         >
           <RotateCcw className="h-5 w-5" />
         </button>
         <button
           onClick={() => purgar(ticket)}
-          className="cursor-pointer rounded-md p-1.5 text-gray-800 transition-colors hover:bg-red-600/10 hover:text-red-600 dark:text-gray-100"
+          className="cursor-pointer rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
           title="Eliminar definitivo"
         >
           <Trash2 className="h-5 w-5" />
@@ -194,20 +199,20 @@ export const TicketsList: React.FC<Props> = ({ soloPapelera = false }) => {
         <Link
           to={`/tickets/${ticket.id}`}
           title="Ver detalle"
-          className="rounded-md p-1.5 text-gray-800 transition-colors hover:bg-gray-100 hover:text-indigo-600 dark:text-gray-100 dark:hover:bg-gray-800"
+          className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-primary"
         >
           <Eye className="h-5 w-5" />
         </Link>
         <Link
           to={`/tickets/${ticket.id}/editar`}
           title="Editar"
-          className="rounded-md p-1.5 text-gray-800 transition-colors hover:bg-gray-100 hover:text-indigo-600 dark:text-gray-100 dark:hover:bg-gray-800"
+          className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-primary"
         >
           <Pencil className="h-5 w-5" />
         </Link>
         <button
           onClick={() => handleDelete(ticket)}
-          className="cursor-pointer rounded-md p-1.5 text-gray-800 transition-colors hover:bg-red-600/10 hover:text-red-600 dark:text-gray-100"
+          className="cursor-pointer rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
           title="Eliminar"
         >
           <Trash2 className="h-5 w-5" />
@@ -218,16 +223,16 @@ export const TicketsList: React.FC<Props> = ({ soloPapelera = false }) => {
   // Card de ticket compartida entre el tablero y la grilla plana de Papelera.
   // Fila 1: contador + código + estado (pastilla). Fila 2: título. Fila 3:
   // descripción. Fila 4: urgencia + hora. Fila 5: asignado.
-  // Texto: un solo shade (gray-800) en todo el card — la jerarquía
+  // Texto: un solo color (foreground) en todo el card — la jerarquía
   // (título vs. resto) se marca solo con font-bold, no con color.
   const renderTicketCard = (ticket: Ticket, index: number) => (
-    <Card key={ticket.id} className="flex flex-col border border-gray-200 p-5 dark:border-gray-800">
+    <Card key={ticket.id} className="flex flex-col p-5">
       <div className="mb-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-xs font-bold text-white">
+          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
             {index + 1}
           </span>
-          <span className="text-sm font-bold text-indigo-600">{ticket.code}</span>
+          <span className="text-sm font-bold text-primary">{ticket.code}</span>
         </div>
         {soloPapelera ? (
           <Badge variant="red" dot>
@@ -235,27 +240,27 @@ export const TicketsList: React.FC<Props> = ({ soloPapelera = false }) => {
           </Badge>
         ) : (
           <div className="flex items-center gap-1.5">
-            <span className="text-xs font-bold text-gray-800 dark:text-gray-100">Estado:</span>
+            <span className="text-xs font-bold">Estado:</span>
             <StatusBadge status={ticket.status} />
           </div>
         )}
       </div>
-      <h3 className="mb-2 line-clamp-2 font-bold uppercase text-gray-800 dark:text-gray-100">{ticket.title}</h3>
-      <p className="mb-4 line-clamp-2 text-sm text-gray-800 dark:text-gray-100">{ticket.description}</p>
+      <h3 className="mb-2 line-clamp-2 font-bold uppercase">{ticket.title}</h3>
+      <p className="mb-4 line-clamp-2 text-sm text-muted-foreground">{ticket.description}</p>
 
       <div className="mt-auto space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1.5">
-            <span className="text-xs font-bold text-gray-800 dark:text-gray-100">Urgencia:</span>
+            <span className="text-xs font-bold">Urgencia:</span>
             <UrgencyBadge urgency={ticket.urgency} />
           </div>
-          <span className="text-xs text-gray-800 dark:text-gray-100">{fmtFechaHora(ticket.incidentTime)}</span>
+          <span className="text-xs text-muted-foreground">{fmtFechaHora(ticket.incidentTime)}</span>
         </div>
-        <div className="flex items-center gap-1.5 text-sm text-gray-800 dark:text-gray-100">
+        <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
           <User className="h-4 w-4" />
           {empleadoNombre(ticket.assignedTo) || "Sin asignar"}
         </div>
-        <div className="flex items-center justify-end gap-1 border-t border-gray-200 pt-3 dark:border-gray-800">
+        <div className="flex items-center justify-end gap-1 border-t pt-3">
           {acciones(ticket)}
         </div>
       </div>
@@ -267,7 +272,7 @@ export const TicketsList: React.FC<Props> = ({ soloPapelera = false }) => {
       {!soloPapelera && (
         <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-gray-800 dark:text-gray-100">Tickets</h1>
+            <h1 className="text-2xl font-bold tracking-tight">Tickets</h1>
           </div>
           <Link to="/tickets/nuevo">
             <Button>
@@ -279,9 +284,9 @@ export const TicketsList: React.FC<Props> = ({ soloPapelera = false }) => {
       )}
 
       {/* Filtros */}
-      <div className="flex flex-wrap items-end gap-3 rounded-lg border border-gray-200 bg-white p-2 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+      <div className="flex flex-wrap items-end gap-3 rounded-lg border bg-card p-2 shadow-sm">
         <div className="flex items-center gap-1.5">
-          <span className="text-xs text-gray-800 dark:text-gray-100">Estado:</span>
+          <span className="text-xs text-muted-foreground">Estado:</span>
           <Select
             items={[{ value: "__all__", label: "Todos" }, ...Object.entries(statusLabels).map(([value, label]) => ({ value, label }))]}
             value={dEstado || "__all__"}
@@ -303,7 +308,7 @@ export const TicketsList: React.FC<Props> = ({ soloPapelera = false }) => {
           </Select>
         </div>
         <div className="flex items-center gap-1.5">
-          <span className="text-xs text-gray-800 dark:text-gray-100">Urgencia:</span>
+          <span className="text-xs text-muted-foreground">Urgencia:</span>
           <Select
             items={[{ value: "__all__", label: "Todas" }, ...Object.entries(urgencyLabels).map(([value, label]) => ({ value, label }))]}
             value={dUrgencia || "__all__"}
@@ -326,7 +331,7 @@ export const TicketsList: React.FC<Props> = ({ soloPapelera = false }) => {
         </div>
         <div className="min-w-55 flex-1">
           <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-800 dark:text-gray-100" />
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               type="text"
               value={dQuery}
@@ -338,7 +343,7 @@ export const TicketsList: React.FC<Props> = ({ soloPapelera = false }) => {
           </div>
         </div>
         <div className="flex items-center gap-1.5">
-          <span className="text-xs text-gray-800 dark:text-gray-100">Desde:</span>
+          <span className="text-xs text-muted-foreground">Desde:</span>
           <Input
             type="date"
             value={dDesde}
@@ -347,7 +352,7 @@ export const TicketsList: React.FC<Props> = ({ soloPapelera = false }) => {
           />
         </div>
         <div className="flex items-center gap-1.5">
-          <span className="text-xs text-gray-800 dark:text-gray-100">Hasta:</span>
+          <span className="text-xs text-muted-foreground">Hasta:</span>
           <Input
             type="date"
             value={dHasta}
@@ -367,15 +372,15 @@ export const TicketsList: React.FC<Props> = ({ soloPapelera = false }) => {
         )}
       </div>
 
-      {loading ? (
+      {loading || !empleadosListos ? (
         <PageSpinner />
       ) : filtered.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-gray-200 bg-white py-12 text-center dark:border-gray-800 dark:bg-gray-900">
-          <TicketIcon className="mx-auto mb-4 h-12 w-12 text-gray-800 dark:text-gray-100" />
-          <h3 className="text-lg font-medium text-gray-800 dark:text-gray-100">
+        <div className="rounded-lg border border-dashed bg-card py-12 text-center">
+          <TicketIcon className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
+          <h3 className="text-lg font-medium">
             {soloPapelera ? "Papelera vacía" : "No hay tickets"}
           </h3>
-          <p className="text-gray-800 dark:text-gray-100">
+          <p className="text-muted-foreground">
             {soloPapelera
               ? "No hay tickets eliminados."
               : hayFiltrosActivos

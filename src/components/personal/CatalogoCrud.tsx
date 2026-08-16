@@ -151,18 +151,18 @@ export const CatalogoCrud = forwardRef<CatalogoCrudHandle, Props>(
       {loading ? (
         <PageSpinner />
       ) : items.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-gray-200 bg-white py-12 text-center dark:border-gray-800 dark:bg-gray-900">
-          <Tag className="mx-auto mb-4 h-12 w-12 text-gray-800/40 dark:text-gray-100/40" />
-          <h3 className="text-lg font-medium text-gray-800 dark:text-gray-100">
+        <div className="rounded-lg border border-dashed bg-card py-12 text-center">
+          <Tag className="mx-auto mb-4 h-12 w-12 text-muted-foreground/40" />
+          <h3 className="text-lg font-medium">
             {soloPapelera ? "Papelera vacía" : "Sin registros"}
           </h3>
-          <p className="text-gray-800 dark:text-gray-100">
+          <p className="text-muted-foreground">
             {soloPapelera ? "No hay elementos eliminados." : `Crea el primer ${singular} para empezar.`}
           </p>
         </div>
       ) : (
         <>
-          <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
+          <div className="overflow-hidden rounded-lg border bg-card shadow-sm">
           <Table>
             <TableHeader>
               <TableRow>
@@ -194,14 +194,14 @@ export const CatalogoCrud = forwardRef<CatalogoCrudHandle, Props>(
                       <>
                         <button
                           onClick={() => restaurar(it)}
-                          className="cursor-pointer rounded-md p-1.5 text-gray-800 transition-colors hover:bg-green-500/10 hover:text-green-600 dark:text-gray-100"
+                          className="cursor-pointer rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-green-500/10 hover:text-green-600"
                           title="Restaurar"
                         >
                           <RotateCcw className="h-5 w-5" />
                         </button>
                         <button
                           onClick={() => purgar(it)}
-                          className="cursor-pointer rounded-md p-1.5 text-gray-800 transition-colors hover:bg-red-600/10 hover:text-red-600 dark:text-gray-100"
+                          className="cursor-pointer rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
                           title="Eliminar definitivo"
                         >
                           <Trash2 className="h-5 w-5" />
@@ -212,10 +212,8 @@ export const CatalogoCrud = forwardRef<CatalogoCrudHandle, Props>(
                         <button
                           onClick={() => toggle(it)}
                           className={cn(
-                            "cursor-pointer rounded-md p-1.5 transition-colors",
-                            it.activo
-                              ? "text-gray-800 hover:bg-gray-100 hover:text-gray-800 dark:text-gray-100 dark:hover:bg-gray-800 dark:hover:text-gray-100"
-                              : "text-gray-800 hover:bg-green-500/10 hover:text-green-600 dark:text-gray-100"
+                            "cursor-pointer rounded-md p-1.5 text-muted-foreground transition-colors",
+                            it.activo ? "hover:bg-muted hover:text-foreground" : "hover:bg-green-500/10 hover:text-green-600"
                           )}
                           title={it.activo ? "Desactivar" : "Activar"}
                         >
@@ -223,14 +221,14 @@ export const CatalogoCrud = forwardRef<CatalogoCrudHandle, Props>(
                         </button>
                         <button
                           onClick={() => openEditar(it)}
-                          className="cursor-pointer rounded-md p-1.5 text-gray-800 transition-colors hover:bg-gray-100 hover:text-indigo-600 dark:text-gray-100 dark:hover:bg-gray-800"
+                          className="cursor-pointer rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-primary"
                           title="Editar"
                         >
                           <Pencil className="h-5 w-5" />
                         </button>
                         <button
                           onClick={() => eliminar(it)}
-                          className="cursor-pointer rounded-md p-1.5 text-gray-800 transition-colors hover:bg-red-600/10 hover:text-red-600 dark:text-gray-100"
+                          className="cursor-pointer rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
                           title="Eliminar"
                         >
                           <Trash2 className="h-5 w-5" />

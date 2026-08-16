@@ -58,8 +58,8 @@ export const TicketEdit: React.FC = () => {
   return (
     <div className="max-w-3xl mx-auto space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-gray-800 dark:text-gray-100">Editar Ticket</h1>
-        <p className="text-gray-800 dark:text-gray-100">Actualiza la información del ticket {ticket.code}.</p>
+        <h1 className="text-2xl font-bold tracking-tight">Editar Ticket</h1>
+        <p className="text-muted-foreground">Actualiza la información del ticket {ticket.code}.</p>
       </div>
 
       <TicketForm 

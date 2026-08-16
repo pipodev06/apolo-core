@@ -61,24 +61,24 @@ export const NotificationBell: React.FC = () => {
       <button
         onClick={() => setAbierto((v) => !v)}
         aria-label="Notificaciones"
-        className="relative cursor-pointer rounded-md p-2 text-gray-800 transition-colors hover:bg-gray-100 hover:text-gray-800 dark:text-gray-100 dark:hover:bg-gray-800 dark:hover:text-gray-100"
+        className="relative cursor-pointer rounded-md p-2 text-foreground transition-colors hover:bg-muted"
       >
         <Bell className="h-5 w-5" />
         {noLeidas.length > 0 && (
-          <span className="absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-600 text-[10px] font-semibold text-white">
+          <span className="absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] font-semibold text-white">
             {noLeidas.length > 9 ? "9+" : noLeidas.length}
           </span>
         )}
       </button>
 
       {abierto && (
-        <div className="absolute right-0 z-20 mt-2 w-xl rounded-md border border-gray-200 bg-white shadow-xl dark:border-gray-800 dark:bg-gray-900">
-          <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3 dark:border-gray-800">
-            <span className="text-sm font-semibold text-gray-800 dark:text-gray-100">Notificaciones</span>
+        <div className="absolute right-0 z-20 mt-2 w-xl rounded-md border bg-card shadow-xl">
+          <div className="flex items-center justify-between border-b px-4 py-3">
+            <span className="text-sm font-semibold">Notificaciones</span>
             {noLeidas.length > 0 && (
               <button
                 onClick={handleMarcarTodas}
-                className="cursor-pointer text-xs font-medium text-indigo-600 hover:underline"
+                className="cursor-pointer text-xs font-medium text-primary hover:underline"
               >
                 Marcar todas como leídas
               </button>
@@ -86,26 +86,26 @@ export const NotificationBell: React.FC = () => {
           </div>
           <div className="max-h-96 overflow-y-auto">
             {notificaciones.length === 0 && (
-              <p className="px-4 py-6 text-center text-sm text-gray-800 dark:text-gray-100">Sin notificaciones.</p>
+              <p className="px-4 py-6 text-center text-sm text-muted-foreground">Sin notificaciones.</p>
             )}
             {notificaciones.map((n) => (
               <button
                 key={n.id}
                 onClick={() => handleClickNotificacion(n)}
-                className={`block w-full cursor-pointer border-b border-gray-200 px-4 py-3 text-left transition-colors last:border-b-0 hover:bg-gray-100 dark:border-gray-800 dark:hover:bg-gray-800 ${
-                  n.leida ? "" : "bg-indigo-600/5"
+                className={`block w-full cursor-pointer border-b px-4 py-3 text-left transition-colors last:border-b-0 hover:bg-muted ${
+                  n.leida ? "" : "bg-primary/5"
                 }`}
               >
-                <p className="text-xs font-semibold text-indigo-600">{n.ticketCode}</p>
-                <p className="mt-0.5 text-sm text-gray-800 dark:text-gray-100">{n.mensaje}</p>
-                <p className="mt-0.5 text-xs text-gray-800 dark:text-gray-100">{fmtRelativo(n.createdAt)}</p>
+                <p className="text-xs font-semibold text-primary">{n.ticketCode}</p>
+                <p className="mt-0.5 text-sm">{n.mensaje}</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">{fmtRelativo(n.createdAt)}</p>
               </button>
             ))}
           </div>
           <Link
             to="/notificaciones"
             onClick={() => setAbierto(false)}
-            className="block border-t border-gray-200 px-4 py-2.5 text-center text-xs font-medium text-indigo-600 transition-colors hover:bg-gray-100 dark:border-gray-800 dark:hover:bg-gray-800"
+            className="block border-t px-4 py-2.5 text-center text-xs font-medium text-primary transition-colors hover:bg-muted"
           >
             Ver todas las notificaciones
           </Link>

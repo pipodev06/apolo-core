@@ -13,7 +13,7 @@ function Spinner({ className, ...props }: React.ComponentProps<"svg">) {
 function PageSpinner({ className }: { className?: string }) {
   return (
     <div className="flex justify-center py-12">
-      <Spinner className={cn("size-12 text-indigo-600", className)} />
+      <Spinner className={cn("size-12 text-primary", className)} />
     </div>
   )
 }

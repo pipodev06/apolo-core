@@ -171,7 +171,7 @@ export const EmpleadosTab = forwardRef<EmpleadosTabHandle, Props>(({ soloPapeler
   return (
     <div className="space-y-2">
       {/* Filtros */}
-      <div className="flex flex-wrap items-end gap-3 rounded-lg border border-gray-200 bg-white p-2 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+      <div className="flex flex-wrap items-end gap-3 rounded-lg border bg-card p-2 shadow-sm">
         <div>
           <Select
             items={[
@@ -198,7 +198,7 @@ export const EmpleadosTab = forwardRef<EmpleadosTabHandle, Props>(({ soloPapeler
         </div>
         <div className="min-w-[220px] flex-1">
           <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-800 dark:text-gray-100" />
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               type="text"
               value={dQuery}
@@ -224,12 +224,12 @@ export const EmpleadosTab = forwardRef<EmpleadosTabHandle, Props>(({ soloPapeler
       {loading ? (
         <PageSpinner />
       ) : filtered.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-gray-200 bg-white py-12 text-center dark:border-gray-800 dark:bg-gray-900">
-          <Users className="mx-auto mb-4 h-12 w-12 text-gray-800/40 dark:text-gray-100/40" />
-          <h3 className="text-lg font-medium text-gray-800 dark:text-gray-100">
+        <div className="rounded-lg border border-dashed bg-card py-12 text-center">
+          <Users className="mx-auto mb-4 h-12 w-12 text-muted-foreground/40" />
+          <h3 className="text-lg font-medium">
             {soloPapelera ? "Papelera vacía" : "Sin personal registrado"}
           </h3>
-          <p className="text-gray-800 dark:text-gray-100">
+          <p className="text-muted-foreground">
             {soloPapelera
               ? "No hay empleados eliminados."
               : hayFiltrosActivos
@@ -239,7 +239,7 @@ export const EmpleadosTab = forwardRef<EmpleadosTabHandle, Props>(({ soloPapeler
         </div>
       ) : (
         <>
-          <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
+          <div className="overflow-hidden rounded-lg border bg-card shadow-sm">
           <Table>
             <TableHeader>
               <TableRow>
@@ -259,7 +259,7 @@ export const EmpleadosTab = forwardRef<EmpleadosTabHandle, Props>(({ soloPapeler
                 <TableCell>{(pageSafe - 1) * PAGE_SIZE + i + 1}</TableCell>
                 <TableCell>
                   <div className="flex items-center">
-                    <div className="mr-3 flex h-8 w-8 items-center justify-center rounded-full bg-indigo-600/10 text-indigo-600">
+                    <div className="mr-3 flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary">
                       {e.nombre.substring(0, 2).toUpperCase()}
                     </div>
                     <span className="font-medium">{e.nombre}</span>
@@ -302,14 +302,14 @@ export const EmpleadosTab = forwardRef<EmpleadosTabHandle, Props>(({ soloPapeler
                       <>
                         <button
                           onClick={() => restaurar(e)}
-                          className="cursor-pointer rounded-md p-1.5 text-gray-800 transition-colors hover:bg-green-500/10 hover:text-green-600 dark:text-gray-100"
+                          className="cursor-pointer rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-green-500/10 hover:text-green-600"
                           title="Restaurar"
                         >
                           <RotateCcw className="h-5 w-5" />
                         </button>
                         <button
                           onClick={() => purgar(e)}
-                          className="cursor-pointer rounded-md p-1.5 text-gray-800 transition-colors hover:bg-red-600/10 hover:text-red-600 dark:text-gray-100"
+                          className="cursor-pointer rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
                           title="Eliminar definitivo"
                         >
                           <Trash2 className="h-5 w-5" />
@@ -320,10 +320,8 @@ export const EmpleadosTab = forwardRef<EmpleadosTabHandle, Props>(({ soloPapeler
                         <button
                           onClick={() => handleToggle(e)}
                           className={cn(
-                            "cursor-pointer rounded-md p-1.5 transition-colors",
-                            e.activo
-                              ? "text-gray-800 hover:bg-gray-100 hover:text-gray-800 dark:text-gray-100 dark:hover:bg-gray-800 dark:hover:text-gray-100"
-                              : "text-gray-800 hover:bg-green-500/10 hover:text-green-600 dark:text-gray-100"
+                            "cursor-pointer rounded-md p-1.5 text-muted-foreground transition-colors",
+                            e.activo ? "hover:bg-muted hover:text-foreground" : "hover:bg-green-500/10 hover:text-green-600"
                           )}
                           title={e.activo ? "Desactivar" : "Activar"}
                         >
@@ -331,14 +329,14 @@ export const EmpleadosTab = forwardRef<EmpleadosTabHandle, Props>(({ soloPapeler
                         </button>
                         <button
                           onClick={() => openEditar(e)}
-                          className="cursor-pointer rounded-md p-1.5 text-gray-800 transition-colors hover:bg-gray-100 hover:text-indigo-600 dark:text-gray-100 dark:hover:bg-gray-800"
+                          className="cursor-pointer rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-primary"
                           title="Editar"
                         >
                           <Pencil className="h-5 w-5" />
                         </button>
                         <button
                           onClick={() => handleDelete(e)}
-                          className="cursor-pointer rounded-md p-1.5 text-gray-800 transition-colors hover:bg-red-600/10 hover:text-red-600 dark:text-gray-100"
+                          className="cursor-pointer rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
                           title="Eliminar"
                         >
                           <Trash2 className="h-5 w-5" />

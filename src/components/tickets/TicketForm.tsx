@@ -42,10 +42,15 @@ export const TicketForm: React.FC<TicketFormProps> = ({ initialData, onSubmit, l
   const isNew = !initialData?.id;
   const mostrarCamposAdmin = isAdmin && !isNew;
   const [empleados, setEmpleados] = useState<Empleado[]>([]);
+  // Igual que en TicketDetail.tsx/TicketsList.tsx: empleados se carga aparte
+  // (fetch normal, no listener) y tarda mas que el mount del form — sin esto
+  // el Select de "Asignar a" se pinta antes de tener la opcion que matchea
+  // initialData.assignedTo, y SelectValue muestra el id crudo mientras tanto.
+  const [empleadosListos, setEmpleadosListos] = useState(false);
 
   useEffect(() => {
     if (!mostrarCamposAdmin) return;
-    empleadosService.getAll().then((data) => setEmpleados(data)).catch(() => {});
+    empleadosService.getAll().then((data) => setEmpleados(data)).catch(() => {}).finally(() => setEmpleadosListos(true));
   }, [mostrarCamposAdmin]);
 
   const { register, control, handleSubmit, setValue, formState: { errors } } = useForm<TicketFormData>({
@@ -213,40 +218,44 @@ export const TicketForm: React.FC<TicketFormProps> = ({ initialData, onSubmit, l
 
             <Field>
               <FieldLabel htmlFor="assignedTo">Asignar a</FieldLabel>
-              <Controller
-                name="assignedTo"
-                control={control}
-                render={({ field }) => (
-                  <Select
-                    items={[
-                      { value: "__none__", label: "Sin asignar" },
-                      ...empleadosSeleccionables.map((e) => ({
-                        value: e.id,
-                        label: `${e.nombre}${e.cargo ? ` — ${e.cargo}` : ""}${!e.activo ? " (inactivo)" : ""}`,
-                      })),
-                    ]}
-                    value={field.value || "__none__"}
-                    onValueChange={(v) => field.onChange(v === "__none__" ? "" : v)}
-                  >
-                    <SelectTrigger id="assignedTo" className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectGroup>
-                        <SelectItem value="__none__">Sin asignar</SelectItem>
-                        {empleadosSeleccionables.map((e) => (
-                          <SelectItem key={e.id} value={e.id}>
-                            {e.nombre}
-                            {e.cargo ? ` — ${e.cargo}` : ""}
-                            {!e.activo ? " (inactivo)" : ""}
-                          </SelectItem>
-                        ))}
-                      </SelectGroup>
-                    </SelectContent>
-                  </Select>
-                )}
-              />
-              <p className="mt-1.5 text-xs text-gray-800 dark:text-gray-100">
+              {empleadosListos ? (
+                <Controller
+                  name="assignedTo"
+                  control={control}
+                  render={({ field }) => (
+                    <Select
+                      items={[
+                        { value: "__none__", label: "Sin asignar" },
+                        ...empleadosSeleccionables.map((e) => ({
+                          value: e.id,
+                          label: `${e.nombre}${e.cargo ? ` — ${e.cargo}` : ""}${!e.activo ? " (inactivo)" : ""}`,
+                        })),
+                      ]}
+                      value={field.value || "__none__"}
+                      onValueChange={(v) => field.onChange(v === "__none__" ? "" : v)}
+                    >
+                      <SelectTrigger id="assignedTo" className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectGroup>
+                          <SelectItem value="__none__">Sin asignar</SelectItem>
+                          {empleadosSeleccionables.map((e) => (
+                            <SelectItem key={e.id} value={e.id}>
+                              {e.nombre}
+                              {e.cargo ? ` — ${e.cargo}` : ""}
+                              {!e.activo ? " (inactivo)" : ""}
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+              ) : (
+                <Input id="assignedTo" disabled placeholder="Cargando personal..." />
+              )}
+              <p className="mt-1.5 text-xs text-muted-foreground">
                 La hora de asignación se registra automáticamente.
               </p>
             </Field>

@@ -18,10 +18,10 @@ export const Administracion: React.FC = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-gray-800 dark:text-gray-100">Administración</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Administración</h1>
       </div>
 
-      <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+      <div className="rounded-xl border bg-card p-6 shadow-sm">
         <NavTabs tabs={tabs} />
         <div className="mt-8">
           <Outlet />

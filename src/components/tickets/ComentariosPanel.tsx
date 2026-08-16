@@ -50,18 +50,18 @@ export const ComentariosPanel: React.FC<{ ticketId: string; eventos: TicketEvent
 
   return (
     <Card className={cn("flex h-full flex-col p-6", className)}>
-      <h3 className="mb-4 text-sm font-semibold uppercase tracking-wider text-gray-800 dark:text-gray-100">
+      <h3 className="mb-4 text-sm font-semibold uppercase tracking-wider">
         Comentarios
       </h3>
 
       <div ref={listaRef} className="max-h-[600px] space-y-2 overflow-y-auto pr-1">
         {comentarios.length === 0 && (
-          <p className="text-sm text-gray-800 dark:text-gray-100">Todavía no hay comentarios.</p>
+          <p className="text-sm text-muted-foreground">Todavía no hay comentarios.</p>
         )}
         {comentarios.map((evento) => {
           const esPropio = evento.actorId === user?.userId;
           return (
-            <div key={evento.id} className="overflow-hidden rounded-md border border-gray-200 dark:border-gray-800">
+            <div key={evento.id} className="overflow-hidden rounded-md border">
               <div
                 className={cn(
                   "px-2 py-1 text-center text-xs font-bold text-white",
@@ -74,7 +74,7 @@ export const ComentariosPanel: React.FC<{ ticketId: string; eventos: TicketEvent
                 <ExpandableText
                   texto={evento.texto ?? ""}
                   maxChars={LARGO_PREVIEW}
-                  className="mt-0.5 whitespace-pre-wrap break-words text-sm text-gray-800 dark:text-gray-100"
+                  className="mt-0.5 whitespace-pre-wrap break-words text-sm"
                 />
                 <div className="mt-1 flex justify-end">
                   <Badge variant="gray">{fmtFechaHora(evento.createdAt)}</Badge>
@@ -85,7 +85,7 @@ export const ComentariosPanel: React.FC<{ ticketId: string; eventos: TicketEvent
         })}
       </div>
 
-      <div className="mt-6 flex gap-2 border-t border-gray-200 pt-4 dark:border-gray-800">
+      <div className="mt-6 flex gap-2 border-t pt-4">
         <Textarea
           value={texto}
           onChange={(e) => setTexto(e.target.value)}

@@ -96,10 +96,10 @@ export const AccesosTab: React.FC = () => {
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-medium text-gray-800 dark:text-gray-100">Matriz de Accesos por Sección</h3>
+        <h3 className="text-lg font-medium">Matriz de Accesos por Sección</h3>
       </div>
 
-      <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
+      <div className="overflow-hidden rounded-lg border bg-card shadow-sm">
       <Table>
         <TableHeader>
           <TableRow>
@@ -123,7 +123,7 @@ export const AccesosTab: React.FC = () => {
               <TableCell>{i + 1}</TableCell>
               <TableCell className="font-medium">
                 {user.username}{" "}
-                {elevado && <span className="ml-1 text-xs font-bold text-indigo-600">({roleLabel(user.role)})</span>}
+                {elevado && <span className="ml-1 text-xs font-bold text-primary">({roleLabel(user.role)})</span>}
               </TableCell>
               <TableCell className="text-center">
                 <Checkbox

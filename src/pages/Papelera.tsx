@@ -26,11 +26,11 @@ export const Papelera: React.FC = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-gray-800 dark:text-gray-100">Papelera</h1>
-        <p className="text-gray-800 dark:text-gray-100">Elementos eliminados de todos los módulos, en un solo lugar.</p>
+        <h1 className="text-2xl font-bold tracking-tight">Papelera</h1>
+        <p className="text-muted-foreground">Elementos eliminados de todos los módulos, en un solo lugar.</p>
       </div>
 
-      <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+      <div className="rounded-xl border bg-card p-6 shadow-sm">
         <NavTabs tabs={tabs} />
         <div className="mt-8">
           <Outlet />
