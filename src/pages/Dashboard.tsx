@@ -9,7 +9,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
   AreaChart, Area,
 } from "recharts";
-import { format, subDays, isWithinInterval, startOfDay, endOfDay } from "date-fns";
+import { format, subDays } from "date-fns";
 import { es } from "date-fns/locale";
 import { Card, CardHeader, CardTitle, CardContent } from "../components/ui/card";
 import { PageSpinner } from "../components/ui/spinner";
@@ -77,35 +77,53 @@ export const Dashboard: React.FC = () => {
     return () => unsubscribe();
   }, []);
 
-  const total = tickets.length;
-  const count = (s: string) => tickets.filter((t) => t.status === s).length;
-  const pendientes = count("pendiente");
-  const enProceso = count("en_proceso") + count("asignado");
-  const terminados = count("terminado");
-  const resueltoPct = total ? Math.round((terminados / total) * 100) : 0;
+  // Un solo pase sobre tickets (en vez de ~10 .filter() separados, cada uno
+  // recorriendo el arreglo entero) — y memoizado, para no recalcular nada de
+  // esto en renders que no cambian tickets (ej. el toggle de tema).
+  const { total, pendientes, enProceso, terminados, resueltoPct, statusData, urgencyData, last14Days } =
+    useMemo(() => {
+      const porStatus: Record<string, number> = {};
+      const porUrgencia: Record<string, number> = {};
+      for (const t of tickets) {
+        porStatus[t.status] = (porStatus[t.status] ?? 0) + 1;
+        porUrgencia[t.urgency] = (porUrgencia[t.urgency] ?? 0) + 1;
+      }
 
-  const statusData = [
-    { name: "Pendiente", value: count("pendiente"), color: "#64748b" },
-    { name: "Asignado", value: count("asignado"), color: "#3b82f6" },
-    { name: "En Proceso", value: count("en_proceso"), color: "#9333ea" },
-    { name: "Terminado", value: count("terminado"), color: "#16a34a" },
-  ].filter((d) => d.value > 0);
+      const total = tickets.length;
+      const pendientes = porStatus["pendiente"] ?? 0;
+      const enProceso = (porStatus["en_proceso"] ?? 0) + (porStatus["asignado"] ?? 0);
+      const terminados = porStatus["terminado"] ?? 0;
+      const resueltoPct = total ? Math.round((terminados / total) * 100) : 0;
 
-  const urgencyData = [
-    { name: "Bajo", value: tickets.filter((t) => t.urgency === "BAJO").length, color: "#16a34a" },
-    { name: "Medio", value: tickets.filter((t) => t.urgency === "MEDIO").length, color: "#ca8a04" },
-    { name: "Alto", value: tickets.filter((t) => t.urgency === "ALTO").length, color: "#ea580c" },
-    { name: "Crítico", value: tickets.filter((t) => t.urgency === "CRITICO").length, color: "#dc2626" },
-  ];
+      const statusData = [
+        { name: "Pendiente", value: porStatus["pendiente"] ?? 0, color: "#64748b" },
+        { name: "Asignado", value: porStatus["asignado"] ?? 0, color: "#3b82f6" },
+        { name: "En Proceso", value: porStatus["en_proceso"] ?? 0, color: "#9333ea" },
+        { name: "Terminado", value: porStatus["terminado"] ?? 0, color: "#16a34a" },
+      ].filter((d) => d.value > 0);
 
-  const last14Days = Array.from({ length: 14 }, (_, i) => {
-    const date = subDays(new Date(), 13 - i);
-    const dayTickets = tickets.filter((t) => {
-      if (!(t.createdAt instanceof Timestamp)) return false;
-      return isWithinInterval(t.createdAt.toDate(), { start: startOfDay(date), end: endOfDay(date) });
-    });
-    return { name: format(date, "dd MMM", { locale: es }), tickets: dayTickets.length };
-  });
+      const urgencyData = [
+        { name: "Bajo", value: porUrgencia["BAJO"] ?? 0, color: "#16a34a" },
+        { name: "Medio", value: porUrgencia["MEDIO"] ?? 0, color: "#ca8a04" },
+        { name: "Alto", value: porUrgencia["ALTO"] ?? 0, color: "#ea580c" },
+        { name: "Crítico", value: porUrgencia["CRITICO"] ?? 0, color: "#dc2626" },
+      ];
+
+      // Un pase sobre tickets para agrupar por día (clave yyyy-MM-dd), en vez
+      // de filtrar el arreglo completo una vez por cada uno de los 14 días.
+      const porDia: Record<string, number> = {};
+      for (const t of tickets) {
+        if (!(t.createdAt instanceof Timestamp)) continue;
+        const clave = format(t.createdAt.toDate(), "yyyy-MM-dd");
+        porDia[clave] = (porDia[clave] ?? 0) + 1;
+      }
+      const last14Days = Array.from({ length: 14 }, (_, i) => {
+        const date = subDays(new Date(), 13 - i);
+        return { name: format(date, "dd MMM", { locale: es }), tickets: porDia[format(date, "yyyy-MM-dd")] ?? 0 };
+      });
+
+      return { total, pendientes, enProceso, terminados, resueltoPct, statusData, urgencyData, last14Days };
+    }, [tickets]);
 
   const porEmpleado = useMemo(() => {
     const map = new Map<string, number>();

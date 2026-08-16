@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { IconSunrise as Sunrise, IconSun as Sun, IconMoon as Moon } from "@tabler/icons-react";
 import { format } from "date-fns";
@@ -6,7 +6,14 @@ import { es } from "date-fns/locale";
 
 export const Home: React.FC = () => {
   const { user } = useAuth();
-  const now = new Date();
+  // Si alguien deja esta pantalla abierta y cruza una franja horaria (ej. de
+  // la tarde a la noche), el saludo se quedaba pegado al de cuando montó el
+  // componente — se actualiza solo, sin recargar.
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(id);
+  }, []);
   const hour = now.getHours();
 
   let greeting = "Buenas noches";
