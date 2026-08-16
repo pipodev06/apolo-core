@@ -62,80 +62,67 @@ export const Login: React.FC = () => {
   };
 
   return (
-    <div className="flex min-h-screen flex-col lg:flex-row">
-      {/* Panel de marca */}
-      <div className="relative flex flex-col justify-between gap-8 overflow-hidden bg-gray-900 px-6 py-8 lg:w-[42%] lg:px-12 lg:py-12">
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute -left-20 -top-20 h-64 w-64 rounded-full bg-white/5 blur-3xl"
-        />
-
-        <div className="relative z-10 flex items-center gap-3">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white text-indigo-600">
-            <Ticket className="h-5 w-5" />
-          </div>
-          <h1 className="text-xl font-extrabold tracking-tight lg:text-2xl">
-            <span className="text-white">Apolo Core</span>
-          </h1>
+    <div className="relative flex min-h-screen items-center justify-center bg-background px-4 py-12">
+      <div className="absolute left-6 top-6 flex items-center gap-3">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+          <Ticket className="h-5 w-5" />
         </div>
-
-        <p className="relative z-10 hidden text-xs text-gray-400 lg:block">
-          Acceso restringido al personal autorizado.
-        </p>
+        <span className="text-lg font-bold tracking-tight">Apolo Core</span>
       </div>
 
-      {/* Formulario */}
-      <div className="flex flex-1 items-center justify-center bg-background px-4 py-12">
-        <Card className="w-full max-w-md shadow-lg [--card-spacing:--spacing(8)]">
-          <CardContent className="space-y-8">
-            <div>
-              <h2 className="text-3xl font-bold tracking-tight">Iniciar sesión</h2>
-              <p className="mt-1.5 text-sm text-muted-foreground">Ingresa tus credenciales para acceder.</p>
-            </div>
-            <form onSubmit={handleSubmit(onSubmit)}>
-              <FieldGroup>
-                <Field data-invalid={!!errors.username}>
-                  <FieldLabel htmlFor="username">Usuario</FieldLabel>
-                  <Input
-                    id="username"
-                    autoComplete="username"
+      <p className="absolute inset-x-0 bottom-6 text-center text-xs text-muted-foreground">
+        Acceso restringido al personal autorizado.
+      </p>
+
+      <Card className="w-full max-w-md shadow-lg [--card-spacing:--spacing(8)]">
+        <CardContent className="space-y-8">
+          <div>
+            <h2 className="text-3xl font-bold tracking-tight">Iniciar sesión</h2>
+            <p className="mt-1.5 text-sm text-muted-foreground">Ingresa tus credenciales para acceder.</p>
+          </div>
+          <form onSubmit={handleSubmit(onSubmit)}>
+            <FieldGroup>
+              <Field data-invalid={!!errors.username}>
+                <FieldLabel htmlFor="username">Usuario</FieldLabel>
+                <Input
+                  id="username"
+                  autoComplete="username"
+                  required
+                  aria-invalid={!!errors.username}
+                  {...register("username")}
+                />
+                <FieldError errors={[errors.username]} />
+              </Field>
+              <Field data-invalid={!!errors.password}>
+                <FieldLabel htmlFor="password">Contraseña</FieldLabel>
+                <InputGroup>
+                  <InputGroupInput
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    autoComplete="current-password"
                     required
-                    aria-invalid={!!errors.username}
-                    {...register("username")}
+                    aria-invalid={!!errors.password}
+                    {...register("password")}
                   />
-                  <FieldError errors={[errors.username]} />
-                </Field>
-                <Field data-invalid={!!errors.password}>
-                  <FieldLabel htmlFor="password">Contraseña</FieldLabel>
-                  <InputGroup>
-                    <InputGroupInput
-                      id="password"
-                      type={showPassword ? "text" : "password"}
-                      autoComplete="current-password"
-                      required
-                      aria-invalid={!!errors.password}
-                      {...register("password")}
-                    />
-                    <InputGroupAddon align="inline-end">
-                      <InputGroupButton
-                        type="button"
-                        aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
-                        onClick={() => setShowPassword((v) => !v)}
-                      >
-                        {showPassword ? <EyeOff /> : <Eye />}
-                      </InputGroupButton>
-                    </InputGroupAddon>
-                  </InputGroup>
-                  <FieldError errors={[errors.password]} />
-                </Field>
-                <Button type="submit" className="w-full" disabled={loading}>
-                  {loading ? "Entrando..." : "Iniciar Sesión"}
-                </Button>
-              </FieldGroup>
-            </form>
-          </CardContent>
-        </Card>
-      </div>
+                  <InputGroupAddon align="inline-end">
+                    <InputGroupButton
+                      type="button"
+                      aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                      onClick={() => setShowPassword((v) => !v)}
+                    >
+                      {showPassword ? <EyeOff /> : <Eye />}
+                    </InputGroupButton>
+                  </InputGroupAddon>
+                </InputGroup>
+                <FieldError errors={[errors.password]} />
+              </Field>
+              <Button type="submit" className="w-full" disabled={loading}>
+                {loading ? "Entrando..." : "Iniciar Sesión"}
+              </Button>
+            </FieldGroup>
+          </form>
+        </CardContent>
+      </Card>
     </div>
   );
 };
