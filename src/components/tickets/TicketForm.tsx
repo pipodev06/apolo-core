@@ -15,8 +15,8 @@ import { Textarea } from "../ui/textarea";
 import { useAuth } from "../../context/AuthContext";
 import { esAdmin } from "../../lib/roles";
 import { empleadosService } from "../../services/empleadosService";
-import { ticketsService } from "../../services/ticketsService";
 import { configService } from "../../services/configService";
+import { useTickets } from "../../context/TicketsContext";
 import { calcularCarga, estaOcupado } from "../../lib/carga";
 import { transicionEstadoValida } from "../../lib/ticketStatus";
 import { ahoraLimaInputValue } from "../../lib/fecha";
@@ -46,28 +46,27 @@ export const TicketForm: React.FC<TicketFormProps> = ({ initialData, onSubmit, l
   const isNew = !initialData?.id;
   const mostrarCamposAdmin = isAdmin && !isNew;
   const [empleados, setEmpleados] = useState<Empleado[]>([]);
-  const [tickets, setTickets] = useState<Ticket[]>([]);
+  // Tickets viene de TicketsProvider (App.tsx) — un solo listener compartido
+  // por sesión, en vez de que este form pida la colección entera cada vez
+  // que se abre para crear/editar un ticket.
+  const { tickets, loading: ticketsLoading } = useTickets();
   const [maxTicketsAbiertos, setMaxTicketsAbiertos] = useState<number | undefined>(undefined);
   // Igual que en TicketDetail.tsx/TicketsList.tsx: empleados se carga aparte
   // (fetch normal, no listener) y tarda mas que el mount del form — sin esto
   // el Select de "Asignar a" se pinta antes de tener la opcion que matchea
   // initialData.assignedTo, y SelectValue muestra el id crudo mientras tanto.
-  const [empleadosListos, setEmpleadosListos] = useState(false);
+  const [empleadosCargados, setEmpleadosCargados] = useState(false);
+  const empleadosListos = empleadosCargados && !ticketsLoading;
 
   useEffect(() => {
     if (!mostrarCamposAdmin) return;
-    Promise.all([
-      empleadosService.getAll(),
-      ticketsService.getAll(),
-      configService.getAppConfig().catch(() => null),
-    ])
-      .then(([empleadosData, ticketsData, config]) => {
+    Promise.all([empleadosService.getAll(), configService.getAppConfig().catch(() => null)])
+      .then(([empleadosData, config]) => {
         setEmpleados(empleadosData);
-        setTickets(ticketsData);
         setMaxTicketsAbiertos(config?.maxTicketsAbiertos);
       })
       .catch(() => {})
-      .finally(() => setEmpleadosListos(true));
+      .finally(() => setEmpleadosCargados(true));
   }, [mostrarCamposAdmin]);
 
   const { register, control, handleSubmit, setValue, formState: { errors } } = useForm<TicketFormData>({

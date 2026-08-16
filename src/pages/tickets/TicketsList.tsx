@@ -7,6 +7,7 @@ import {
 } from "@tabler/icons-react";
 import { ticketsService } from "../../services/ticketsService";
 import { empleadosService } from "../../services/empleadosService";
+import { useTickets } from "../../context/TicketsContext";
 import type { Ticket, Urgency, TicketStatus } from "../../types/ticket";
 import type { Empleado } from "../../types/empleado";
 import type { FirestoreTimestamp } from "../../types/firestore";
@@ -47,9 +48,17 @@ interface Props {
 }
 
 export const TicketsList: React.FC<Props> = ({ soloPapelera = false }) => {
-  const [tickets, setTickets] = useState<Ticket[]>([]);
+  // Tickets activos vienen de TicketsProvider (App.tsx, un solo listener
+  // compartido por sesión). La Papelera es una query distinta (deletedAt !=
+  // null) que no vale la pena mantener siempre viva — sigue con su propio
+  // listener, solo mientras esta vista está montada.
+  const { tickets: ticketsActivos, loading: loadingActivos } = useTickets();
+  const [ticketsPapelera, setTicketsPapelera] = useState<Ticket[]>([]);
+  const [loadingPapelera, setLoadingPapelera] = useState(true);
+  const tickets = soloPapelera ? ticketsPapelera : ticketsActivos;
+  const loading = soloPapelera ? loadingPapelera : loadingActivos;
+
   const [empleados, setEmpleados] = useState<Empleado[]>([]);
-  const [loading, setLoading] = useState(true);
   // Empleados se carga aparte de tickets (fetch normal, no listener) y tarda
   // mas — sin esto la lista se pinta con "Sin asignar" en cada card hasta
   // que resuelve, aunque el ticket si tenga assignedTo. Mismo bug que en
@@ -72,10 +81,11 @@ export const TicketsList: React.FC<Props> = ({ soloPapelera = false }) => {
   const [fHasta, setFHasta] = useState("");
 
   useEffect(() => {
+    if (!soloPapelera) return;
     const unsubscribe = ticketsService.watch((data) => {
-      setTickets(data);
-      setLoading(false);
-    }, soloPapelera);
+      setTicketsPapelera(data);
+      setLoadingPapelera(false);
+    }, true);
     return unsubscribe;
   }, [soloPapelera]);
 

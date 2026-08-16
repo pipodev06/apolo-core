@@ -1,10 +1,9 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useState } from "react";
 import { IconPencil as Pencil, IconTrash as Trash2, IconPower as Power, IconUsers as Users, IconMail as Mail, IconPhone as Phone, IconRestore as RotateCcw, IconSearch as Search, IconFilterOff as FilterX } from "@tabler/icons-react";
 import { empleadosService } from "../../services/empleadosService";
-import { ticketsService } from "../../services/ticketsService";
 import { configService } from "../../services/configService";
+import { useTickets } from "../../context/TicketsContext";
 import type { Empleado } from "../../types/empleado";
-import type { Ticket } from "../../types/ticket";
 import { calcularCarga, estaOcupado } from "../../lib/carga";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "../ui/table";
 import { Badge } from "../ui/badge";
@@ -29,7 +28,9 @@ interface Props {
 
 export const EmpleadosTab = forwardRef<EmpleadosTabHandle, Props>(({ soloPapelera = false }, ref) => {
   const [empleados, setEmpleados] = useState<Empleado[]>([]);
-  const [tickets, setTickets] = useState<Ticket[]>([]);
+  // Tickets viene de TicketsProvider (App.tsx) — no aplica en la papelera,
+  // ahí no se puede asignar nada, así que ni se usa.
+  const { tickets } = useTickets();
   const [maxTicketsAbiertos, setMaxTicketsAbiertos] = useState<number | undefined>(undefined);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
@@ -61,11 +62,9 @@ export const EmpleadosTab = forwardRef<EmpleadosTabHandle, Props>(({ soloPapeler
     Promise.resolve().then(fetch);
   }, [fetch]);
 
-  // Carga (tickets abiertos por empleado): no aplica en la papelera, ahí no
-  // se puede asignar nada.
+  // Techo de carga: no aplica en la papelera.
   useEffect(() => {
     if (soloPapelera) return;
-    ticketsService.getAll().then(setTickets).catch(() => {});
     configService.getAppConfig().then((c) => setMaxTicketsAbiertos(c.maxTicketsAbiertos)).catch(() => {});
   }, [soloPapelera]);
 

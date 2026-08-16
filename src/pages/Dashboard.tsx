@@ -1,9 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { collection, query, onSnapshot, Timestamp } from "firebase/firestore";
-import { db } from "../firebase";
-import type { Ticket } from "../types/ticket";
+import { Timestamp } from "firebase/firestore";
 import type { Empleado } from "../types/empleado";
 import { empleadosService } from "../services/empleadosService";
+import { useTickets } from "../context/TicketsContext";
 import {
   PieChart, Pie, Cell,
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
@@ -19,9 +18,13 @@ import { useTheme } from "../context/ThemeContext";
 
 export const Dashboard: React.FC = () => {
   const { theme } = useTheme();
-  const [tickets, setTickets] = useState<Ticket[]>([]);
+  // tickets viene de TicketsProvider (App.tsx) — un solo listener compartido
+  // por sesión, en vez de que Dashboard abra el suyo propio: al volver acá
+  // después de haber visitado Tickets o Personal, los datos ya están.
+  const { tickets, loading: ticketsLoading } = useTickets();
   const [empleados, setEmpleados] = useState<Empleado[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [empleadosListos, setEmpleadosListos] = useState(false);
+  const [revelado, setRevelado] = useState(false);
 
   // Los gráficos de Recharts se pintan en SVG con props/estilos inline, no
   // clases de Tailwind: no responden a `dark:`, hay que resolver el color a mano.
@@ -36,46 +39,31 @@ export const Dashboard: React.FC = () => {
   };
 
   useEffect(() => {
-    let ticketsListos = false;
-    let empleadosListos = false;
-    let yaRevelado = false;
-
-    // Igual que TicketsList: mientras loading=true se muestra el PageSpinner
-    // de más abajo, no el contenido real. La diferencia con Tickets es que
-    // acá el contenido real incluye montar 3 gráficos de Recharts (SVG/layout
-    // pesado) — si se saca el spinner apenas llegan los datos, ese montaje
-    // pesado ocurre en el mismo commit que el cambio de ruta, y corta a
-    // mitad la transición de color del ítem activo del sidebar. El doble
-    // requestAnimationFrame espera a que el navegador ya haya pintado el
-    // spinner (y termine esa transición) antes de recién ahí sacarlo y
-    // disparar el montaje pesado.
-    const revelarCuandoListo = () => {
-      if (!ticketsListos || !empleadosListos || yaRevelado) return;
-      yaRevelado = true;
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => setLoading(false));
-      });
-    };
-
-    const q = query(collection(db, "tickets"));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const data = snapshot.docs
-        .map((doc) => ({ id: doc.id, ...doc.data() } as Ticket))
-        .filter((t) => !t.deletedAt);
-      setTickets(data);
-      ticketsListos = true;
-      revelarCuandoListo();
-    });
-    empleadosService
-      .getAll()
-      .then((data) => setEmpleados(data))
-      .catch(() => {})
-      .finally(() => {
-        empleadosListos = true;
-        revelarCuandoListo();
-      });
-    return () => unsubscribe();
+    empleadosService.getAll().then(setEmpleados).catch(() => {}).finally(() => setEmpleadosListos(true));
   }, []);
+
+  // Igual que TicketsList: mientras no está "revelado" se muestra el
+  // PageSpinner de más abajo, no el contenido real. La diferencia con
+  // Tickets es que acá el contenido real incluye montar 3 gráficos de
+  // Recharts (SVG/layout pesado) — si se saca el spinner apenas llegan los
+  // datos, ese montaje pesado ocurre en el mismo commit que el cambio de
+  // ruta, y corta a mitad la transición de color del ítem activo del
+  // sidebar. El doble requestAnimationFrame espera a que el navegador ya
+  // haya pintado el spinner (y termine esa transición) antes de recién ahí
+  // sacarlo y disparar el montaje pesado.
+  useEffect(() => {
+    if (ticketsLoading || !empleadosListos || revelado) return;
+    let cancelado = false;
+    requestAnimationFrame(() => {
+      if (cancelado) return;
+      requestAnimationFrame(() => {
+        if (!cancelado) setRevelado(true);
+      });
+    });
+    return () => {
+      cancelado = true;
+    };
+  }, [ticketsLoading, empleadosListos, revelado]);
 
   // Un solo pase sobre tickets (en vez de ~10 .filter() separados, cada uno
   // recorriendo el arreglo entero) — y memoizado, para no recalcular nada de
@@ -137,7 +125,7 @@ export const Dashboard: React.FC = () => {
       .slice(0, 6);
   }, [tickets, empleados]);
 
-  if (loading) return <PageSpinner />;
+  if (!revelado) return <PageSpinner />;
 
   return (
     <div className="space-y-6">
