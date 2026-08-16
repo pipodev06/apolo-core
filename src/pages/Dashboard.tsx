@@ -1,4 +1,4 @@
-import React, { startTransition, useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { collection, query, onSnapshot, Timestamp } from "firebase/firestore";
 import { db } from "../firebase";
 import type { Ticket } from "../types/ticket";
@@ -36,23 +36,44 @@ export const Dashboard: React.FC = () => {
   };
 
   useEffect(() => {
+    let ticketsListos = false;
+    let empleadosListos = false;
+    let yaRevelado = false;
+
+    // Igual que TicketsList: mientras loading=true se muestra el PageSpinner
+    // de más abajo, no el contenido real. La diferencia con Tickets es que
+    // acá el contenido real incluye montar 3 gráficos de Recharts (SVG/layout
+    // pesado) — si se saca el spinner apenas llegan los datos, ese montaje
+    // pesado ocurre en el mismo commit que el cambio de ruta, y corta a
+    // mitad la transición de color del ítem activo del sidebar. El doble
+    // requestAnimationFrame espera a que el navegador ya haya pintado el
+    // spinner (y termine esa transición) antes de recién ahí sacarlo y
+    // disparar el montaje pesado.
+    const revelarCuandoListo = () => {
+      if (!ticketsListos || !empleadosListos || yaRevelado) return;
+      yaRevelado = true;
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => setLoading(false));
+      });
+    };
+
     const q = query(collection(db, "tickets"));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const data = snapshot.docs
         .map((doc) => ({ id: doc.id, ...doc.data() } as Ticket))
         .filter((t) => !t.deletedAt);
-      // startTransition: montar los 3 gráficos de Recharts es una tarea pesada
-      // (layout/SVG) que bloquea el hilo justo al entrar a /dashboard, cortando
-      // a mitad la transición de color del ítem activo del sidebar (el fondo
-      // cambia, pero el texto "salta" a su color final recién cuando el hilo
-      // se libera). Marcarlo como no urgente deja que React pinte primero la
-      // navegación/sidebar y difiera el montaje pesado de los gráficos.
-      startTransition(() => {
-        setTickets(data);
-        setLoading(false);
-      });
+      setTickets(data);
+      ticketsListos = true;
+      revelarCuandoListo();
     });
-    empleadosService.getAll().then((data) => startTransition(() => setEmpleados(data))).catch(() => {});
+    empleadosService
+      .getAll()
+      .then((data) => setEmpleados(data))
+      .catch(() => {})
+      .finally(() => {
+        empleadosListos = true;
+        revelarCuandoListo();
+      });
     return () => unsubscribe();
   }, []);
 
