@@ -12,31 +12,6 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* Cola de tickets animada del panel de marca en /login (Login.tsx). */
-@keyframes queue-scroll {
-  from {
-    transform: translateY(0);
-  }
-  to {
-    transform: translateY(-50%);
-  }
-}
-
-.queue-track {
-  animation: queue-scroll 22s linear infinite;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .queue-track {
-    animation: none;
-  }
-}
-
-.queue-mask {
-  mask-image: linear-gradient(to bottom, transparent, black 12%, black 88%, transparent);
-  -webkit-mask-image: linear-gradient(to bottom, transparent, black 12%, black 88%, transparent);
-}
-
 @theme inline {
   --font-heading: var(--font-sans);
   --font-sans: 'Comfortaa', sans-serif;

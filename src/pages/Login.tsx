@@ -11,9 +11,7 @@ import { Button } from "../components/ui/button";
 import { Card, CardContent } from "../components/ui/card";
 import { Field, FieldError, FieldGroup, FieldLabel } from "../components/ui/field";
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "../components/ui/input-group";
-import { UrgencyBadge } from "../components/tickets/UrgencyBadge";
 import { notificarExito, notificarError } from "../lib/alertas";
-import type { Urgency } from "../types/ticket";
 
 const loginSchema = z.object({
   username: z.string().min(1, "Usuario requerido"),
@@ -21,16 +19,6 @@ const loginSchema = z.object({
 });
 
 type LoginForm = z.infer<typeof loginSchema>;
-
-// Muestra ilustrativa: refleja el tipo de incidentes reales del sistema, no datos en vivo.
-const colaEjemplo: { code: string; title: string; urgency: Urgency }[] = [
-  { code: "TK01-0032", title: "Servidor no responde", urgency: "CRITICO" },
-  { code: "TK01-0018", title: "VPN no conecta", urgency: "ALTO" },
-  { code: "TK01-0044", title: "Actualización pendiente", urgency: "MEDIO" },
-  { code: "TK01-0007", title: "Falla en impresora", urgency: "BAJO" },
-  { code: "TK01-0051", title: "Error en base de datos", urgency: "ALTO" },
-  { code: "TK01-0029", title: "Backup fallido", urgency: "CRITICO" },
-];
 
 export const Login: React.FC = () => {
   const [loading, setLoading] = useState(false);
@@ -83,34 +71,12 @@ export const Login: React.FC = () => {
         />
 
         <div className="relative z-10 flex items-center gap-3">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-indigo-600 text-white">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white text-indigo-600">
             <Ticket className="h-5 w-5" />
           </div>
           <h1 className="text-xl font-extrabold tracking-tight lg:text-2xl">
-            <span className="text-indigo-600">Apolo Core</span>
+            <span className="text-white">Apolo Core</span>
           </h1>
-        </div>
-
-        <div className="relative z-10 hidden lg:block">
-          <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-gray-400">
-            Cola de incidentes
-          </p>
-          <div className="queue-mask relative h-72 overflow-hidden">
-            <div className="queue-track grid grid-cols-2 gap-2.5">
-              {[...colaEjemplo, ...colaEjemplo].map((t, i) => (
-                <div
-                  key={i}
-                  className="flex flex-col gap-2 rounded-lg border border-white/10 bg-white/5 p-3"
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="shrink-0 text-xs text-gray-400">{t.code}</span>
-                    <UrgencyBadge urgency={t.urgency} />
-                  </div>
-                  <span className="truncate text-sm font-medium text-gray-50">{t.title}</span>
-                </div>
-              ))}
-            </div>
-          </div>
         </div>
 
         <p className="relative z-10 hidden text-xs text-gray-400 lg:block">
