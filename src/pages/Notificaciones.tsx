@@ -103,7 +103,7 @@ export const Notificaciones: React.FC = () => {
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight text-gray-800">Notificaciones</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-gray-800 dark:text-gray-100">Notificaciones</h1>
         {noLeidas.length > 0 && (
           <Button variant="outline" onClick={handleMarcarTodas}>
             Marcar todas como leídas
@@ -112,7 +112,7 @@ export const Notificaciones: React.FC = () => {
       </div>
 
       {/* Filtros */}
-      <div className="flex flex-wrap items-end gap-3 rounded-lg border border-gray-200 bg-white p-2 shadow-sm">
+      <div className="flex flex-wrap items-end gap-3 rounded-lg border border-gray-200 bg-white p-2 shadow-sm dark:border-gray-800 dark:bg-gray-900">
         <div>
           <Select
             items={[
@@ -137,7 +137,7 @@ export const Notificaciones: React.FC = () => {
         </div>
         <div className="min-w-55 flex-1">
           <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-800" />
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-800 dark:text-gray-100" />
             <Input
               type="text"
               value={dQuery}
@@ -163,12 +163,12 @@ export const Notificaciones: React.FC = () => {
       {loading ? (
         <PageSpinner />
       ) : filtradas.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-gray-200 bg-white py-12 text-center">
-          <Bell className="mx-auto mb-4 h-12 w-12 text-gray-800/40" />
-          <h3 className="text-lg font-medium text-gray-800">
+        <div className="rounded-lg border border-dashed border-gray-200 bg-white py-12 text-center dark:border-gray-800 dark:bg-gray-900">
+          <Bell className="mx-auto mb-4 h-12 w-12 text-gray-800/40 dark:text-gray-100/40" />
+          <h3 className="text-lg font-medium text-gray-800 dark:text-gray-100">
             {notificaciones.length === 0 ? "Sin notificaciones" : "Ninguna coincide"}
           </h3>
-          <p className="text-gray-800">
+          <p className="text-gray-800 dark:text-gray-100">
             {notificaciones.length === 0
               ? "Todavía no tienes notificaciones."
               : "Ninguna notificación coincide con la búsqueda."}
@@ -176,7 +176,7 @@ export const Notificaciones: React.FC = () => {
         </div>
       ) : (
         <>
-          <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+          <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -192,8 +192,8 @@ export const Notificaciones: React.FC = () => {
                   <TableRow key={n.id} className={cn(!n.leida && "bg-indigo-600/5")}>
                     <TableCell>{(pageSafe - 1) * PAGE_SIZE + i + 1}</TableCell>
                     <TableCell className="font-semibold text-indigo-600">{n.ticketCode}</TableCell>
-                    <TableCell className="text-gray-800">{n.mensaje}</TableCell>
-                    <TableCell className="text-gray-800">{fmtRelativo(n.createdAt)}</TableCell>
+                    <TableCell className="text-gray-800 dark:text-gray-100">{n.mensaje}</TableCell>
+                    <TableCell className="text-gray-800 dark:text-gray-100">{fmtRelativo(n.createdAt)}</TableCell>
                     <TableCell>
                       <Button variant="outline" size="sm" onClick={() => handleClick(n)}>
                         Ver ticket

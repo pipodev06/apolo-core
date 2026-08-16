@@ -27,15 +27,15 @@ export const Home: React.FC = () => {
 
   return (
     <div className="flex min-h-[60vh] items-center justify-center">
-      <div className="w-full max-w-2xl rounded-2xl border border-gray-200 bg-white p-10 text-center shadow-sm">
+      <div className="w-full max-w-2xl rounded-2xl border border-gray-200 bg-white p-10 text-center shadow-sm dark:border-gray-800 dark:bg-gray-900">
         <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-indigo-600/10 text-indigo-600">
           <Icon className="h-8 w-8" />
         </div>
-        <p className="text-sm font-medium capitalize text-gray-800">{fecha}</p>
-        <h1 className="mt-2 text-3xl font-bold tracking-tight text-gray-800 sm:text-4xl">
+        <p className="text-sm font-medium capitalize text-gray-800 dark:text-gray-100">{fecha}</p>
+        <h1 className="mt-2 text-3xl font-bold tracking-tight text-gray-800 dark:text-gray-100 sm:text-4xl">
           {greeting}, <span className="text-indigo-600">{user?.username}</span>
         </h1>
-        <p className="mx-auto mt-3 max-w-md text-gray-800">{message}</p>
+        <p className="mx-auto mt-3 max-w-md text-gray-800 dark:text-gray-100">{message}</p>
       </div>
     </div>
   );

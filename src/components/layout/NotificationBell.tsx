@@ -61,7 +61,7 @@ export const NotificationBell: React.FC = () => {
       <button
         onClick={() => setAbierto((v) => !v)}
         aria-label="Notificaciones"
-        className="relative cursor-pointer rounded-md p-2 text-gray-800 transition-colors hover:bg-gray-100 hover:text-gray-800"
+        className="relative cursor-pointer rounded-md p-2 text-gray-800 transition-colors hover:bg-gray-100 hover:text-gray-800 dark:text-gray-100 dark:hover:bg-gray-800 dark:hover:text-gray-100"
       >
         <Bell className="h-5 w-5" />
         {noLeidas.length > 0 && (
@@ -72,9 +72,9 @@ export const NotificationBell: React.FC = () => {
       </button>
 
       {abierto && (
-        <div className="absolute right-0 z-20 mt-2 w-xl rounded-md border border-gray-200 bg-white shadow-xl">
-          <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3">
-            <span className="text-sm font-semibold text-gray-800">Notificaciones</span>
+        <div className="absolute right-0 z-20 mt-2 w-xl rounded-md border border-gray-200 bg-white shadow-xl dark:border-gray-800 dark:bg-gray-900">
+          <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3 dark:border-gray-800">
+            <span className="text-sm font-semibold text-gray-800 dark:text-gray-100">Notificaciones</span>
             {noLeidas.length > 0 && (
               <button
                 onClick={handleMarcarTodas}
@@ -86,26 +86,26 @@ export const NotificationBell: React.FC = () => {
           </div>
           <div className="max-h-96 overflow-y-auto">
             {notificaciones.length === 0 && (
-              <p className="px-4 py-6 text-center text-sm text-gray-800">Sin notificaciones.</p>
+              <p className="px-4 py-6 text-center text-sm text-gray-800 dark:text-gray-100">Sin notificaciones.</p>
             )}
             {notificaciones.map((n) => (
               <button
                 key={n.id}
                 onClick={() => handleClickNotificacion(n)}
-                className={`block w-full cursor-pointer border-b border-gray-200 px-4 py-3 text-left transition-colors last:border-b-0 hover:bg-gray-100 ${
+                className={`block w-full cursor-pointer border-b border-gray-200 px-4 py-3 text-left transition-colors last:border-b-0 hover:bg-gray-100 dark:border-gray-800 dark:hover:bg-gray-800 ${
                   n.leida ? "" : "bg-indigo-600/5"
                 }`}
               >
                 <p className="text-xs font-semibold text-indigo-600">{n.ticketCode}</p>
-                <p className="mt-0.5 text-sm text-gray-800">{n.mensaje}</p>
-                <p className="mt-0.5 text-xs text-gray-800">{fmtRelativo(n.createdAt)}</p>
+                <p className="mt-0.5 text-sm text-gray-800 dark:text-gray-100">{n.mensaje}</p>
+                <p className="mt-0.5 text-xs text-gray-800 dark:text-gray-100">{fmtRelativo(n.createdAt)}</p>
               </button>
             ))}
           </div>
           <Link
             to="/notificaciones"
             onClick={() => setAbierto(false)}
-            className="block border-t border-gray-200 px-4 py-2.5 text-center text-xs font-medium text-indigo-600 transition-colors hover:bg-gray-100"
+            className="block border-t border-gray-200 px-4 py-2.5 text-center text-xs font-medium text-indigo-600 transition-colors hover:bg-gray-100 dark:border-gray-800 dark:hover:bg-gray-800"
           >
             Ver todas las notificaciones
           </Link>

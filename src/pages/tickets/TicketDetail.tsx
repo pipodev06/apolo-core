@@ -134,21 +134,21 @@ export const TicketDetail: React.FC = () => {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
         <div className="flex flex-col gap-6 lg:col-span-3">
           <Card className="shrink-0 overflow-hidden">
-            <div className="flex flex-col justify-between gap-4 border-b border-gray-200 bg-gray-100/40 p-6 sm:flex-row sm:items-center">
+            <div className="flex flex-col justify-between gap-4 border-b border-gray-200 bg-gray-100/40 p-6 dark:border-gray-800 dark:bg-gray-800/40 sm:flex-row sm:items-center">
               <div>
                 <div className="mb-1 flex items-center gap-2 text-lg font-bold text-indigo-600">
                   <Hash className="h-5 w-5" />
                   <span>{ticket.code}</span>
                 </div>
-                <h1 className="text-2xl font-bold uppercase text-gray-800">{ticket.title}</h1>
+                <h1 className="text-2xl font-bold uppercase text-gray-800 dark:text-gray-100">{ticket.title}</h1>
               </div>
               <div className="flex flex-col items-start gap-2 sm:items-end">
                 <div className="flex items-center gap-1.5">
-                  <span className="text-xs font-bold text-gray-800">Estado:</span>
+                  <span className="text-xs font-bold text-gray-800 dark:text-gray-100">Estado:</span>
                   <StatusBadge status={ticket.status} />
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <span className="text-xs font-bold text-gray-800">Urgencia:</span>
+                  <span className="text-xs font-bold text-gray-800 dark:text-gray-100">Urgencia:</span>
                   <UrgencyBadge urgency={ticket.urgency} />
                 </div>
               </div>
@@ -156,52 +156,52 @@ export const TicketDetail: React.FC = () => {
 
             <div className="space-y-8 p-6">
               <div>
-                <h3 className="mb-2 text-sm font-semibold uppercase tracking-wider text-gray-800">
+                <h3 className="mb-2 text-sm font-semibold uppercase tracking-wider text-gray-800 dark:text-gray-100">
                   Descripción
                 </h3>
                 <ExpandableText
                   texto={ticket.description}
                   maxChars={425}
-                  className="whitespace-pre-wrap break-words leading-relaxed text-gray-800"
+                  className="whitespace-pre-wrap break-words leading-relaxed text-gray-800 dark:text-gray-100"
                 />
               </div>
 
-              <div className="grid grid-cols-1 gap-8 border-t border-gray-200 pt-6 md:grid-cols-2">
+              <div className="grid grid-cols-1 gap-8 border-t border-gray-200 pt-6 dark:border-gray-800 md:grid-cols-2">
                 <div className="space-y-4">
-                  <div className="flex items-center text-sm text-gray-800">
+                  <div className="flex items-center text-sm text-gray-800 dark:text-gray-100">
                     <Calendar className="mr-3 h-4 w-4 text-indigo-600" />
-                    <span className="mr-2 font-medium text-gray-800">Fecha y hora del incidente:</span>
+                    <span className="mr-2 font-medium text-gray-800 dark:text-gray-100">Fecha y hora del incidente:</span>
                     {fmtFechaHora(ticket.incidentTime)}
                   </div>
-                  <div className="flex items-center text-sm text-gray-800">
+                  <div className="flex items-center text-sm text-gray-800 dark:text-gray-100">
                     <Calendar className="mr-3 h-4 w-4" />
-                    <span className="mr-2 font-medium text-gray-800">Registrado el:</span>
+                    <span className="mr-2 font-medium text-gray-800 dark:text-gray-100">Registrado el:</span>
                     {fmtFechaHora(ticket.createdAt)}
                   </div>
                   {ticket.finishedAt && (
-                    <div className="flex items-center text-sm text-gray-800">
+                    <div className="flex items-center text-sm text-gray-800 dark:text-gray-100">
                       <Calendar className="mr-3 h-4 w-4 text-green-600" />
-                      <span className="mr-2 font-medium text-gray-800">Finalizado el:</span>
+                      <span className="mr-2 font-medium text-gray-800 dark:text-gray-100">Finalizado el:</span>
                       {fmtFechaHora(ticket.finishedAt)}
                     </div>
                   )}
                 </div>
                 <div className="space-y-4">
-                  <div className="flex items-center text-sm text-gray-800">
+                  <div className="flex items-center text-sm text-gray-800 dark:text-gray-100">
                     <UserIcon className="mr-3 h-4 w-4 text-indigo-600" />
-                    <span className="mr-2 font-medium text-gray-800">Asignado a:</span>
+                    <span className="mr-2 font-medium text-gray-800 dark:text-gray-100">Asignado a:</span>
                     {asignado ? asignado.nombre : ticket.assignedTo ? ticket.assignedTo : "No asignado"}
                   </div>
                   {ticket.assignedTo && ticket.assignedAt && (
-                    <div className="flex items-center text-sm text-gray-800">
+                    <div className="flex items-center text-sm text-gray-800 dark:text-gray-100">
                       <Clock className="mr-3 h-4 w-4" />
-                      <span className="mr-2 font-medium text-gray-800">Asignado el:</span>
+                      <span className="mr-2 font-medium text-gray-800 dark:text-gray-100">Asignado el:</span>
                       {fmtFechaHora(ticket.assignedAt)}
                     </div>
                   )}
-                  <div className="flex items-center text-sm text-gray-800">
+                  <div className="flex items-center text-sm text-gray-800 dark:text-gray-100">
                     <UserIcon className="mr-3 h-4 w-4" />
-                    <span className="mr-2 font-medium text-gray-800">Creado por:</span>
+                    <span className="mr-2 font-medium text-gray-800 dark:text-gray-100">Creado por:</span>
                     <span className={cn(creadorEliminado && "text-red-600")}>
                       {creador}
                       {creadorEliminado}

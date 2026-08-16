@@ -8,6 +8,7 @@ import { useAuth } from "../context/AuthContext";
 import { authService } from "../services/authService";
 import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
+import { Card, CardContent } from "../components/ui/card";
 import { Field, FieldError, FieldGroup, FieldLabel } from "../components/ui/field";
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "../components/ui/input-group";
 import { UrgencyBadge } from "../components/tickets/UrgencyBadge";
@@ -78,7 +79,7 @@ export const Login: React.FC = () => {
       <div className="relative flex flex-col justify-between gap-8 overflow-hidden bg-gray-900 px-6 py-8 lg:w-[42%] lg:px-12 lg:py-12">
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute -left-20 -top-20 h-64 w-64 rounded-full bg-indigo-600/20 blur-3xl"
+          className="pointer-events-none absolute -left-20 -top-20 h-64 w-64 rounded-full bg-white/5 blur-3xl"
         />
 
         <div className="relative z-10 flex items-center gap-3">
@@ -86,9 +87,7 @@ export const Login: React.FC = () => {
             <Ticket className="h-5 w-5" />
           </div>
           <h1 className="text-xl font-extrabold tracking-tight lg:text-2xl">
-            <span className="text-gray-400">Sistema de Tickets</span>{" "}
-            <span className="text-indigo-600">SIT</span>{" "}
-            <span className="text-indigo-600">SambaNova AI</span>
+            <span className="text-indigo-600">Apolo Core</span>
           </h1>
         </div>
 
@@ -97,17 +96,17 @@ export const Login: React.FC = () => {
             Cola de incidentes
           </p>
           <div className="queue-mask relative h-72 overflow-hidden">
-            <div className="queue-track space-y-2.5">
+            <div className="queue-track grid grid-cols-2 gap-2.5">
               {[...colaEjemplo, ...colaEjemplo].map((t, i) => (
                 <div
                   key={i}
-                  className="flex items-center justify-between gap-3 rounded-lg border border-white/10 bg-white/5 px-3 py-2.5"
+                  className="flex flex-col gap-2 rounded-lg border border-white/10 bg-white/5 p-3"
                 >
-                  <div className="flex min-w-0 items-center gap-2">
+                  <div className="flex items-center justify-between gap-2">
                     <span className="shrink-0 text-xs text-gray-400">{t.code}</span>
-                    <span className="truncate text-sm font-medium text-gray-50">{t.title}</span>
+                    <UrgencyBadge urgency={t.urgency} />
                   </div>
-                  <UrgencyBadge urgency={t.urgency} />
+                  <span className="truncate text-sm font-medium text-gray-50">{t.title}</span>
                 </div>
               ))}
             </div>
@@ -120,54 +119,56 @@ export const Login: React.FC = () => {
       </div>
 
       {/* Formulario */}
-      <div className="flex flex-1 items-center justify-center bg-gray-50 px-4 py-12">
-        <div className="w-full max-w-sm space-y-8">
-          <div>
-            <h2 className="text-2xl font-bold tracking-tight text-gray-800">Iniciar sesión</h2>
-            <p className="mt-1.5 text-sm text-gray-800">Ingresa tus credenciales para acceder.</p>
-          </div>
-          <form onSubmit={handleSubmit(onSubmit)}>
-            <FieldGroup>
-              <Field data-invalid={!!errors.username}>
-                <FieldLabel htmlFor="username">Usuario</FieldLabel>
-                <Input
-                  id="username"
-                  autoComplete="username"
-                  required
-                  aria-invalid={!!errors.username}
-                  {...register("username")}
-                />
-                <FieldError errors={[errors.username]} />
-              </Field>
-              <Field data-invalid={!!errors.password}>
-                <FieldLabel htmlFor="password">Contraseña</FieldLabel>
-                <InputGroup>
-                  <InputGroupInput
-                    id="password"
-                    type={showPassword ? "text" : "password"}
-                    autoComplete="current-password"
+      <div className="flex flex-1 items-center justify-center bg-gray-50 px-4 py-12 dark:bg-gray-950">
+        <Card className="w-full max-w-md shadow-lg [--card-spacing:--spacing(8)]">
+          <CardContent className="space-y-8">
+            <div>
+              <h2 className="text-3xl font-bold tracking-tight text-gray-800 dark:text-gray-100">Iniciar sesión</h2>
+              <p className="mt-1.5 text-sm text-gray-800 dark:text-gray-100">Ingresa tus credenciales para acceder.</p>
+            </div>
+            <form onSubmit={handleSubmit(onSubmit)}>
+              <FieldGroup>
+                <Field data-invalid={!!errors.username}>
+                  <FieldLabel htmlFor="username">Usuario</FieldLabel>
+                  <Input
+                    id="username"
+                    autoComplete="username"
                     required
-                    aria-invalid={!!errors.password}
-                    {...register("password")}
+                    aria-invalid={!!errors.username}
+                    {...register("username")}
                   />
-                  <InputGroupAddon align="inline-end">
-                    <InputGroupButton
-                      type="button"
-                      aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
-                      onClick={() => setShowPassword((v) => !v)}
-                    >
-                      {showPassword ? <EyeOff /> : <Eye />}
-                    </InputGroupButton>
-                  </InputGroupAddon>
-                </InputGroup>
-                <FieldError errors={[errors.password]} />
-              </Field>
-              <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? "Entrando..." : "Iniciar Sesión"}
-              </Button>
-            </FieldGroup>
-          </form>
-        </div>
+                  <FieldError errors={[errors.username]} />
+                </Field>
+                <Field data-invalid={!!errors.password}>
+                  <FieldLabel htmlFor="password">Contraseña</FieldLabel>
+                  <InputGroup>
+                    <InputGroupInput
+                      id="password"
+                      type={showPassword ? "text" : "password"}
+                      autoComplete="current-password"
+                      required
+                      aria-invalid={!!errors.password}
+                      {...register("password")}
+                    />
+                    <InputGroupAddon align="inline-end">
+                      <InputGroupButton
+                        type="button"
+                        aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                        onClick={() => setShowPassword((v) => !v)}
+                      >
+                        {showPassword ? <EyeOff /> : <Eye />}
+                      </InputGroupButton>
+                    </InputGroupAddon>
+                  </InputGroup>
+                  <FieldError errors={[errors.password]} />
+                </Field>
+                <Button type="submit" className="w-full" disabled={loading}>
+                  {loading ? "Entrando..." : "Iniciar Sesión"}
+                </Button>
+              </FieldGroup>
+            </form>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

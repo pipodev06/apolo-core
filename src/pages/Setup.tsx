@@ -50,14 +50,14 @@ export const Setup: React.FC = () => {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
-      <div className="w-full max-w-md space-y-8 rounded-2xl border border-gray-200 bg-white p-8 shadow-lg">
+    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 dark:bg-gray-950">
+      <div className="w-full max-w-md space-y-8 rounded-2xl border border-gray-200 bg-white p-8 shadow-lg dark:border-gray-800 dark:bg-gray-900">
         <div className="flex flex-col items-center">
           <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-600 text-white">
             <ShieldCheck className="h-6 w-6" />
           </div>
-          <h2 className="text-2xl font-bold tracking-tight text-gray-800">Configuración Inicial</h2>
-          <p className="mt-1.5 text-center text-sm text-gray-800">
+          <h2 className="text-2xl font-bold tracking-tight text-gray-800 dark:text-gray-100">Configuración Inicial</h2>
+          <p className="mt-1.5 text-center text-sm text-gray-800 dark:text-gray-100">
             Crea el primer usuario administrador del sistema
           </p>
         </div>

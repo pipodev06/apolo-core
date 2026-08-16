@@ -33,8 +33,8 @@ export const TicketNew: React.FC = () => {
   return (
     <div className="max-w-3xl mx-auto space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-gray-800">Nuevo Ticket</h1>
-        <p className="text-gray-800">Registra una nueva incidencia en el sistema.</p>
+        <h1 className="text-2xl font-bold tracking-tight text-gray-800 dark:text-gray-100">Nuevo Ticket</h1>
+        <p className="text-gray-800 dark:text-gray-100">Registra una nueva incidencia en el sistema.</p>
       </div>
 
       <TicketForm onSubmit={handleSubmit} loading={loading} />

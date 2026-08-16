@@ -13,22 +13,22 @@ export const ActividadPanel: React.FC<{ eventos: TicketEvento[]; className?: str
 
   return (
     <Card className={cn("flex h-full flex-col p-6", className)}>
-      <h3 className="mb-4 text-sm font-semibold uppercase tracking-wider text-gray-800">
+      <h3 className="mb-4 text-sm font-semibold uppercase tracking-wider text-gray-800 dark:text-gray-100">
         Actividad
       </h3>
 
       <div className="max-h-80 space-y-4 overflow-y-auto pr-1">
         {actividad.length === 0 && (
-          <p className="text-sm text-gray-800">Todavía no hay actividad registrada.</p>
+          <p className="text-sm text-gray-800 dark:text-gray-100">Todavía no hay actividad registrada.</p>
         )}
         {actividad.map((evento) => (
           <div key={evento.id} className="flex gap-3">
-            <div className="mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-gray-100">
-              <History className="h-4 w-4 text-gray-800" />
+            <div className="mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800">
+              <History className="h-4 w-4 text-gray-800 dark:text-gray-100" />
             </div>
             <div className="flex-1 pt-1">
-              <p className="text-sm text-gray-800">{evento.mensaje}</p>
-              <p className="mt-0.5 text-xs text-gray-800">{fmtFechaHora(evento.createdAt)}</p>
+              <p className="text-sm text-gray-800 dark:text-gray-100">{evento.mensaje}</p>
+              <p className="mt-0.5 text-xs text-gray-800 dark:text-gray-100">{fmtFechaHora(evento.createdAt)}</p>
             </div>
           </div>
         ))}

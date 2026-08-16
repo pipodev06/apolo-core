@@ -15,21 +15,25 @@ import { Card, CardHeader, CardTitle, CardContent } from "../components/ui/card"
 import { PageSpinner } from "../components/ui/spinner";
 import { IconTicket as TicketIcon, IconAlertCircle as AlertCircle, IconLoader2 as Loader, IconCircleCheck as CheckCircle2, IconPercentage as Percent, type Icon as LucideIcon } from "@tabler/icons-react";
 import { cn } from "../lib/cn";
-
-const axisColor = "#64748b";
-const gridColor = "#e2e8f0";
-const tooltipStyle = {
-  backgroundColor: "#ffffff",
-  border: `1px solid ${gridColor}`,
-  borderRadius: "0.5rem",
-  color: "#0f172a",
-  fontSize: "0.8125rem",
-};
+import { useTheme } from "../context/ThemeContext";
 
 export const Dashboard: React.FC = () => {
+  const { theme } = useTheme();
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [empleados, setEmpleados] = useState<Empleado[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Los gráficos de Recharts se pintan en SVG con props/estilos inline, no
+  // clases de Tailwind: no responden a `dark:`, hay que resolver el color a mano.
+  const axisColor = theme === "dark" ? "#94a3b8" : "#64748b";
+  const gridColor = theme === "dark" ? "#334155" : "#e2e8f0";
+  const tooltipStyle = {
+    backgroundColor: theme === "dark" ? "#111827" : "#ffffff",
+    border: `1px solid ${gridColor}`,
+    borderRadius: "0.5rem",
+    color: theme === "dark" ? "#f1f5f9" : "#0f172a",
+    fontSize: "0.8125rem",
+  };
 
   useEffect(() => {
     const q = query(collection(db, "tickets"));
@@ -91,7 +95,7 @@ export const Dashboard: React.FC = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-gray-800">Dashboard de Métricas</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-gray-800 dark:text-gray-100">Dashboard de Métricas</h1>
       </div>
 
       {/* Stat cards */}
@@ -184,7 +188,7 @@ export const Dashboard: React.FC = () => {
           <CardContent>
             <div className="h-72">
               {porEmpleado.length === 0 ? (
-                <p className="py-12 text-center text-gray-800">Sin datos.</p>
+                <p className="py-12 text-center text-gray-800 dark:text-gray-100">Sin datos.</p>
               ) : (
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={porEmpleado} layout="vertical" margin={{ left: 24 }}>
@@ -213,11 +217,11 @@ export const Dashboard: React.FC = () => {
 type Tone = "indigo" | "amber" | "purple" | "green" | "blue";
 
 const tones: Record<Tone, string> = {
-  indigo: "bg-indigo-50 text-indigo-600",
-  amber: "bg-amber-50 text-amber-600",
-  purple: "bg-purple-50 text-purple-600",
-  green: "bg-green-50 text-green-600",
-  blue: "bg-blue-50 text-blue-600",
+  indigo: "bg-indigo-50 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-400",
+  amber: "bg-amber-50 text-amber-600 dark:bg-amber-950 dark:text-amber-400",
+  purple: "bg-purple-50 text-purple-600 dark:bg-purple-950 dark:text-purple-400",
+  green: "bg-green-50 text-green-600 dark:bg-green-950 dark:text-green-400",
+  blue: "bg-blue-50 text-blue-600 dark:bg-blue-950 dark:text-blue-400",
 };
 
 const StatCard: React.FC<{ title: string; value: number | string; icon: LucideIcon; tone: Tone }> = ({
@@ -231,8 +235,8 @@ const StatCard: React.FC<{ title: string; value: number | string; icon: LucideIc
       <Icon className="h-6 w-6" />
     </div>
     <div className="min-w-0">
-      <p className="truncate text-xs font-medium text-gray-800">{title}</p>
-      <p className="text-2xl font-bold text-gray-800">{value}</p>
+      <p className="truncate text-xs font-medium text-gray-800 dark:text-gray-100">{title}</p>
+      <p className="text-2xl font-bold text-gray-800 dark:text-gray-100">{value}</p>
     </div>
   </Card>
 );

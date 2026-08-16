@@ -10,7 +10,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-white text-gray-800">
+    <div className="flex h-screen overflow-hidden bg-white text-gray-800 dark:bg-gray-950 dark:text-gray-100">
       {/* Overlay for mobile */}
       {isSidebarOpen && (
         <div

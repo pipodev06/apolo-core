@@ -171,7 +171,7 @@ export const EmpleadosTab = forwardRef<EmpleadosTabHandle, Props>(({ soloPapeler
   return (
     <div className="space-y-2">
       {/* Filtros */}
-      <div className="flex flex-wrap items-end gap-3 rounded-lg border border-gray-200 bg-white p-2 shadow-sm">
+      <div className="flex flex-wrap items-end gap-3 rounded-lg border border-gray-200 bg-white p-2 shadow-sm dark:border-gray-800 dark:bg-gray-900">
         <div>
           <Select
             items={[
@@ -198,7 +198,7 @@ export const EmpleadosTab = forwardRef<EmpleadosTabHandle, Props>(({ soloPapeler
         </div>
         <div className="min-w-[220px] flex-1">
           <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-800" />
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-800 dark:text-gray-100" />
             <Input
               type="text"
               value={dQuery}
@@ -224,12 +224,12 @@ export const EmpleadosTab = forwardRef<EmpleadosTabHandle, Props>(({ soloPapeler
       {loading ? (
         <PageSpinner />
       ) : filtered.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-gray-200 bg-white py-12 text-center">
-          <Users className="mx-auto mb-4 h-12 w-12 text-gray-800/40" />
-          <h3 className="text-lg font-medium text-gray-800">
+        <div className="rounded-lg border border-dashed border-gray-200 bg-white py-12 text-center dark:border-gray-800 dark:bg-gray-900">
+          <Users className="mx-auto mb-4 h-12 w-12 text-gray-800/40 dark:text-gray-100/40" />
+          <h3 className="text-lg font-medium text-gray-800 dark:text-gray-100">
             {soloPapelera ? "Papelera vacía" : "Sin personal registrado"}
           </h3>
-          <p className="text-gray-800">
+          <p className="text-gray-800 dark:text-gray-100">
             {soloPapelera
               ? "No hay empleados eliminados."
               : hayFiltrosActivos
@@ -239,7 +239,7 @@ export const EmpleadosTab = forwardRef<EmpleadosTabHandle, Props>(({ soloPapeler
         </div>
       ) : (
         <>
-          <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+          <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
           <Table>
             <TableHeader>
               <TableRow>
@@ -302,14 +302,14 @@ export const EmpleadosTab = forwardRef<EmpleadosTabHandle, Props>(({ soloPapeler
                       <>
                         <button
                           onClick={() => restaurar(e)}
-                          className="cursor-pointer rounded-md p-1.5 text-gray-800 transition-colors hover:bg-green-500/10 hover:text-green-600"
+                          className="cursor-pointer rounded-md p-1.5 text-gray-800 transition-colors hover:bg-green-500/10 hover:text-green-600 dark:text-gray-100"
                           title="Restaurar"
                         >
                           <RotateCcw className="h-5 w-5" />
                         </button>
                         <button
                           onClick={() => purgar(e)}
-                          className="cursor-pointer rounded-md p-1.5 text-gray-800 transition-colors hover:bg-red-600/10 hover:text-red-600"
+                          className="cursor-pointer rounded-md p-1.5 text-gray-800 transition-colors hover:bg-red-600/10 hover:text-red-600 dark:text-gray-100"
                           title="Eliminar definitivo"
                         >
                           <Trash2 className="h-5 w-5" />
@@ -322,8 +322,8 @@ export const EmpleadosTab = forwardRef<EmpleadosTabHandle, Props>(({ soloPapeler
                           className={cn(
                             "cursor-pointer rounded-md p-1.5 transition-colors",
                             e.activo
-                              ? "text-gray-800 hover:bg-gray-100 hover:text-gray-800"
-                              : "text-gray-800 hover:bg-green-500/10 hover:text-green-600"
+                              ? "text-gray-800 hover:bg-gray-100 hover:text-gray-800 dark:text-gray-100 dark:hover:bg-gray-800 dark:hover:text-gray-100"
+                              : "text-gray-800 hover:bg-green-500/10 hover:text-green-600 dark:text-gray-100"
                           )}
                           title={e.activo ? "Desactivar" : "Activar"}
                         >
@@ -331,14 +331,14 @@ export const EmpleadosTab = forwardRef<EmpleadosTabHandle, Props>(({ soloPapeler
                         </button>
                         <button
                           onClick={() => openEditar(e)}
-                          className="cursor-pointer rounded-md p-1.5 text-gray-800 transition-colors hover:bg-gray-100 hover:text-indigo-600"
+                          className="cursor-pointer rounded-md p-1.5 text-gray-800 transition-colors hover:bg-gray-100 hover:text-indigo-600 dark:text-gray-100 dark:hover:bg-gray-800"
                           title="Editar"
                         >
                           <Pencil className="h-5 w-5" />
                         </button>
                         <button
                           onClick={() => handleDelete(e)}
-                          className="cursor-pointer rounded-md p-1.5 text-gray-800 transition-colors hover:bg-red-600/10 hover:text-red-600"
+                          className="cursor-pointer rounded-md p-1.5 text-gray-800 transition-colors hover:bg-red-600/10 hover:text-red-600 dark:text-gray-100"
                           title="Eliminar"
                         >
                           <Trash2 className="h-5 w-5" />

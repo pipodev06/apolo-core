@@ -246,7 +246,7 @@ export const TicketForm: React.FC<TicketFormProps> = ({ initialData, onSubmit, l
                   </Select>
                 )}
               />
-              <p className="mt-1.5 text-xs text-gray-800">
+              <p className="mt-1.5 text-xs text-gray-800 dark:text-gray-100">
                 La hora de asignación se registra automáticamente.
               </p>
             </Field>
