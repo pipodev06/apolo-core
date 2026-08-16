@@ -198,14 +198,36 @@ service cloud.firestore {
       // abajo), y siempre durante el /setup inicial sin sesión todavía — igual
       // que `users`/`access`. update sí exige sesión real (toggle de modo IA,
       // contador de tickets en cada creación).
+      // maxTicketsAbiertos (techo de carga por empleado) es opcional a
+      // propósito: docs viejos (creados antes de este campo) no lo tienen y
+      // updates que no lo tocan (ej. el contador de tickets al crear uno
+      // nuevo) no deben romperse por su ausencia — si viene, se valida.
       allow create: if !appYaInicializada()
                     && request.resource.data.assignmentMode in ['ia', 'manual']
                     && request.resource.data.ticketCounter is int
-                    && request.resource.data.ticketCounter >= 0;
-      allow update: if request.auth != null
-                    && request.resource.data.assignmentMode in ['ia', 'manual']
+                    && request.resource.data.ticketCounter >= 0
+                    && (!('maxTicketsAbiertos' in request.resource.data)
+                        || (request.resource.data.maxTicketsAbiertos is int
+                            && request.resource.data.maxTicketsAbiertos >= 1));
+      // update exige rol admin/super_admin: es config global (modo de
+      // asignación, techo de carga), no algo que cualquier usuario logueado
+      // deba poder tocar aunque no vea la pantalla de Administración.
+      // Excepción: el contador de tickets (ticketCounter) lo actualiza
+      // CUALQUIER usuario autenticado, en la misma transacción de crear un
+      // ticket (ticketsService.create) — por eso, si el único campo que
+      // cambia es ticketCounter, no se exige rol admin.
+      allow update: if request.resource.data.assignmentMode in ['ia', 'manual']
                     && request.resource.data.ticketCounter is int
-                    && request.resource.data.ticketCounter >= 0;
+                    && request.resource.data.ticketCounter >= 0
+                    && (!('maxTicketsAbiertos' in request.resource.data)
+                        || (request.resource.data.maxTicketsAbiertos is int
+                            && request.resource.data.maxTicketsAbiertos >= 1))
+                    && (
+                         (request.auth != null
+                          && request.auth.token.role in ['admin', 'super_admin'])
+                         || (request.auth != null
+                             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['ticketCounter', 'updatedAt']))
+                       );
       allow delete: if false;
     }
 

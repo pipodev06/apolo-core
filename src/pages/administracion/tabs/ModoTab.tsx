@@ -1,27 +1,40 @@
 import React, { useEffect, useState } from "react";
 import { configService } from "../../../services/configService";
 import { Button } from "../../../components/ui/button";
+import { Field, FieldLabel, FieldDescription } from "../../../components/ui/field";
+import { Input } from "../../../components/ui/input";
 import { PageSpinner } from "../../../components/ui/spinner";
 import { notificarExito, notificarError } from "../../../lib/alertas";
 import { IconRobot as Bot, IconUser as User } from "@tabler/icons-react";
 import { cn } from "../../../lib/cn";
 
+const MAX_DEFAULT = 5;
+
 export const ModoTab: React.FC = () => {
   const [mode, setMode] = useState<"ia" | "manual">("manual");
+  const [maxTicketsAbiertos, setMaxTicketsAbiertos] = useState(MAX_DEFAULT);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     configService.getAppConfig()
-      .then((config) => setMode(config.assignmentMode))
+      .then((config) => {
+        setMode(config.assignmentMode);
+        setMaxTicketsAbiertos(config.maxTicketsAbiertos ?? MAX_DEFAULT);
+      })
       .catch(() => notificarError("Error al cargar la configuración"))
       .finally(() => setLoading(false));
   }, []);
 
   const handleSave = async () => {
+    if (maxTicketsAbiertos < 1) {
+      notificarError("El máximo de tickets abiertos debe ser al menos 1");
+      return;
+    }
     setSaving(true);
     try {
       await configService.updateAssignmentMode(mode);
+      await configService.updateMaxTicketsAbiertos(maxTicketsAbiertos);
       notificarExito("Modo de asignación actualizado");
     } catch {
       notificarError("Error al actualizar");
@@ -77,6 +90,21 @@ export const ModoTab: React.FC = () => {
           </button>
         </div>
       </div>
+
+      <Field className="mx-auto max-w-xs">
+        <FieldLabel htmlFor="maxTicketsAbiertos">Máximo de tickets abiertos por empleado</FieldLabel>
+        <Input
+          id="maxTicketsAbiertos"
+          type="number"
+          min={1}
+          value={maxTicketsAbiertos}
+          onChange={(e) => setMaxTicketsAbiertos(Number(e.target.value))}
+        />
+        <FieldDescription>
+          Al llegar a este número de tickets abiertos, el empleado se marca "Ocupado" y la IA prioriza
+          asignar a otro. Si toda el área está ocupada, igual asigna al de menor carga.
+        </FieldDescription>
+      </Field>
 
       <div className="flex justify-end border-t pt-6">
         <Button onClick={handleSave} disabled={saving}>

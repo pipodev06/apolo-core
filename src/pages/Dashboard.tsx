@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { startTransition, useEffect, useMemo, useState } from "react";
 import { collection, query, onSnapshot, Timestamp } from "firebase/firestore";
 import { db } from "../firebase";
 import type { Ticket } from "../types/ticket";
@@ -41,10 +41,18 @@ export const Dashboard: React.FC = () => {
       const data = snapshot.docs
         .map((doc) => ({ id: doc.id, ...doc.data() } as Ticket))
         .filter((t) => !t.deletedAt);
-      setTickets(data);
-      setLoading(false);
+      // startTransition: montar los 3 gráficos de Recharts es una tarea pesada
+      // (layout/SVG) que bloquea el hilo justo al entrar a /dashboard, cortando
+      // a mitad la transición de color del ítem activo del sidebar (el fondo
+      // cambia, pero el texto "salta" a su color final recién cuando el hilo
+      // se libera). Marcarlo como no urgente deja que React pinte primero la
+      // navegación/sidebar y difiera el montaje pesado de los gráficos.
+      startTransition(() => {
+        setTickets(data);
+        setLoading(false);
+      });
     });
-    empleadosService.getAll().then(setEmpleados).catch(() => {});
+    empleadosService.getAll().then((data) => startTransition(() => setEmpleados(data))).catch(() => {});
     return () => unsubscribe();
   }, []);
 

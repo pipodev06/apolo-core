@@ -104,6 +104,7 @@ export const authService = {
         ticketCounter: 0,
         series: "TK01",
         assignmentMode: "manual",
+        maxTicketsAbiertos: 5,
         updatedAt: serverTimestamp(),
       });
     });

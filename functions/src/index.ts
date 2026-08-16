@@ -36,7 +36,8 @@ export const asignarTicketIA = onDocumentCreated(
     const db = getFirestore();
 
     const configDoc = await db.collection("config").doc("app").get();
-    if (configDoc.data()?.assignmentMode !== "ia") return;
+    const config = configDoc.data();
+    if (config?.assignmentMode !== "ia") return;
 
     await analizarYAsignar({
       db,
@@ -45,6 +46,7 @@ export const asignarTicketIA = onDocumentCreated(
       title: ticket.title ?? "",
       description: ticket.description ?? "",
       apiKey: SAMBANOVA_API_KEY.value(),
+      maxTicketsAbiertos: typeof config.maxTicketsAbiertos === "number" ? config.maxTicketsAbiertos : undefined,
     });
   }
 );
@@ -73,6 +75,9 @@ export const reanalizarTicketIA = onCall({ secrets: [SAMBANOVA_API_KEY] }, async
     throw new HttpsError("failed-precondition", "No se puede reanalizar un ticket terminado.");
   }
 
+  const configDoc = await db.collection("config").doc("app").get();
+  const config = configDoc.data();
+
   return analizarYAsignar({
     db,
     ticketId,
@@ -80,6 +85,7 @@ export const reanalizarTicketIA = onCall({ secrets: [SAMBANOVA_API_KEY] }, async
     title: ticket.title ?? "",
     description: ticket.description ?? "",
     apiKey: SAMBANOVA_API_KEY.value(),
+    maxTicketsAbiertos: typeof config?.maxTicketsAbiertos === "number" ? config.maxTicketsAbiertos : undefined,
   });
 });
 

@@ -15,6 +15,9 @@ import { Textarea } from "../ui/textarea";
 import { useAuth } from "../../context/AuthContext";
 import { esAdmin } from "../../lib/roles";
 import { empleadosService } from "../../services/empleadosService";
+import { ticketsService } from "../../services/ticketsService";
+import { configService } from "../../services/configService";
+import { calcularCarga, estaOcupado } from "../../lib/carga";
 import { ahoraLimaInputValue } from "../../lib/fecha";
 
 const ticketSchema = z.object({
@@ -42,6 +45,8 @@ export const TicketForm: React.FC<TicketFormProps> = ({ initialData, onSubmit, l
   const isNew = !initialData?.id;
   const mostrarCamposAdmin = isAdmin && !isNew;
   const [empleados, setEmpleados] = useState<Empleado[]>([]);
+  const [tickets, setTickets] = useState<Ticket[]>([]);
+  const [maxTicketsAbiertos, setMaxTicketsAbiertos] = useState<number | undefined>(undefined);
   // Igual que en TicketDetail.tsx/TicketsList.tsx: empleados se carga aparte
   // (fetch normal, no listener) y tarda mas que el mount del form — sin esto
   // el Select de "Asignar a" se pinta antes de tener la opcion que matchea
@@ -50,7 +55,18 @@ export const TicketForm: React.FC<TicketFormProps> = ({ initialData, onSubmit, l
 
   useEffect(() => {
     if (!mostrarCamposAdmin) return;
-    empleadosService.getAll().then((data) => setEmpleados(data)).catch(() => {}).finally(() => setEmpleadosListos(true));
+    Promise.all([
+      empleadosService.getAll(),
+      ticketsService.getAll(),
+      configService.getAppConfig().catch(() => null),
+    ])
+      .then(([empleadosData, ticketsData, config]) => {
+        setEmpleados(empleadosData);
+        setTickets(ticketsData);
+        setMaxTicketsAbiertos(config?.maxTicketsAbiertos);
+      })
+      .catch(() => {})
+      .finally(() => setEmpleadosListos(true));
   }, [mostrarCamposAdmin]);
 
   const { register, control, handleSubmit, setValue, formState: { errors } } = useForm<TicketFormData>({
@@ -83,9 +99,13 @@ export const TicketForm: React.FC<TicketFormProps> = ({ initialData, onSubmit, l
 
   // Empleados seleccionables: activos + el actualmente asignado aunque esté inactivo,
   // para que siempre exista una <option> que respalde el valor guardado en el ticket.
-  const empleadosSeleccionables = empleados.filter(
-    (e) => e.activo || e.id === initialData?.assignedTo
-  );
+  // Ordenados por carga ascendente (igual que la IA en analizarYAsignar) para que,
+  // aunque la elección final sea manual, el admin vea primero a los menos ocupados.
+  const ticketsParaCarga = tickets.filter((t) => t.id !== initialData?.id);
+  const empleadosSeleccionables = empleados
+    .filter((e) => e.activo || e.id === initialData?.assignedTo)
+    .map((e) => ({ ...e, carga: calcularCarga(ticketsParaCarga, e.id) }))
+    .sort((a, b) => (a.carga !== b.carga ? a.carga - b.carga : a.nombre.localeCompare(b.nombre)));
 
   const submit = (data: TicketFormData) =>
     onSubmit({
@@ -228,7 +248,11 @@ export const TicketForm: React.FC<TicketFormProps> = ({ initialData, onSubmit, l
                         { value: "__none__", label: "Sin asignar" },
                         ...empleadosSeleccionables.map((e) => ({
                           value: e.id,
-                          label: `${e.nombre}${e.cargo ? ` — ${e.cargo}` : ""}${!e.activo ? " (inactivo)" : ""}`,
+                          label: `${e.nombre}${e.cargo ? ` — ${e.cargo}` : ""}${
+                            estaOcupado(e.carga, maxTicketsAbiertos)
+                              ? " · Ocupado"
+                              : ` · ${e.carga} ${e.carga === 1 ? "abierto" : "abiertos"}`
+                          }${!e.activo ? " (inactivo)" : ""}`,
                         })),
                       ]}
                       value={field.value || "__none__"}
@@ -240,13 +264,17 @@ export const TicketForm: React.FC<TicketFormProps> = ({ initialData, onSubmit, l
                       <SelectContent>
                         <SelectGroup>
                           <SelectItem value="__none__">Sin asignar</SelectItem>
-                          {empleadosSeleccionables.map((e) => (
-                            <SelectItem key={e.id} value={e.id}>
-                              {e.nombre}
-                              {e.cargo ? ` — ${e.cargo}` : ""}
-                              {!e.activo ? " (inactivo)" : ""}
-                            </SelectItem>
-                          ))}
+                          {empleadosSeleccionables.map((e) => {
+                            const ocupado = estaOcupado(e.carga, maxTicketsAbiertos);
+                            return (
+                              <SelectItem key={e.id} value={e.id}>
+                                {e.nombre}
+                                {e.cargo ? ` — ${e.cargo}` : ""}
+                                {ocupado ? " · Ocupado" : ` · ${e.carga} ${e.carga === 1 ? "abierto" : "abiertos"}`}
+                                {!e.activo ? " (inactivo)" : ""}
+                              </SelectItem>
+                            );
+                          })}
                         </SelectGroup>
                       </SelectContent>
                     </Select>

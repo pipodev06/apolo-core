@@ -1,7 +1,11 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useState } from "react";
 import { IconPencil as Pencil, IconTrash as Trash2, IconPower as Power, IconUsers as Users, IconMail as Mail, IconPhone as Phone, IconRestore as RotateCcw, IconSearch as Search, IconFilterOff as FilterX } from "@tabler/icons-react";
 import { empleadosService } from "../../services/empleadosService";
+import { ticketsService } from "../../services/ticketsService";
+import { configService } from "../../services/configService";
 import type { Empleado } from "../../types/empleado";
+import type { Ticket } from "../../types/ticket";
+import { calcularCarga, estaOcupado } from "../../lib/carga";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "../ui/table";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
@@ -25,6 +29,8 @@ interface Props {
 
 export const EmpleadosTab = forwardRef<EmpleadosTabHandle, Props>(({ soloPapelera = false }, ref) => {
   const [empleados, setEmpleados] = useState<Empleado[]>([]);
+  const [tickets, setTickets] = useState<Ticket[]>([]);
+  const [maxTicketsAbiertos, setMaxTicketsAbiertos] = useState<number | undefined>(undefined);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Empleado | null>(null);
@@ -54,6 +60,14 @@ export const EmpleadosTab = forwardRef<EmpleadosTabHandle, Props>(({ soloPapeler
   useEffect(() => {
     Promise.resolve().then(fetch);
   }, [fetch]);
+
+  // Carga (tickets abiertos por empleado): no aplica en la papelera, ahí no
+  // se puede asignar nada.
+  useEffect(() => {
+    if (soloPapelera) return;
+    ticketsService.getAll().then(setTickets).catch(() => {});
+    configService.getAppConfig().then((c) => setMaxTicketsAbiertos(c.maxTicketsAbiertos)).catch(() => {});
+  }, [soloPapelera]);
 
   const openNuevo = () => {
     setEditing(null);
@@ -249,6 +263,7 @@ export const EmpleadosTab = forwardRef<EmpleadosTabHandle, Props>(({ soloPapeler
                 <TableHead>Área</TableHead>
                 <TableHead>Correo</TableHead>
                 <TableHead>Teléfono</TableHead>
+                {!soloPapelera && <TableHead>Carga</TableHead>}
                 <TableHead>Estado</TableHead>
                 <TableHead>Acciones</TableHead>
               </TableRow>
@@ -285,6 +300,19 @@ export const EmpleadosTab = forwardRef<EmpleadosTabHandle, Props>(({ soloPapeler
                     "-"
                   )}
                 </TableCell>
+                {!soloPapelera && (
+                  <TableCell>
+                    {(() => {
+                      const carga = calcularCarga(tickets, e.id);
+                      const ocupado = estaOcupado(carga, maxTicketsAbiertos);
+                      return (
+                        <Badge variant={ocupado ? "orange" : "gray"} dot>
+                          {carga} {carga === 1 ? "abierto" : "abiertos"}{ocupado ? " · Ocupado" : ""}
+                        </Badge>
+                      );
+                    })()}
+                  </TableCell>
+                )}
                 <TableCell>
                   {soloPapelera ? (
                     <Badge variant="red" dot>
