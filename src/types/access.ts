@@ -7,6 +7,7 @@ export interface AccessSections {
   administracion: boolean;
   notificaciones: boolean;
   papelera: boolean;
+  historico: boolean;
 }
 
 export interface UserAccess {

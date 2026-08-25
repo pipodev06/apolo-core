@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { configService } from "../../../services/configService";
 import { Button } from "../../../components/ui/button";
-import { Field, FieldLabel, FieldDescription } from "../../../components/ui/field";
+import { Field, FieldLabel } from "../../../components/ui/field";
 import { Input } from "../../../components/ui/input";
 import { PageSpinner } from "../../../components/ui/spinner";
 import { notificarExito, notificarError } from "../../../lib/alertas";
@@ -100,10 +100,6 @@ export const ModoTab: React.FC = () => {
           value={maxTicketsAbiertos}
           onChange={(e) => setMaxTicketsAbiertos(Number(e.target.value))}
         />
-        <FieldDescription>
-          Al llegar a este número de tickets abiertos, el empleado se marca "Ocupado" y la IA prioriza
-          asignar a otro. Si toda el área está ocupada, igual asigna al de menor carga.
-        </FieldDescription>
       </Field>
 
       <div className="flex justify-end border-t pt-6">

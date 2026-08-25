@@ -1,6 +1,6 @@
 import * as logger from "firebase-functions/logger";
 import { onDocumentUpdated, onDocumentCreated } from "firebase-functions/v2/firestore";
-import { FieldValue, getFirestore } from "firebase-admin/firestore";
+import { FieldValue, Timestamp, getFirestore } from "firebase-admin/firestore";
 
 // Mismo sentinel que src/pages/tickets/TicketDetail.tsx (IA_CREATED_BY): tickets
 // creados de forma automática no tienen un usuario real al que notificar.
@@ -113,3 +113,19 @@ export const notificarEvento = onDocumentCreated(
     logger.info(`Notificación creada para usuario ${createdBy} sobre ticket ${ticket.code}`);
   }
 );
+
+// Días de retención tras marcarse como leída, antes de que el TTL policy de
+// Firestore (campo "expiraEn", configurado en la consola/gcloud, no en este
+// código) la borre automáticamente. El cliente solo puede tocar "leida"
+// (firestore.rules), por eso "expiraEn" se setea acá, no en notificacionesService.
+const DIAS_RETENCION_LEIDAS = 7;
+
+export const expirarNotificacionLeida = onDocumentUpdated("notificaciones/{notifId}", async (event) => {
+  const before = event.data?.before.data();
+  const after = event.data?.after.data();
+  if (!before || !after) return;
+  if (before.leida === true || after.leida !== true) return;
+
+  const expiraEn = Timestamp.fromMillis(Date.now() + DIAS_RETENCION_LEIDAS * 24 * 60 * 60 * 1000);
+  await event.data!.after.ref.update({ expiraEn });
+});
