@@ -6,7 +6,7 @@ import { getFirestore } from "firebase-admin/firestore";
 import { analizarYAsignar } from "./analizar";
 
 export { login } from "./auth";
-export { registrarCambiosTicket, notificarEvento } from "./historial";
+export { registrarCambiosTicket, notificarEvento, expirarNotificacionLeida } from "./historial";
 
 initializeApp();
 

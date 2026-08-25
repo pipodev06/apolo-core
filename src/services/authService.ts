@@ -94,6 +94,7 @@ export const authService = {
           administracion: true,
           notificaciones: true,
           papelera: true,
+          historico: true,
         },
         updatedAt: serverTimestamp(),
       });

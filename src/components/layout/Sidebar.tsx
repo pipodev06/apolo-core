@@ -1,6 +1,6 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
-import { IconHome as Home, IconLayoutDashboard as LayoutDashboard, IconTicket as Ticket, IconUsers as Users, IconSettings as Settings, IconLogout as LogOut, IconTrash as Trash2, type Icon as LucideIcon } from "@tabler/icons-react";
+import { IconHome as Home, IconLayoutDashboard as LayoutDashboard, IconTicket as Ticket, IconUsers as Users, IconSettings as Settings, IconLogout as LogOut, IconTrash as Trash2, IconHistory as History, type Icon as LucideIcon } from "@tabler/icons-react";
 import { useAuth } from "../../context/AuthContext";
 import { useAccess } from "../../context/AccessContext";
 import { cn } from "../../lib/cn";
@@ -11,6 +11,7 @@ const navItems: { icon: LucideIcon; label: string; path: string; section?: keyof
   { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard", section: "dashboard" },
   { icon: Ticket, label: "Tickets", path: "/tickets", section: "tickets" },
   { icon: Users, label: "Personal", path: "/personal", section: "personal" },
+  { icon: History, label: "Histórico", path: "/historico", section: "historico" },
   { icon: Settings, label: "Administración", path: "/administracion", section: "administracion" },
 ];
 
@@ -59,7 +60,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                 className={cn(
                   "flex items-center rounded-lg px-4 py-2.5 text-sm font-medium transition-colors",
                   isActive
-                    ? "bg-sidebar-primary text-sidebar-primary-foreground"
+                    ? "border border-sidebar-primary text-sidebar-primary"
                     : "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                 )}
               >
@@ -76,7 +77,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
               className={cn(
                 "flex items-center rounded-lg px-4 py-2.5 text-sm font-medium transition-colors",
                 papeleraActiva
-                  ? "bg-sidebar-primary text-sidebar-primary-foreground"
+                  ? "border border-sidebar-primary text-sidebar-primary"
                   : "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
               )}
             >

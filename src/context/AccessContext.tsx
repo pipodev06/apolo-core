@@ -41,6 +41,7 @@ export const AccessProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         administracion: true,
         notificaciones: true,
         papelera: true,
+        historico: true,
       });
       setLoadedForUserId(user.userId);
       return;
@@ -61,6 +62,10 @@ export const AccessProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             // de que existiera el permiso) salvo que se desactiven explícito.
             notificaciones: sections.notificaciones !== false,
             papelera: sections.papelera !== false,
+            // historico es opt-in (como personal/administracion): docs
+            // viejos sin el campo quedan sin acceso hasta que un admin lo
+            // habilite explícito en la Matriz de Accesos.
+            historico: !!sections.historico,
           });
         } else {
           setAccess({
@@ -70,6 +75,7 @@ export const AccessProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             administracion: false,
             notificaciones: true, // Default access
             papelera: true, // Default access
+            historico: false,
           });
         }
         setLoadedForUserId(user.userId);
@@ -83,6 +89,7 @@ export const AccessProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           administracion: false,
           notificaciones: true,
           papelera: true,
+          historico: false,
         });
         setLoadedForUserId(user.userId);
       }
