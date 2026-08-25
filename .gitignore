@@ -1,0 +1,35 @@
+# Dependencias
+node_modules/
+
+# Builds / artefactos
+dist/
+dist-ssr/
+build/
+.vite/
+.turbo/
+.cache/
+functions/lib/
+*.local
+
+# Variables de entorno / secretos
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+
+# Sistema operativo / editores
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Claude (config local de la máquina)
+.claude/settings.local.json
+skills-lock.json
+CLAUDE.md
+docs/
