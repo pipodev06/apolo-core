@@ -60,6 +60,7 @@ export const usersService = {
           administracion: allAccess,
           notificaciones: true,
           papelera: true,
+          historico: allAccess,
         },
         updatedAt: serverTimestamp(),
       });

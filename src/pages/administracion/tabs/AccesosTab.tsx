@@ -79,6 +79,7 @@ export const AccesosTab: React.FC = () => {
           administracion: !!acc.sections?.administracion,
           notificaciones: !!acc.sections?.notificaciones,
           papelera: !!acc.sections?.papelera,
+          historico: !!acc.sections?.historico,
         };
         return accessService.updateAccess(acc.userId, sections);
       });
@@ -111,6 +112,7 @@ export const AccesosTab: React.FC = () => {
             <TableHead className="text-center">Administración</TableHead>
             <TableHead className="text-center">Notificaciones</TableHead>
             <TableHead className="text-center">Papelera</TableHead>
+            <TableHead className="text-center">Histórico</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -171,6 +173,14 @@ export const AccesosTab: React.FC = () => {
                   checked={elevado || access?.sections.papelera || false}
                   disabled={elevado}
                   onCheckedChange={() => handleToggle(user.id, "papelera")}
+                />
+              </TableCell>
+              <TableCell className="text-center">
+                <Checkbox
+                  className="mx-auto"
+                  checked={elevado || access?.sections.historico || false}
+                  disabled={elevado}
+                  onCheckedChange={() => handleToggle(user.id, "historico")}
                 />
               </TableCell>
             </TableRow>

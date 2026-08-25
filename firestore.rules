@@ -23,8 +23,10 @@ rules_version = '2';
 //   • Prohibir borrados FÍSICOS (se fuerza soft-delete vía deletedAt).
 //   • Acotar el tamaño de los textos.
 //   • Exigir sesión real (`request.auth != null`) para escribir en cualquier
-//     colección una vez pasado el /setup inicial — en `users` y `access`
-//     además se exige el rol admin/super_admin vía custom claim.
+//     colección una vez pasado el /setup inicial — en `users`, `access`,
+//     `personal`, `cargos`, `areas` y el update de `tickets` además se
+//     exige el rol admin/super_admin vía custom claim (crear un ticket y
+//     comentar siguen abiertos a cualquier usuario autenticado).
 // ─────────────────────────────────────────────────────────────────────────────
 
 service cloud.firestore {
@@ -117,7 +119,12 @@ service cloud.firestore {
                     && request.resource.data.order is int
                     && nonEmptyStr(request.resource.data.createdBy, 100);
 
+      // Modificar un ticket (estado, urgencia, asignación, etc.) es acción de
+      // gestión, no de reporte -- exige admin/super_admin. Un usuario común
+      // solo puede comentar (ver match /eventos de abajo), no tocar el
+      // documento del ticket en si.
       allow update: if request.auth != null
+                    && request.auth.token.role in ['admin', 'super_admin']
                     && request.resource.data.urgency in ['CRITICO', 'ALTO', 'MEDIO', 'BAJO']
                     && request.resource.data.status in ['pendiente', 'asignado', 'en_proceso', 'terminado']
                     && transicionDeEstadoValida(resource.data.status, request.resource.data.status)
@@ -158,9 +165,12 @@ service cloud.firestore {
     }
 
     // ── personal (empleados a los que se asignan tickets) ─────────────────────
+    // Gestión de personal es admin/super_admin -- un usuario comun no crea ni
+    // edita empleados aunque este autenticado.
     match /personal/{personalId} {
       allow read: if true;
       allow create, update: if request.auth != null
+                            && request.auth.token.role in ['admin', 'super_admin']
                             && nonEmptyStr(request.resource.data.nombre, 120)
                             && request.resource.data.activo is bool;
       // Sin borrado físico: soft-delete vía deletedAt.
@@ -171,6 +181,7 @@ service cloud.firestore {
     match /cargos/{cargoId} {
       allow read: if true;
       allow create, update: if request.auth != null
+                            && request.auth.token.role in ['admin', 'super_admin']
                             && nonEmptyStr(request.resource.data.nombre, 120)
                             && request.resource.data.activo is bool;
       allow delete: if false;
@@ -179,6 +190,7 @@ service cloud.firestore {
     match /areas/{areaId} {
       allow read: if true;
       allow create, update: if request.auth != null
+                            && request.auth.token.role in ['admin', 'super_admin']
                             && nonEmptyStr(request.resource.data.nombre, 120)
                             && request.resource.data.activo is bool;
       allow delete: if false;
@@ -194,7 +206,8 @@ service cloud.firestore {
               && request.resource.data.sections.personal is bool
               && request.resource.data.sections.administracion is bool
               && request.resource.data.sections.notificaciones is bool
-              && request.resource.data.sections.papelera is bool;
+              && request.resource.data.sections.papelera is bool
+              && request.resource.data.sections.historico is bool;
       }
       // create: el /setup inicial crea el primer access junto con el primer
       // super_admin dentro de la MISMA transacción, sin sesión todavía (mismo
