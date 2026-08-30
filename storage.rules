@@ -10,7 +10,10 @@ service firebase.storage {
       allow write: if request.auth != null
                    && request.resource.size < 5 * 1024 * 1024
                    && request.resource.contentType.matches('image/.*');
-      allow delete: if false;
+      // Permite borrar (ej. sacar una imagen que se subió por error antes de
+      // guardar el ticket/comentario) — mismo criterio de auth que write, no
+      // hay infraestructura para acotar "solo el que la subió" en este ruleset.
+      allow delete: if request.auth != null;
     }
   }
 }

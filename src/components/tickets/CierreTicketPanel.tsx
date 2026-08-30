@@ -36,6 +36,11 @@ export const CierreTicketPanel: React.FC<{ ticket: Ticket }> = ({ ticket }) => {
   const requiereSolucion = status === "terminado";
   const puedeGuardar = !requiereSolucion || solutionDescription.trim().length > 0;
 
+  // Reabrir un ticket que ya estaba terminado (pasarlo a cualquier otro
+  // estado) limpia la solución vieja — no tendría sentido dejar la
+  // descripción/imágenes de una solución que ya no aplica una vez reabierto.
+  const reabierto = ticket.status === "terminado" && status !== "terminado";
+
   const guardar = async () => {
     if (!puedeGuardar) {
       notificarError("Escribe una descripción de la solución para cerrar el ticket.");
@@ -45,8 +50,8 @@ export const CierreTicketPanel: React.FC<{ ticket: Ticket }> = ({ ticket }) => {
     try {
       await ticketsService.update(ticket.id, {
         status,
-        solutionDescription: solutionDescription.trim(),
-        solutionImages,
+        solutionDescription: reabierto ? "" : solutionDescription.trim(),
+        solutionImages: reabierto ? [] : solutionImages,
       });
       notificarExito("Ticket actualizado");
     } catch (error) {
