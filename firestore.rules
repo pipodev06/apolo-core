@@ -117,20 +117,46 @@ service cloud.firestore {
                     && request.resource.data.status == 'pendiente'
                     && request.resource.data.code is string
                     && request.resource.data.order is int
-                    && nonEmptyStr(request.resource.data.createdBy, 100);
+                    && nonEmptyStr(request.resource.data.createdBy, 100)
+                    && (!('problemImages' in request.resource.data)
+                        || (request.resource.data.problemImages is list
+                            && request.resource.data.problemImages.size() <= 5));
 
       // Modificar un ticket (estado, urgencia, asignación, etc.) es acción de
-      // gestión, no de reporte -- exige admin/super_admin. Un usuario común
-      // solo puede comentar (ver match /eventos de abajo), no tocar el
-      // documento del ticket en si.
+      // gestión, no de reporte -- exige admin/super_admin. Cerrar un ticket a
+      // 'terminado' exige dejar la descripción de la solución (mismo criterio
+      // que el update de técnico de abajo).
       allow update: if request.auth != null
                     && request.auth.token.role in ['admin', 'super_admin']
                     && request.resource.data.urgency in ['CRITICO', 'ALTO', 'MEDIO', 'BAJO']
                     && request.resource.data.status in ['pendiente', 'asignado', 'en_proceso', 'terminado']
                     && transicionDeEstadoValida(resource.data.status, request.resource.data.status)
+                    && (request.resource.data.status != 'terminado'
+                        || nonEmptyStr(request.resource.data.solutionDescription, 5000))
                     // code y order son inmutables tras crearse
                     && request.resource.data.code == resource.data.code
                     && request.resource.data.order == resource.data.order;
+
+      // El técnico asignado (cuenta "usuario" con personalId vinculado, ver
+      // users/{uid}.personalId y el claim que emite la Cloud Function login)
+      // puede cerrar/reabrir SOLO su propio ticket asignado, y SOLO tocando
+      // estado + solución + imágenes de solución. hasOnly() sobre el diff es
+      // allow-list (no block-list): a diferencia de comparar campo por campo
+      // contra resource.data (fácil de olvidar uno — code/order/createdBy/
+      // deletedAt/etc), esto garantiza que NINGÚN otro campo puede cambiar,
+      // los conozca esta regla o no. Mismo patrón que notificaciones.update.
+      allow update: if request.auth != null
+                    && request.auth.token.personalId is string
+                    && resource.data.assignedTo == request.auth.token.personalId
+                    && request.resource.data.diff(resource.data).affectedKeys()
+                         .hasOnly(['status', 'solutionDescription', 'solutionImages', 'finishedAt', 'updatedAt'])
+                    && request.resource.data.status in ['pendiente', 'asignado', 'en_proceso', 'terminado']
+                    && transicionDeEstadoValida(resource.data.status, request.resource.data.status)
+                    && (request.resource.data.status != 'terminado'
+                        || nonEmptyStr(request.resource.data.solutionDescription, 5000))
+                    && (!('solutionImages' in request.resource.data)
+                        || (request.resource.data.solutionImages is list
+                            && request.resource.data.solutionImages.size() <= 5));
 
       // Sin borrado físico: soft-delete vía update de deletedAt.
       allow delete: if false;
@@ -146,7 +172,10 @@ service cloud.firestore {
                       && request.resource.data.tipo == 'comentario'
                       && request.resource.data.actorId == request.auth.uid
                       && nonEmptyStr(request.resource.data.texto, 2000)
-                      && nonEmptyStr(request.resource.data.actorNombre, 120);
+                      && nonEmptyStr(request.resource.data.actorNombre, 120)
+                      && (!('imagenes' in request.resource.data)
+                          || (request.resource.data.imagenes is list
+                              && request.resource.data.imagenes.size() <= 5));
         allow update, delete: if false;
       }
     }

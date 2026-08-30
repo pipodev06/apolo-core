@@ -15,6 +15,7 @@ interface LoginResult {
   userId: string;
   username: string;
   role: string;
+  personalId?: string;
 }
 
 export const authService = {
@@ -39,6 +40,7 @@ export const authService = {
       userId: data.userId,
       username: data.username,
       role: data.role,
+      personalId: data.personalId,
       expiresAt: Date.now() + 1000 * 60 * 60 * 12, // 12 hours
     };
 
