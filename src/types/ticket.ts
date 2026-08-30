@@ -24,4 +24,7 @@ export interface Ticket {
   finishedAt?: FirestoreTimestamp | null;
   updatedAt: FirestoreTimestamp;
   deletedAt?: FirestoreTimestamp | null; // soft-delete
+  solutionDescription?: string;
+  problemImages?: string[];   // URLs de Storage — adjuntadas al crear/editar el ticket
+  solutionImages?: string[];  // URLs de Storage — adjuntadas al cerrar el ticket
 }

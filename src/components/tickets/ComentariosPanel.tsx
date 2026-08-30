@@ -7,6 +7,7 @@ import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { Textarea } from "../ui/textarea";
 import { ExpandableText } from "../ui/expandable-text";
+import { ImageUploader } from "../ui/image-uploader";
 import { fmtFechaHora } from "../../lib/fecha";
 import { notificarError } from "../../lib/alertas";
 import { useAuth } from "../../context/AuthContext";
@@ -21,6 +22,7 @@ export const ComentariosPanel: React.FC<{ ticketId: string; eventos: TicketEvent
 }) => {
   const { user } = useAuth();
   const [texto, setTexto] = useState("");
+  const [imagenes, setImagenes] = useState<string[]>([]);
   const [enviando, setEnviando] = useState(false);
 
   const comentarios = useMemo(() => eventos.filter((e) => e.tipo === "comentario"), [eventos]);
@@ -39,8 +41,9 @@ export const ComentariosPanel: React.FC<{ ticketId: string; eventos: TicketEvent
     if (!texto.trim() || !user) return;
     setEnviando(true);
     try {
-      await eventosService.agregarComentario(ticketId, texto.trim(), user.userId, user.username);
+      await eventosService.agregarComentario(ticketId, texto.trim(), user.userId, user.username, imagenes);
       setTexto("");
+      setImagenes([]);
     } catch (error) {
       notificarError(error instanceof Error ? error.message : "Error al agregar el comentario");
     } finally {
@@ -76,6 +79,15 @@ export const ComentariosPanel: React.FC<{ ticketId: string; eventos: TicketEvent
                   maxChars={LARGO_PREVIEW}
                   className="mt-0.5 whitespace-pre-wrap break-words text-sm"
                 />
+                {!!evento.imagenes?.length && (
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {evento.imagenes.map((url) => (
+                      <a key={url} href={url} target="_blank" rel="noreferrer">
+                        <img src={url} alt="" className="h-14 w-14 rounded-md border object-cover" />
+                      </a>
+                    ))}
+                  </div>
+                )}
                 <div className="mt-1 flex justify-end">
                   <Badge variant="gray">{fmtFechaHora(evento.createdAt)}</Badge>
                 </div>
@@ -85,7 +97,14 @@ export const ComentariosPanel: React.FC<{ ticketId: string; eventos: TicketEvent
         })}
       </div>
 
-      <div className="mt-6 flex gap-2 border-t pt-4">
+      <div className="mt-6 space-y-2 border-t pt-4">
+        <ImageUploader
+          value={imagenes}
+          onChange={setImagenes}
+          pathPrefix={`tickets/${ticketId}/comentarios`}
+          maxFiles={3}
+        />
+        <div className="flex gap-2">
         <Textarea
           value={texto}
           onChange={(e) => setTexto(e.target.value)}
@@ -102,6 +121,7 @@ export const ComentariosPanel: React.FC<{ ticketId: string; eventos: TicketEvent
         <Button onClick={handleComentar} disabled={enviando || !texto.trim()} size="icon">
           <Send className="h-4 w-4" />
         </Button>
+        </div>
       </div>
     </Card>
   );

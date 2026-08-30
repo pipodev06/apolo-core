@@ -12,6 +12,7 @@ import { Field, FieldError, FieldLabel } from "../ui/field";
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "../ui/input-group";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { Textarea } from "../ui/textarea";
+import { ImageUploader } from "../ui/image-uploader";
 import { useAuth } from "../../context/AuthContext";
 import { esAdmin } from "../../lib/roles";
 import { empleadosService } from "../../services/empleadosService";
@@ -28,6 +29,7 @@ const ticketSchema = z.object({
   urgency: z.enum(["CRITICO", "ALTO", "MEDIO", "BAJO"]),
   status: z.enum(["pendiente", "asignado", "en_proceso", "terminado"]),
   assignedTo: z.string().optional(),
+  problemImages: z.array(z.string()).optional(),
 });
 
 export type TicketFormData = z.infer<typeof ticketSchema>;
@@ -57,6 +59,11 @@ export const TicketForm: React.FC<TicketFormProps> = ({ initialData, onSubmit, l
   // initialData.assignedTo, y SelectValue muestra el id crudo mientras tanto.
   const [empleadosCargados, setEmpleadosCargados] = useState(false);
   const empleadosListos = empleadosCargados && !ticketsLoading;
+  // Un ticket nuevo todavía no tiene id (se genera recién al guardar, en la
+  // transacción de ticketsService.create) — usamos uno temporal solo para
+  // agrupar las imágenes en Storage; no necesita corresponder a un doc real.
+  const [tempTicketId] = useState(() => crypto.randomUUID());
+  const storageTicketId = initialData?.id || tempTicketId;
 
   useEffect(() => {
     if (!mostrarCamposAdmin) return;
@@ -84,6 +91,7 @@ export const TicketForm: React.FC<TicketFormProps> = ({ initialData, onSubmit, l
       urgency: initialData?.urgency || "MEDIO",
       status: initialData?.status || "pendiente",
       assignedTo: initialData?.assignedTo || "",
+      problemImages: initialData?.problemImages || [],
     },
   });
 
@@ -180,6 +188,22 @@ export const TicketForm: React.FC<TicketFormProps> = ({ initialData, onSubmit, l
             {...register("description")}
           />
           <FieldError errors={[errors.description]} />
+        </Field>
+
+        {/* Fila 4 — Imágenes del problema */}
+        <Field>
+          <FieldLabel>Imágenes del problema</FieldLabel>
+          <Controller
+            name="problemImages"
+            control={control}
+            render={({ field }) => (
+              <ImageUploader
+                value={field.value || []}
+                onChange={field.onChange}
+                pathPrefix={`tickets/${storageTicketId}/problema`}
+              />
+            )}
+          />
         </Field>
 
         {mostrarCamposAdmin ? (

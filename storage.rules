@@ -1,0 +1,16 @@
+rules_version = '2';
+
+// Storage de imágenes adjuntas a tickets: problema (al crear/editar), solución
+// (al cerrar) y comentarios. Mismo criterio de lectura que firestore.rules
+// para tickets/eventos (contenido puede ser sensible, exige sesión real).
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /tickets/{ticketId}/{allPaths=**} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null
+                   && request.resource.size < 5 * 1024 * 1024
+                   && request.resource.contentType.matches('image/.*');
+      allow delete: if false;
+    }
+  }
+}

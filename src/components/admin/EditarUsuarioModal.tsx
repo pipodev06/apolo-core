@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -9,13 +9,18 @@ import { Button } from "../ui/button";
 import { Field, FieldError, FieldGroup, FieldLabel } from "../ui/field";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { usersService } from "../../services/usersService";
+import { empleadosService } from "../../services/empleadosService";
 import { notificarExito, notificarError } from "../../lib/alertas";
 import type { User } from "../../types/user";
+import type { Empleado } from "../../types/empleado";
+
+const SIN_VINCULO = "__none__";
 
 const schema = z.object({
   username: z.string().min(3, "Mínimo 3 caracteres"),
   email: z.string().email("Email inválido").optional().or(z.literal("")),
   role: z.enum(["usuario", "admin", "super_admin"]),
+  personalId: z.string(),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -37,20 +42,25 @@ export const EditarUsuarioModal: React.FC<Props> = ({
   user,
   puedeEditarUsername,
 }) => {
+  const [empleados, setEmpleados] = useState<Empleado[]>([]);
   const {
     register,
     control,
     handleSubmit,
     reset,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<FormData>({ resolver: zodResolver(schema) });
+  const role = watch("role");
 
   useEffect(() => {
     if (!open) return;
+    empleadosService.getAll().then((lista) => setEmpleados(lista.filter((e) => e.activo)));
     reset({
       username: user?.username || "",
       email: user?.email || "",
       role: user?.role === "admin" || user?.role === "super_admin" ? user.role : "usuario",
+      personalId: user?.personalId || SIN_VINCULO,
     });
   }, [open, user, reset]);
 
@@ -65,7 +75,11 @@ export const EditarUsuarioModal: React.FC<Props> = ({
       if (puedeEditarUsername && data.username !== user.username) {
         await usersService.updateUsername(user.id, data.username);
       }
-      await usersService.update(user.id, { email: data.email || "", role: data.role });
+      await usersService.update(user.id, {
+        email: data.email || "",
+        role: data.role,
+        personalId: data.personalId !== SIN_VINCULO ? data.personalId : undefined,
+      });
       notificarExito("Usuario actualizado");
       onUpdated();
       onClose();
@@ -145,6 +159,40 @@ export const EditarUsuarioModal: React.FC<Props> = ({
                 )}
               />
             </Field>
+
+            {role === "usuario" && (
+              <Field>
+                <FieldLabel htmlFor="personalId">Vincular a técnico</FieldLabel>
+                <Controller
+                  name="personalId"
+                  control={control}
+                  render={({ field }) => (
+                    <Select
+                      items={[
+                        { value: SIN_VINCULO, label: "Sin vincular" },
+                        ...empleados.map((e) => ({ value: e.id, label: e.nombre })),
+                      ]}
+                      value={field.value}
+                      onValueChange={(v) => v && field.onChange(v)}
+                    >
+                      <SelectTrigger id="personalId" className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectGroup>
+                          <SelectItem value={SIN_VINCULO}>Sin vincular</SelectItem>
+                          {empleados.map((e) => (
+                            <SelectItem key={e.id} value={e.id}>
+                              {e.nombre}
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+              </Field>
+            )}
 
             <DialogFooter>
               <Button type="button" variant="secondary" onClick={close} disabled={isSubmitting}>

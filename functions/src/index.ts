@@ -10,7 +10,7 @@ export { registrarCambiosTicket, notificarEvento, expirarNotificacionLeida } fro
 
 initializeApp();
 
-const SAMBANOVA_API_KEY = defineSecret("SAMBANOVA_API_KEY");
+const GROQ_API_KEY = defineSecret("GROQ_API_KEY");
 
 const ROLES_ADMIN = ["admin", "super_admin"];
 
@@ -25,7 +25,7 @@ function requireAdmin(request: { auth?: { token?: Record<string, unknown> } }) {
 }
 
 export const asignarTicketIA = onDocumentCreated(
-  { document: "tickets/{ticketId}", secrets: [SAMBANOVA_API_KEY] },
+  { document: "tickets/{ticketId}", secrets: [GROQ_API_KEY] },
   async (event) => {
     const snap = event.data;
     if (!snap) return;
@@ -45,7 +45,7 @@ export const asignarTicketIA = onDocumentCreated(
       ticketRef: snap.ref,
       title: ticket.title ?? "",
       description: ticket.description ?? "",
-      apiKey: SAMBANOVA_API_KEY.value(),
+      apiKey: GROQ_API_KEY.value(),
       maxTicketsAbiertos: typeof config.maxTicketsAbiertos === "number" ? config.maxTicketsAbiertos : undefined,
     });
   }
@@ -55,7 +55,7 @@ export const asignarTicketIA = onDocumentCreated(
 // (creados en modo manual antes de activar IA) como tickets ya asignados manualmente
 // o por IA (reasigna, sobrescribiendo area/assignedTo/assignedAt). Se invoca a demanda
 // desde el detalle del ticket, sin depender del modo global.
-export const reanalizarTicketIA = onCall({ secrets: [SAMBANOVA_API_KEY] }, async (request) => {
+export const reanalizarTicketIA = onCall({ secrets: [GROQ_API_KEY] }, async (request) => {
   requireAdmin(request);
 
   const ticketId = request.data?.ticketId;
@@ -84,7 +84,7 @@ export const reanalizarTicketIA = onCall({ secrets: [SAMBANOVA_API_KEY] }, async
     ticketRef,
     title: ticket.title ?? "",
     description: ticket.description ?? "",
-    apiKey: SAMBANOVA_API_KEY.value(),
+    apiKey: GROQ_API_KEY.value(),
     maxTicketsAbiertos: typeof config?.maxTicketsAbiertos === "number" ? config.maxTicketsAbiertos : undefined,
   });
 });

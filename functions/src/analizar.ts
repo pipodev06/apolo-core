@@ -1,6 +1,6 @@
 import * as logger from "firebase-functions/logger";
 import { FieldValue } from "firebase-admin/firestore";
-import { analizarTicket } from "./sambanova";
+import { analizarTicket } from "./groq";
 
 const OPEN_STATUSES = ["asignado", "en_proceso"];
 
@@ -22,7 +22,7 @@ export interface ResultadoAnalisis {
 }
 
 /**
- * Clasifica un ticket (área + urgencia) con SambaNova y, si encuentra
+ * Clasifica un ticket (área + urgencia) con Groq y, si encuentra
  * empleados activos en el área elegida, lo asigna al de menor carga.
  * Usado tanto por el trigger de creación como por la re-ejecución manual.
  */
@@ -43,19 +43,19 @@ export async function analizarYAsignar(params: AnalizarYAsignarParams): Promise<
   try {
     analisis = await analizarTicket({ apiKey, titulo: title, descripcion: description, areas });
   } catch (err) {
-    logger.error(`Ticket ${ticketId}: fallo al llamar SambaNova`, err);
-    return { ok: false, motivo: "Error al llamar a SambaNova." };
+    logger.error(`Ticket ${ticketId}: fallo al llamar Groq`, err);
+    return { ok: false, motivo: "Error al llamar a Groq." };
   }
 
   const update: Record<string, unknown> = { updatedAt: FieldValue.serverTimestamp() };
   if (analisis.urgencia) {
     update.urgency = analisis.urgencia;
   } else {
-    logger.warn(`Ticket ${ticketId}: SambaNova no devolvió una urgencia válida`);
+    logger.warn(`Ticket ${ticketId}: Groq no devolvió una urgencia válida`);
   }
 
   if (!analisis.area) {
-    logger.warn(`Ticket ${ticketId}: SambaNova no devolvió un área válida`);
+    logger.warn(`Ticket ${ticketId}: Groq no devolvió un área válida`);
     await ticketRef.update(update);
     return { ok: false, motivo: "La IA no pudo determinar el área del ticket." };
   }

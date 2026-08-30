@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -10,13 +10,18 @@ import { Field, FieldError, FieldGroup, FieldLabel } from "../ui/field";
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "../ui/input-group";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { usersService } from "../../services/usersService";
+import { empleadosService } from "../../services/empleadosService";
 import { notificarExito, notificarError } from "../../lib/alertas";
+import type { Empleado } from "../../types/empleado";
+
+const SIN_VINCULO = "__none__";
 
 const schema = z.object({
   username: z.string().min(3, "Mínimo 3 caracteres"),
   email: z.string().email("Email inválido").optional().or(z.literal("")),
   password: z.string().min(8, "Mínimo 8 caracteres"),
   role: z.enum(["usuario", "admin"]),
+  personalId: z.string(),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -29,16 +34,24 @@ interface Props {
 
 export const NuevoUsuarioModal: React.FC<Props> = ({ open, onClose, onCreated }) => {
   const [showPassword, setShowPassword] = useState(false);
+  const [empleados, setEmpleados] = useState<Empleado[]>([]);
   const {
     register,
     control,
     handleSubmit,
     reset,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: { role: "usuario" },
+    defaultValues: { role: "usuario", personalId: SIN_VINCULO },
   });
+  const role = watch("role");
+
+  useEffect(() => {
+    if (!open) return;
+    empleadosService.getAll().then((lista) => setEmpleados(lista.filter((e) => e.activo)));
+  }, [open]);
 
   const close = () => {
     reset();
@@ -52,6 +65,7 @@ export const NuevoUsuarioModal: React.FC<Props> = ({ open, onClose, onCreated })
         password: data.password,
         email: data.email || undefined,
         role: data.role,
+        personalId: data.personalId !== SIN_VINCULO ? data.personalId : undefined,
       });
       notificarExito("Usuario creado correctamente");
       reset();
@@ -134,6 +148,40 @@ export const NuevoUsuarioModal: React.FC<Props> = ({ open, onClose, onCreated })
               )}
             />
           </Field>
+
+          {role === "usuario" && (
+            <Field>
+              <FieldLabel htmlFor="personalId">Vincular a técnico</FieldLabel>
+              <Controller
+                name="personalId"
+                control={control}
+                render={({ field }) => (
+                  <Select
+                    items={[
+                      { value: SIN_VINCULO, label: "Sin vincular" },
+                      ...empleados.map((e) => ({ value: e.id, label: e.nombre })),
+                    ]}
+                    value={field.value}
+                    onValueChange={(v) => v && field.onChange(v)}
+                  >
+                    <SelectTrigger id="personalId" className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        <SelectItem value={SIN_VINCULO}>Sin vincular</SelectItem>
+                        {empleados.map((e) => (
+                          <SelectItem key={e.id} value={e.id}>
+                            {e.nombre}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+            </Field>
+          )}
 
           <DialogFooter>
             <Button type="button" variant="secondary" onClick={close} disabled={isSubmitting}>
