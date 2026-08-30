@@ -10,6 +10,7 @@ import { UrgencyBadge } from "../../components/tickets/UrgencyBadge";
 import { StatusBadge } from "../../components/tickets/StatusBadge";
 import { ComentariosPanel } from "../../components/tickets/ComentariosPanel";
 import { ActividadPanel } from "../../components/tickets/ActividadPanel";
+import { CierreTicketPanel } from "../../components/tickets/CierreTicketPanel";
 import { eventosService } from "../../services/eventosService";
 import type { TicketEvento } from "../../types/evento";
 import { Button } from "../../components/ui/button";
@@ -99,6 +100,7 @@ export const TicketDetail: React.FC = () => {
   if (!ticket) return null;
 
   const asignado = empleados.find((e) => e.id === ticket.assignedTo);
+  const puedeGestionarCierre = isAdmin || (!!ticket.assignedTo && ticket.assignedTo === user?.personalId);
   const esIA = ticket.createdBy === IA_CREATED_BY;
   // El usuario que creó el ticket puede ya no existir (eliminado, soft o
   // definitivo) — ahí se usa el snapshot `createdByUsername` guardado al crear
@@ -170,7 +172,34 @@ export const TicketDetail: React.FC = () => {
                   maxChars={425}
                   className="whitespace-pre-wrap break-words leading-relaxed"
                 />
+                {!!ticket.problemImages?.length && (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {ticket.problemImages.map((url) => (
+                      <a key={url} href={url} target="_blank" rel="noreferrer">
+                        <img src={url} alt="" className="h-20 w-20 rounded-md border object-cover" />
+                      </a>
+                    ))}
+                  </div>
+                )}
               </div>
+
+              {ticket.solutionDescription && (
+                <div className="border-t pt-6">
+                  <h3 className="mb-2 text-sm font-semibold uppercase tracking-wider">
+                    Solución
+                  </h3>
+                  <p className="whitespace-pre-wrap break-words leading-relaxed">{ticket.solutionDescription}</p>
+                  {!!ticket.solutionImages?.length && (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {ticket.solutionImages.map((url) => (
+                        <a key={url} href={url} target="_blank" rel="noreferrer">
+                          <img src={url} alt="" className="h-20 w-20 rounded-md border object-cover" />
+                        </a>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div className="grid grid-cols-1 gap-8 border-t pt-6 md:grid-cols-2">
                 <div className="space-y-4">
@@ -217,6 +246,7 @@ export const TicketDetail: React.FC = () => {
               </div>
             </div>
           </Card>
+          {puedeGestionarCierre && <CierreTicketPanel key={ticket.id} ticket={ticket} />}
           <ActividadPanel eventos={eventos} />
         </div>
         <ComentariosPanel ticketId={ticket.id} eventos={eventos} className="lg:col-span-2" />

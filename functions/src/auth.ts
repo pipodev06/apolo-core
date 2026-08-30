@@ -15,6 +15,7 @@ interface LoginResult {
   userId: string;
   username: string;
   role: string;
+  personalId?: string;
 }
 
 // Verifica usuario/contraseña contra Firestore (server-side, el front nunca ve
@@ -52,13 +53,18 @@ export const login = onCall(async (request) => {
   }
 
   const role = userData.role as string;
-  const customToken = await getAuth().createCustomToken(userDoc.id, { role });
+  // personalId vincula esta cuenta a un doc de personal/ (técnico) — permite que
+  // firestore.rules acote el permiso de cerrar/editar un ticket a "solo el suyo"
+  // (ver tickets.update en firestore.rules) sin depender de un lookup en cada regla.
+  const personalId = userData.personalId as string | undefined;
+  const customToken = await getAuth().createCustomToken(userDoc.id, personalId ? { role, personalId } : { role });
 
   const result: LoginResult = {
     customToken,
     userId: userDoc.id,
     username: userData.username as string,
     role,
+    personalId,
   };
   return result;
 });

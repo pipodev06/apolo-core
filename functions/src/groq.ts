@@ -1,5 +1,5 @@
-const SAMBANOVA_URL = "https://api.sambanova.ai/v1/chat/completions";
-const MODEL = "Meta-Llama-3.3-70B-Instruct";
+const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
+const MODEL = "openai/gpt-oss-120b";
 
 const URGENCIAS = ["CRITICO", "ALTO", "MEDIO", "BAJO"] as const;
 type Urgencia = (typeof URGENCIAS)[number];
@@ -39,7 +39,7 @@ Descripción: ${descripcion}
 
 Responde ÚNICAMENTE con un JSON de la forma {"area": "<una de las áreas de la lista>", "urgencia": "CRITICO|ALTO|MEDIO|BAJO"}. Sin texto adicional.`;
 
-  const res = await fetch(SAMBANOVA_URL, {
+  const res = await fetch(GROQ_URL, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -49,8 +49,12 @@ Responde ÚNICAMENTE con un JSON de la forma {"area": "<una de las áreas de la 
       model: MODEL,
       messages: [{ role: "user", content: prompt }],
       temperature: 0,
-      max_tokens: 150,
-      // Fuerza JSON válido a nivel de API (SambaNova es compatible con el
+      // gpt-oss-120b es modelo de razonamiento: consume tokens pensando antes
+      // de responder (fuera de nuestro control), así que max_tokens debe cubrir
+      // razonamiento + el JSON de salida. reasoning_effort "low" acota ese gasto.
+      max_tokens: 400,
+      reasoning_effort: "low",
+      // Fuerza JSON válido a nivel de API (Groq es compatible con el
       // response_format de OpenAI) — capa extra sobre la instrucción del
       // prompt, no reemplaza el parseo con regex de más abajo, que sigue
       // como red de seguridad si el modelo igual devuelve texto extra.
@@ -60,7 +64,7 @@ Responde ÚNICAMENTE con un JSON de la forma {"area": "<una de las áreas de la 
 
   if (!res.ok) {
     const body = await res.text().catch(() => "");
-    throw new Error(`SambaNova respondió ${res.status}: ${body}`);
+    throw new Error(`Groq respondió ${res.status}: ${body}`);
   }
 
   const data = (await res.json()) as {

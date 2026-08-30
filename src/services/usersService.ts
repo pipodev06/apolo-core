@@ -3,6 +3,7 @@ import {
   getDocs,
   doc,
   updateDoc,
+  deleteField,
   query,
   where,
   orderBy,
@@ -27,7 +28,7 @@ export const usersService = {
       .filter((u) => !u.deletedAt);
   },
 
-  create: async (data: { username: string; password: string; email?: string; role: Role }) => {
+  create: async (data: { username: string; password: string; email?: string; role: Role; personalId?: string }) => {
     const usernameHash = await hashUsername(data.username);
 
     const usersRef = collection(db, "users");
@@ -45,6 +46,7 @@ export const usersService = {
         passwordHash,
         email: data.email || "",
         role: data.role,
+        ...(data.personalId ? { personalId: data.personalId } : {}),
         active: true,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
@@ -69,8 +71,14 @@ export const usersService = {
 
   update: async (id: string, data: Partial<User>) => {
     const userRef = doc(db, "users", id);
+    // Firestore rechaza `undefined` como valor de campo en updateDoc — un caller
+    // que pase p. ej. personalId: undefined quiere decir "limpiar ese campo",
+    // no "no tocarlo" (para eso simplemente no incluye la key).
+    const payload = Object.fromEntries(
+      Object.entries(data).map(([k, v]) => [k, v === undefined ? deleteField() : v])
+    );
     await updateDoc(userRef, {
-      ...data,
+      ...payload,
       updatedAt: serverTimestamp(),
     });
   },

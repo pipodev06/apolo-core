@@ -7,6 +7,7 @@ export interface TicketEvento {
   tipo: TicketEventoTipo;
   mensaje?: string;       // tipo=sistema
   texto?: string;         // tipo=comentario
+  imagenes?: string[];    // tipo=comentario, URLs de Storage
   actorId?: string;
   actorNombre?: string;
   createdAt: FirestoreTimestamp;

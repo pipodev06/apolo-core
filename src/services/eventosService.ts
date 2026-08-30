@@ -18,13 +18,20 @@ export const eventosService = {
     });
   },
 
-  agregarComentario: async (ticketId: string, texto: string, actorId: string, actorNombre: string) => {
+  agregarComentario: async (
+    ticketId: string,
+    texto: string,
+    actorId: string,
+    actorNombre: string,
+    imagenes?: string[]
+  ) => {
     const ref = collection(db, "tickets", ticketId, "eventos");
     await addDoc(ref, {
       tipo: "comentario",
       texto,
       actorId,
       actorNombre,
+      ...(imagenes?.length ? { imagenes } : {}),
       createdAt: serverTimestamp(),
     });
   },

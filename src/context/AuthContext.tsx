@@ -5,6 +5,7 @@ interface Session {
   userId: string;
   username: string;
   role: string;
+  personalId?: string;
   expiresAt: number;
 }
 

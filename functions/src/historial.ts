@@ -59,6 +59,16 @@ export const registrarCambiosTicket = onDocumentUpdated("tickets/{ticketId}", as
     );
   }
 
+  if (before.solutionDescription !== after.solutionDescription && after.solutionDescription) {
+    escrituras.push(
+      eventosRef.add({
+        tipo: "sistema",
+        mensaje: "Solución agregada",
+        createdAt: FieldValue.serverTimestamp(),
+      })
+    );
+  }
+
   if (before.assignedTo !== after.assignedTo) {
     let mensaje = "Asignación removida";
     if (after.assignedTo) {

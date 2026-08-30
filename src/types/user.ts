@@ -9,6 +9,9 @@ export interface User {
   passwordHash: string;
   email?: string;
   role: Role;
+  // id del doc en personal/ vinculado a esta cuenta — solo aplica a técnicos
+  // (role "usuario"), habilita cerrar/editar sus propios tickets asignados.
+  personalId?: string;
   active: boolean;
   deletedAt?: FirestoreTimestamp | null;
   createdAt: FirestoreTimestamp;
