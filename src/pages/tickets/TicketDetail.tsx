@@ -99,7 +99,11 @@ export const TicketDetail: React.FC = () => {
   if (!ticket) return null;
 
   const asignado = empleados.find((e) => e.id === ticket.assignedTo);
-  const puedeGestionarCierre = isAdmin || (!!ticket.assignedTo && ticket.assignedTo === user?.personalId);
+  // Una vez que el ticket ya tiene solución documentada, "Cerrar Ticket" deja
+  // de ofrecerse — reabrirlo (lo que limpia esa solución) solo se hace desde
+  // Editar Ticket, reservado a Admin.
+  const puedeGestionarCierre =
+    !ticket.solutionDescription && (isAdmin || (!!ticket.assignedTo && ticket.assignedTo === user?.personalId));
   const esIA = ticket.createdBy === IA_CREATED_BY;
   // El usuario que creó el ticket puede ya no existir (eliminado, soft o
   // definitivo) — ahí se usa el snapshot `createdByUsername` guardado al crear
