@@ -1,8 +1,9 @@
 import * as React from "react"
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage"
-import { IconUpload as Upload, IconX as X } from "@tabler/icons-react"
+import { IconUpload as Upload, IconPhoto as Photo, IconX as X } from "@tabler/icons-react"
 import { cn } from "@/lib/utils"
 import { storage } from "@/firebase"
+import { compressToWebp } from "@/lib/image"
 import { Spinner } from "@/components/ui/spinner"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
@@ -14,6 +15,9 @@ interface ImageUploaderProps {
   maxFiles?: number
   disabled?: boolean
   className?: string
+  // "button": pill con texto "Agregar imágenes" (TicketForm, CierreTicketPanel).
+  // "icon": solo el ícono, para meter inline en una fila compacta (ComentariosPanel).
+  variant?: "button" | "icon"
 }
 
 // Componente único de carga/preview de imágenes — se reusa en imágenes de
@@ -26,6 +30,7 @@ export function ImageUploader({
   maxFiles = 5,
   disabled,
   className,
+  variant = "button",
 }: ImageUploaderProps) {
   const inputRef = React.useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = React.useState(false)
@@ -40,9 +45,10 @@ export function ImageUploader({
     try {
       const urls = await Promise.all(
         seleccionados.map(async (file) => {
-          const path = `${pathPrefix}/${crypto.randomUUID()}-${file.name}`
+          const comprimido = await compressToWebp(file)
+          const path = `${pathPrefix}/${crypto.randomUUID()}-${comprimido.name}`
           const fileRef = ref(storage, path)
-          await uploadBytes(fileRef, file)
+          await uploadBytes(fileRef, comprimido)
           return getDownloadURL(fileRef)
         })
       )
@@ -84,18 +90,31 @@ export function ImageUploader({
         </div>
       )}
 
-      {!disabled && value.length < maxFiles && (
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => inputRef.current?.click()}
-          disabled={uploading}
-        >
-          {uploading ? <Spinner className="size-4" /> : <Upload className="size-4" />}
-          {uploading ? "Subiendo..." : "Agregar imágenes"}
-        </Button>
-      )}
+      {!disabled &&
+        value.length < maxFiles &&
+        (variant === "icon" ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={() => inputRef.current?.click()}
+            disabled={uploading}
+            aria-label="Agregar imágenes"
+          >
+            {uploading ? <Spinner className="size-4" /> : <Photo className="size-4" />}
+          </Button>
+        ) : (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => inputRef.current?.click()}
+            disabled={uploading}
+          >
+            {uploading ? <Spinner className="size-4" /> : <Upload className="size-4" />}
+            {uploading ? "Subiendo..." : "Agregar imágenes"}
+          </Button>
+        ))}
 
       <input
         ref={inputRef}

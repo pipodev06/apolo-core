@@ -97,14 +97,7 @@ export const ComentariosPanel: React.FC<{ ticketId: string; eventos: TicketEvent
         })}
       </div>
 
-      <div className="mt-6 space-y-2 border-t pt-4">
-        <ImageUploader
-          value={imagenes}
-          onChange={setImagenes}
-          pathPrefix={`tickets/${ticketId}/comentarios`}
-          maxFiles={3}
-        />
-        <div className="flex gap-2">
+      <div className="mt-6 flex items-end gap-2 border-t pt-4">
         <Textarea
           value={texto}
           onChange={(e) => setTexto(e.target.value)}
@@ -118,10 +111,16 @@ export const ComentariosPanel: React.FC<{ ticketId: string; eventos: TicketEvent
           rows={1}
           className="min-h-9 flex-1 resize-none"
         />
+        <ImageUploader
+          value={imagenes}
+          onChange={setImagenes}
+          pathPrefix={`tickets/${ticketId}/comentarios`}
+          maxFiles={3}
+          variant="icon"
+        />
         <Button onClick={handleComentar} disabled={enviando || !texto.trim()} size="icon">
           <Send className="h-4 w-4" />
         </Button>
-        </div>
       </div>
     </Card>
   );
