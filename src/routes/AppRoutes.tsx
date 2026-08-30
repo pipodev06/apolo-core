@@ -21,6 +21,7 @@ const Dashboard = lazy(() => import("../pages/Dashboard").then((m) => ({ default
 const TicketsList = lazy(() => import("../pages/tickets/TicketsList").then((m) => ({ default: m.TicketsList })));
 const TicketNew = lazy(() => import("../pages/tickets/TicketNew").then((m) => ({ default: m.TicketNew })));
 const TicketEdit = lazy(() => import("../pages/tickets/TicketEdit").then((m) => ({ default: m.TicketEdit })));
+const TicketCerrar = lazy(() => import("../pages/tickets/TicketCerrar").then((m) => ({ default: m.TicketCerrar })));
 const TicketDetail = lazy(() => import("../pages/tickets/TicketDetail").then((m) => ({ default: m.TicketDetail })));
 const PersonalPage = lazy(() => import("../pages/personal/PersonalPage").then((m) => ({ default: m.PersonalPage })));
 const Historico = lazy(() => import("../pages/Historico").then((m) => ({ default: m.Historico })));
@@ -131,6 +132,19 @@ export const AppRoutes: React.FC = () => {
             <AccessGuard section="tickets">
               <AppLayout>
                 <TicketEdit />
+              </AppLayout>
+            </AccessGuard>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/tickets/:id/cerrar"
+        element={
+          <ProtectedRoute>
+            <AccessGuard section="tickets">
+              <AppLayout>
+                <TicketCerrar />
               </AppLayout>
             </AccessGuard>
           </ProtectedRoute>

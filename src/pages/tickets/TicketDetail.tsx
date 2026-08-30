@@ -10,14 +10,13 @@ import { UrgencyBadge } from "../../components/tickets/UrgencyBadge";
 import { StatusBadge } from "../../components/tickets/StatusBadge";
 import { ComentariosPanel } from "../../components/tickets/ComentariosPanel";
 import { ActividadPanel } from "../../components/tickets/ActividadPanel";
-import { CierreTicketPanel } from "../../components/tickets/CierreTicketPanel";
 import { eventosService } from "../../services/eventosService";
 import type { TicketEvento } from "../../types/evento";
 import { Button } from "../../components/ui/button";
 import { Card } from "../../components/ui/card";
 import { ExpandableText } from "../../components/ui/expandable-text";
 import { PageSpinner } from "../../components/ui/spinner";
-import { IconPencil as Pencil, IconArrowLeft as ArrowLeft, IconCalendar as Calendar, IconUser as UserIcon, IconHash as Hash, IconClock as Clock, IconRobot as Bot, IconRefresh as RefreshCw } from "@tabler/icons-react";
+import { IconPencil as Pencil, IconArrowLeft as ArrowLeft, IconCalendar as Calendar, IconUser as UserIcon, IconHash as Hash, IconClock as Clock, IconRobot as Bot, IconRefresh as RefreshCw, IconCircleCheck as CircleCheck } from "@tabler/icons-react";
 import { fmtFechaHora } from "../../lib/fecha";
 import { confirmar, notificarExito, notificarError } from "../../lib/alertas";
 import { useAuth } from "../../context/AuthContext";
@@ -136,6 +135,14 @@ export const TicketDetail: React.FC = () => {
               Editar
             </Button>
           </Link>
+          {puedeGestionarCierre && (
+            <Link to={`/tickets/${ticket.id}/cerrar`}>
+              <Button variant="secondary">
+                <CircleCheck className="h-4 w-4" />
+                Cerrar Ticket
+              </Button>
+            </Link>
+          )}
         </div>
       </div>
 
@@ -246,7 +253,6 @@ export const TicketDetail: React.FC = () => {
               </div>
             </div>
           </Card>
-          {puedeGestionarCierre && <CierreTicketPanel key={ticket.id} ticket={ticket} />}
           <ActividadPanel eventos={eventos} />
         </div>
         <ComentariosPanel ticketId={ticket.id} eventos={eventos} className="lg:col-span-2" />
