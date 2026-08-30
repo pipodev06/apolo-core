@@ -125,8 +125,14 @@ export const TicketForm: React.FC<TicketFormProps> = ({ initialData, onSubmit, l
     { value: "terminado", label: "Terminado" },
   ];
   const estadoActual = initialData?.status;
+  // "Terminado" ya no se elige desde acá: cerrar un ticket exige descripción
+  // de solución, y eso vive en la pantalla dedicada /tickets/:id/cerrar. Se
+  // deja visible únicamente si el ticket YA está terminado (para no ocultar
+  // el valor actual), pero no se puede elegir como destino nuevo desde aquí.
   const estadosDisponibles = estadoActual
-    ? todosLosEstados.filter((e) => transicionEstadoValida(estadoActual, e.value))
+    ? todosLosEstados.filter(
+        (e) => transicionEstadoValida(estadoActual, e.value) && (e.value !== "terminado" || estadoActual === "terminado")
+      )
     : todosLosEstados;
 
   const submit = (data: TicketFormData) =>

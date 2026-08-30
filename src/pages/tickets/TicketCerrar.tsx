@@ -33,8 +33,13 @@ export const TicketCerrar: React.FC = () => {
   }, [id, navigate]);
 
   // Mismo criterio que firestore.rules (tickets.update de técnico): admin o
-  // el propio técnico asignado. Redirige en un efecto, no durante el render.
-  const puedeGestionarCierre = !!ticket && (isAdmin || (!!ticket.assignedTo && ticket.assignedTo === user?.personalId));
+  // el propio técnico asignado, y que no tenga ya una solución documentada
+  // (mismo criterio que el botón "Cerrar Ticket" en TicketDetail.tsx).
+  // Redirige en un efecto, no durante el render.
+  const puedeGestionarCierre =
+    !!ticket &&
+    !ticket.solutionDescription &&
+    (isAdmin || (!!ticket.assignedTo && ticket.assignedTo === user?.personalId));
   useEffect(() => {
     if (!ticket || puedeGestionarCierre) return;
     notificarError("No tienes permiso para cerrar este ticket.");

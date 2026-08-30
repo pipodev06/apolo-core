@@ -36,11 +36,16 @@ export const TicketEdit: React.FC = () => {
       const prevAssigned = ticket?.assignedTo || "";
       const nextAssigned = data.assignedTo || "";
       const assignmentChanged = nextAssigned !== prevAssigned;
+      // Reabrir un ticket que estaba terminado (moverlo a cualquier otro
+      // estado desde acá) limpia la solución vieja — mismo criterio que
+      // CierreTicketPanel.
+      const reabierto = ticket?.status === "terminado" && data.status !== "terminado";
 
       await ticketsService.update(id, {
         ...data,
         incidentTime: data.incidentTime ? limaInputValueToDate(data.incidentTime) : new Date(),
         ...(assignmentChanged ? { assignedAt: nextAssigned ? new Date() : null } : {}),
+        ...(reabierto ? { solutionDescription: "", solutionImages: [] } : {}),
       });
       notificarExito("Ticket actualizado correctamente");
       navigate(vieneDeDetalle ? `/tickets/${id}` : "/tickets");
