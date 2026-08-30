@@ -6,6 +6,7 @@ import { useNavigate, useLocation, Navigate } from "react-router-dom";
 import { IconEye as Eye, IconEyeOff as EyeOff, IconTicket as Ticket } from "@tabler/icons-react";
 import { useAuth } from "../context/AuthContext";
 import { authService } from "../services/authService";
+import { ThemeToggle } from "../components/layout/ThemeToggle";
 import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
 import { Card, CardContent } from "../components/ui/card";
@@ -68,6 +69,10 @@ export const Login: React.FC = () => {
           <Ticket className="h-5 w-5" />
         </div>
         <span className="text-lg font-bold tracking-tight">Apolo Core</span>
+      </div>
+
+      <div className="absolute right-6 top-6">
+        <ThemeToggle />
       </div>
 
       <p className="absolute inset-x-0 bottom-6 text-center text-xs text-muted-foreground">
