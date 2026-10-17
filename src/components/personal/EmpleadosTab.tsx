@@ -1,5 +1,5 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useState } from "react";
-import { IconPencil as Pencil, IconTrash as Trash2, IconPower as Power, IconUsers as Users, IconMail as Mail, IconPhone as Phone, IconRestore as RotateCcw, IconSearch as Search, IconFilterOff as FilterX } from "@tabler/icons-react";
+import { IconUsers as Users, IconMail as Mail, IconPhone as Phone, IconSearch as Search, IconFilterOff as FilterX } from "@tabler/icons-react";
 import { empleadosService } from "../../services/empleadosService";
 import { configService } from "../../services/configService";
 import { useTickets } from "../../context/TicketsContext";
@@ -14,7 +14,7 @@ import { SimplePagination } from "../ui/pagination";
 import { PageSpinner } from "../ui/spinner";
 import { EmpleadoModal } from "./EmpleadoModal";
 import { confirmar, notificarExito, notificarError } from "../../lib/alertas";
-import { cn } from "../../lib/cn";
+import { AccionesFila } from "../ui/acciones-fila";
 
 const PAGE_SIZE = 10;
 
@@ -343,53 +343,15 @@ export const EmpleadosTab = forwardRef<EmpleadosTabHandle, Props>(({ soloPapeler
                   )}
                 </TableCell>
                 <TableCell>
-                  <div className="flex items-center gap-1">
-                    {soloPapelera ? (
-                      <>
-                        <button
-                          onClick={() => restaurar(e)}
-                          className="cursor-pointer rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-green-500/10 hover:text-green-600"
-                          title="Restaurar"
-                        >
-                          <RotateCcw className="h-5 w-5" />
-                        </button>
-                        <button
-                          onClick={() => purgar(e)}
-                          className="cursor-pointer rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
-                          title="Eliminar definitivo"
-                        >
-                          <Trash2 className="h-5 w-5" />
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        <button
-                          onClick={() => handleToggle(e)}
-                          className={cn(
-                            "cursor-pointer rounded-md p-1.5 text-muted-foreground transition-colors",
-                            e.activo ? "hover:bg-muted hover:text-foreground" : "hover:bg-green-500/10 hover:text-green-600"
-                          )}
-                          title={e.activo ? "Desactivar" : "Activar"}
-                        >
-                          <Power className="h-5 w-5" />
-                        </button>
-                        <button
-                          onClick={() => openEditar(e)}
-                          className="cursor-pointer rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-primary"
-                          title="Editar"
-                        >
-                          <Pencil className="h-5 w-5" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(e)}
-                          className="cursor-pointer rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
-                          title="Eliminar"
-                        >
-                          <Trash2 className="h-5 w-5" />
-                        </button>
-                      </>
-                    )}
-                  </div>
+                  <AccionesFila
+                    soloPapelera={soloPapelera}
+                    onRestaurar={() => restaurar(e)}
+                    onPurgar={() => purgar(e)}
+                    activo={e.activo}
+                    onToggle={() => handleToggle(e)}
+                    onEditar={() => openEditar(e)}
+                    onEliminar={() => handleDelete(e)}
+                  />
                 </TableCell>
               </TableRow>
             ))}
