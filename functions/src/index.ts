@@ -1,28 +1,19 @@
 import { onDocumentCreated } from "firebase-functions/v2/firestore";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { getAuth } from "firebase-admin/auth";
 import { defineSecret } from "firebase-functions/params";
 import { initializeApp } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
 import { analizarYAsignar } from "./analizar";
 
-export { login } from "./auth";
-export { registrarCambiosTicket, notificarEvento, expirarNotificacionLeida } from "./historial";
+import { requireAdmin } from "./auth";
+
+export { login, setupInicial, crearUsuario, cambiarPassword, revocarSesionesUsuario } from "./auth";
+export { registrarCambiosTicket, notificarEvento, notificarTicketNuevo, expirarNotificacionLeida } from "./historial";
 
 initializeApp();
 
 const GROQ_API_KEY = defineSecret("GROQ_API_KEY");
-
-const ROLES_ADMIN = ["admin", "super_admin"];
-
-// request.auth.token viene del ID token verificado por Firebase (poblado tras
-// signInWithCustomToken en el login); el rol ahí NO es falseable por el cliente,
-// a diferencia del "role" que la UI guarda en localStorage solo para pintar la pantalla.
-function requireAdmin(request: { auth?: { token?: Record<string, unknown> } }) {
-  const role = request.auth?.token?.role;
-  if (typeof role !== "string" || !ROLES_ADMIN.includes(role)) {
-    throw new HttpsError("permission-denied", "Requiere rol de administrador.");
-  }
-}
 
 export const asignarTicketIA = onDocumentCreated(
   { document: "tickets/{ticketId}", secrets: [GROQ_API_KEY] },
@@ -47,6 +38,7 @@ export const asignarTicketIA = onDocumentCreated(
       description: ticket.description ?? "",
       apiKey: GROQ_API_KEY.value(),
       maxTicketsAbiertos: typeof config.maxTicketsAbiertos === "number" ? config.maxTicketsAbiertos : undefined,
+      statusActual: ticket.status,
     });
   }
 );
@@ -86,13 +78,15 @@ export const reanalizarTicketIA = onCall({ secrets: [GROQ_API_KEY] }, async (req
     description: ticket.description ?? "",
     apiKey: GROQ_API_KEY.value(),
     maxTicketsAbiertos: typeof config?.maxTicketsAbiertos === "number" ? config.maxTicketsAbiertos : undefined,
+    statusActual: ticket.status,
+    assignedToActual: ticket.assignedTo,
   });
 });
 
 // Colecciones de Papelera con soft-delete (deletedAt): las reglas de Firestore
 // prohíben `delete` desde el cliente en todas ellas a propósito (allow delete: if
 // false), así que "eliminar definitivamente" solo puede hacerse aquí, vía Admin SDK.
-const COLECCIONES_PAPELERA = ["users", "tickets", "personal", "cargos", "areas"] as const;
+const COLECCIONES_PAPELERA = ["users", "tickets", "personal", "cargos", "areas", "categorias"] as const;
 type ColeccionPapelera = (typeof COLECCIONES_PAPELERA)[number];
 
 export const eliminarDefinitivo = onCall(async (request) => {
@@ -126,5 +120,14 @@ export const eliminarDefinitivo = onCall(async (request) => {
   }
 
   await ref.delete();
+  // Una cuenta borrada se lleva su credencial, su matriz de accesos y su
+  // usuario de Firebase Auth (así no queda ninguna sesión viva).
+  if (coleccion === "users") {
+    await Promise.all([
+      db.collection("credenciales").doc(id).delete(),
+      db.collection("access").doc(id).delete(),
+      getAuth().deleteUser(id).catch(() => {}),
+    ]);
+  }
   return { ok: true };
 });

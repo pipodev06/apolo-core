@@ -1,19 +1,28 @@
 rules_version = '2';
 
 // Storage de imágenes adjuntas a tickets: problema (al crear/editar), solución
-// (al cerrar) y comentarios. Mismo criterio de lectura que firestore.rules
-// para tickets/eventos (contenido puede ser sensible, exige sesión real).
+// (al cerrar) y comentarios.
+//
+// Las imágenes se muestran vía download URL (con token), que no pasa por
+// estas reglas. La lectura vía SDK (getDownloadURL justo después de subir)
+// solo la necesita quien subió el archivo, o un admin.
 service firebase.storage {
   match /b/{bucket}/o {
     match /tickets/{ticketId}/{allPaths=**} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null
-                   && request.resource.size < 5 * 1024 * 1024
-                   && request.resource.contentType.matches('image/.*');
-      // Permite borrar (ej. sacar una imagen que se subió por error antes de
-      // guardar el ticket/comentario) — mismo criterio de auth que write, no
-      // hay infraestructura para acotar "solo el que la subió" en este ruleset.
-      allow delete: if request.auth != null;
+      allow read: if request.auth != null
+                  && (resource.metadata.get('uploadedBy', '') == request.auth.uid
+                      || request.auth.token.get('role', '') in ['admin', 'super_admin']);
+      // Solo subir archivos nuevos (no sobrescribir los de otro), imagen de
+      // hasta 5MB, marcados con quién los subió (customMetadata.uploadedBy).
+      allow create: if request.auth != null
+                    && request.resource.size < 5 * 1024 * 1024
+                    && request.resource.contentType.matches('image/.*')
+                    && request.resource.metadata.uploadedBy == request.auth.uid;
+      allow update: if false;
+      // Borrar: quien la subió o un admin.
+      allow delete: if request.auth != null
+                    && (resource.metadata.get('uploadedBy', '') == request.auth.uid
+                        || request.auth.token.get('role', '') in ['admin', 'super_admin']);
     }
   }
 }

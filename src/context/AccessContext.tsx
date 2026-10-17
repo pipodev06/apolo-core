@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useMemo } from "react";
 import { doc, onSnapshot } from "firebase/firestore";
 import { db } from "../firebase";
 import { useAuth } from "./AuthContext";
@@ -10,6 +10,16 @@ interface AccessContextType {
   isLoading: boolean;
   hasAccess: (section: keyof AccessSections) => boolean;
 }
+
+const ACCESO_TOTAL: AccessSections = {
+  dashboard: true,
+  tickets: true,
+  personal: true,
+  administracion: true,
+  notificaciones: true,
+  papelera: true,
+  historico: true,
+};
 
 const AccessContext = createContext<AccessContextType | undefined>(undefined);
 
@@ -23,29 +33,14 @@ export const AccessProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   // y AccessGuard denegaría con `access` todavía en null. Derivar `isLoading`
   // comparando ids evita esa ventana: cambia en el MISMO render que `user`.
   const [loadedForUserId, setLoadedForUserId] = useState<string | null>(null);
-  const isLoading = !!user && loadedForUserId !== user.userId;
+
+  // Roles elevados (admin / super_admin): acceso total siempre, derivado en
+  // el render (sin efecto ni lectura de Firestore).
+  const userEsAdmin = esAdmin(user?.role);
+  const isLoading = !!user && !userEsAdmin && loadedForUserId !== user.userId;
 
   useEffect(() => {
-    if (!user) {
-      setAccess(null);
-      setLoadedForUserId(null);
-      return;
-    }
-
-    // Roles elevados (admin / super_admin): acceso total siempre.
-    if (esAdmin(user.role)) {
-      setAccess({
-        dashboard: true,
-        tickets: true,
-        personal: true,
-        administracion: true,
-        notificaciones: true,
-        papelera: true,
-        historico: true,
-      });
-      setLoadedForUserId(user.userId);
-      return;
-    }
+    if (!user || esAdmin(user.role)) return;
 
     const unsubscribe = onSnapshot(
       doc(db, "access", user.userId),
@@ -98,13 +93,17 @@ export const AccessProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     return () => unsubscribe();
   }, [user]);
 
-  const hasAccess = (section: keyof AccessSections) => {
-    if (esAdmin(user?.role)) return true;
-    return access ? access[section] : false;
-  };
+  const value = useMemo(() => {
+    const accesoActual = !user ? null : userEsAdmin ? ACCESO_TOTAL : access;
+    return {
+      access: accesoActual,
+      isLoading,
+      hasAccess: (section: keyof AccessSections) => (accesoActual ? accesoActual[section] : false),
+    };
+  }, [user, userEsAdmin, access, isLoading]);
 
   return (
-    <AccessContext.Provider value={{ access, isLoading, hasAccess }}>
+    <AccessContext.Provider value={value}>
       {children}
     </AccessContext.Provider>
   );

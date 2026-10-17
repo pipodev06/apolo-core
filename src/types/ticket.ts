@@ -13,6 +13,7 @@ export interface Ticket {
   urgency: Urgency;
   status: TicketStatus;
   area?: string;           // área asignada (manual o inferida por IA)
+  categoria?: string;      // nombre de la categoría (catálogo `categorias`, string suelto como `area`)
   assignedTo?: string;     // id de empleado
   assignedAt?: FirestoreTimestamp | null; // hora de asignación
   createdBy: string;

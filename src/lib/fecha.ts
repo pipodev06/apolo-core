@@ -27,17 +27,18 @@ const OFFSET_LIMA = "-05:00";
 
 // "Ahora", como string para un <input type="datetime-local">, en hora de Lima
 // (no la hora local del navegador/SO de quien esté usando la app).
+const FMT_LIMA = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "America/Lima",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  hour12: false,
+});
+
 export function ahoraLimaInputValue(date: Date = new Date()): string {
-  const fmt = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "America/Lima",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  });
-  const partes = fmt.formatToParts(date);
+  const partes = FMT_LIMA.formatToParts(date);
   const get = (tipo: string) => partes.find((p) => p.type === tipo)?.value ?? "00";
   return `${get("year")}-${get("month")}-${get("day")}T${get("hour")}:${get("minute")}`;
 }

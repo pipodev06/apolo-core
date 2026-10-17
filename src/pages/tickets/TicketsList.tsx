@@ -1,16 +1,14 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Timestamp } from "firebase/firestore";
 import {
   IconPlus as Plus, IconEye as Eye, IconPencil as Pencil, IconTrash as Trash2, IconSearch as Search, IconTicket as TicketIcon,
-  IconUser as User, IconRestore as RotateCcw, IconFilterOff as FilterX,
+  IconUser as User, IconRestore as RotateCcw, IconFilterOff as FilterX, IconDownload as Download,
 } from "@tabler/icons-react";
 import { ticketsService } from "../../services/ticketsService";
 import { empleadosService } from "../../services/empleadosService";
 import { useTickets } from "../../context/TicketsContext";
 import type { Ticket, Urgency, TicketStatus } from "../../types/ticket";
 import type { Empleado } from "../../types/empleado";
-import type { FirestoreTimestamp } from "../../types/firestore";
 import { Card } from "../../components/ui/card";
 import { PageSpinner } from "../../components/ui/spinner";
 import { UrgencyBadge } from "../../components/tickets/UrgencyBadge";
@@ -21,6 +19,10 @@ import { Input } from "../../components/ui/input";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
 import { confirmar, notificarExito, notificarError } from "../../lib/alertas";
 import { fmtFechaHora } from "../../lib/fecha";
+import { useAuth } from "../../context/AuthContext";
+import { esAdmin } from "../../lib/roles";
+import { estaVencido, fechaMs, fmtDuracion, tiempoResolucionMs } from "../../lib/sla";
+import { descargarCsv } from "../../lib/csv";
 import { useAlturaScrollViewport } from "../../lib/useAlturaScrollViewport";
 
 const statusLabels: Record<TicketStatus, string> = {
@@ -37,12 +39,6 @@ const urgencyLabels: Record<Urgency, string> = {
   BAJO: "Bajo",
 };
 
-// Milisegundos de una fecha (soporta Firestore Timestamp o Date/string).
-const fechaMs = (t: FirestoreTimestamp | null | undefined): number => {
-  if (!t) return 0;
-  return t instanceof Timestamp ? t.toDate().getTime() : new Date(t).getTime();
-};
-
 interface Props {
   soloPapelera?: boolean;
 }
@@ -52,7 +48,9 @@ export const TicketsList: React.FC<Props> = ({ soloPapelera = false }) => {
   // compartido por sesión). La Papelera es una query distinta (deletedAt !=
   // null) que no vale la pena mantener siempre viva — sigue con su propio
   // listener, solo mientras esta vista está montada.
-  const { tickets: ticketsActivos, loading: loadingActivos } = useTickets();
+  const { user } = useAuth();
+  const isAdmin = esAdmin(user?.role);
+  const { tickets: ticketsActivos, loading: loadingActivos, sla } = useTickets();
   const [ticketsPapelera, setTicketsPapelera] = useState<Ticket[]>([]);
   const [loadingPapelera, setLoadingPapelera] = useState(true);
   const tickets = soloPapelera ? ticketsPapelera : ticketsActivos;
@@ -81,13 +79,18 @@ export const TicketsList: React.FC<Props> = ({ soloPapelera = false }) => {
   const [fHasta, setFHasta] = useState("");
 
   useEffect(() => {
-    if (!soloPapelera) return;
-    const unsubscribe = ticketsService.watch((data) => {
-      setTicketsPapelera(data);
-      setLoadingPapelera(false);
-    }, true);
+    if (!soloPapelera || !user) return;
+    const unsubscribe = ticketsService.watch(
+      user,
+      (data) => {
+        setTicketsPapelera(data);
+        setLoadingPapelera(false);
+      },
+      true,
+      () => setLoadingPapelera(false)
+    );
     return unsubscribe;
-  }, [soloPapelera]);
+  }, [soloPapelera, user]);
 
   useEffect(() => {
     empleadosService.getAll().then(setEmpleados).catch(() => {}).finally(() => setEmpleadosListos(true));
@@ -113,7 +116,10 @@ export const TicketsList: React.FC<Props> = ({ soloPapelera = false }) => {
       if (q) {
         const nombre = t.assignedTo ? empleados.find((e) => e.id === t.assignedTo)?.nombre || "" : "";
         const coincide =
-          t.code.toLowerCase().includes(q) || t.title.toLowerCase().includes(q) || nombre.toLowerCase().includes(q);
+          t.code.toLowerCase().includes(q) ||
+          t.title.toLowerCase().includes(q) ||
+          nombre.toLowerCase().includes(q) ||
+          (t.categoria ?? "").toLowerCase().includes(q);
         if (!coincide) return false;
       }
       const ms = fechaMs(t.createdAt);
@@ -143,6 +149,27 @@ export const TicketsList: React.FC<Props> = ({ soloPapelera = false }) => {
     setFUrgencia("");
     setFDesde("");
     setFHasta("");
+  };
+
+  // Exporta lo que está filtrado en pantalla.
+  const exportar = () => {
+    descargarCsv(
+      `tickets-${new Date().toISOString().slice(0, 10)}.csv`,
+      ["Código", "Título", "Estado", "Urgencia", "Categoría", "Área", "Asignado a", "Registrado", "Terminado", "Tiempo de resolución", "SLA"],
+      filtered.map((t) => [
+        t.code,
+        t.title,
+        statusLabels[t.status],
+        urgencyLabels[t.urgency],
+        t.categoria ?? "",
+        t.area ?? "",
+        t.assignedTo ? empleadoNombre(t.assignedTo) || "Empleado eliminado" : "Sin asignar",
+        fmtFechaHora(t.createdAt),
+        fmtFechaHora(t.finishedAt),
+        fmtDuracion(tiempoResolucionMs(t)),
+        estaVencido(t, sla) ? "Vencido" : "En plazo",
+      ])
+    );
   };
 
   const handleDelete = async (ticket: Ticket) => {
@@ -213,20 +240,25 @@ export const TicketsList: React.FC<Props> = ({ soloPapelera = false }) => {
         >
           <Eye className="h-5 w-5" />
         </Link>
-        <Link
-          to={`/tickets/${ticket.id}/editar`}
-          title="Editar"
-          className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-primary"
-        >
-          <Pencil className="h-5 w-5" />
-        </Link>
-        <button
-          onClick={() => handleDelete(ticket)}
-          className="cursor-pointer rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
-          title="Eliminar"
-        >
-          <Trash2 className="h-5 w-5" />
-        </button>
+        {/* Editar/eliminar son de gestión: firestore.rules solo los permite a admins. */}
+        {isAdmin && (
+          <>
+            <Link
+              to={`/tickets/${ticket.id}/editar`}
+              title="Editar"
+              className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-primary"
+            >
+              <Pencil className="h-5 w-5" />
+            </Link>
+            <button
+              onClick={() => handleDelete(ticket)}
+              className="cursor-pointer rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+              title="Eliminar"
+            >
+              <Trash2 className="h-5 w-5" />
+            </button>
+          </>
+        )}
       </>
     );
 
@@ -263,6 +295,9 @@ export const TicketsList: React.FC<Props> = ({ soloPapelera = false }) => {
           <div className="flex items-center gap-1.5">
             <span className="text-xs font-bold">Urgencia:</span>
             <UrgencyBadge urgency={ticket.urgency} />
+            {!soloPapelera && ticket.status !== "terminado" && estaVencido(ticket, sla) && (
+              <Badge variant="red">Vencido</Badge>
+            )}
           </div>
           <span className="text-xs text-muted-foreground">{fmtFechaHora(ticket.incidentTime)}</span>
         </div>
@@ -291,12 +326,18 @@ export const TicketsList: React.FC<Props> = ({ soloPapelera = false }) => {
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Tickets</h1>
           </div>
-          <Link to="/tickets/nuevo">
-            <Button>
-              <Plus className="h-4 w-4" />
-              Nuevo Ticket
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={exportar} disabled={filtered.length === 0}>
+              <Download className="h-4 w-4" />
+              Exportar CSV
             </Button>
-          </Link>
+            <Link to="/tickets/nuevo">
+              <Button>
+                <Plus className="h-4 w-4" />
+                Nuevo Ticket
+              </Button>
+            </Link>
+          </div>
         </div>
       )}
 

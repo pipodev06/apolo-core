@@ -15,13 +15,16 @@ import { PageSpinner } from "../components/ui/spinner";
 import { IconTicket as TicketIcon, IconAlertCircle as AlertCircle, IconLoader2 as Loader, IconCircleCheck as CheckCircle2, IconPercentage as Percent, type Icon as LucideIcon } from "@tabler/icons-react";
 import { cn } from "../lib/cn";
 import { useTheme } from "../context/ThemeContext";
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "../components/ui/table";
+import { Badge } from "../components/ui/badge";
+import { estaVencido, fmtDuracion, promedioResolucionMs } from "../lib/sla";
 
 export const Dashboard: React.FC = () => {
   const { theme } = useTheme();
   // tickets viene de TicketsProvider (App.tsx) — un solo listener compartido
   // por sesión, en vez de que Dashboard abra el suyo propio: al volver acá
   // después de haber visitado Tickets o Personal, los datos ya están.
-  const { tickets, loading: ticketsLoading } = useTickets();
+  const { tickets, loading: ticketsLoading, sla } = useTickets();
   const [empleados, setEmpleados] = useState<Empleado[]>([]);
   const [empleadosListos, setEmpleadosListos] = useState(false);
   const [revelado, setRevelado] = useState(false);
@@ -125,6 +128,27 @@ export const Dashboard: React.FC = () => {
       .slice(0, 6);
   }, [tickets, empleados]);
 
+  // Resolución y SLA por área: tiempo promedio (registro → terminado) y
+  // cuántos tickets abiertos ya pasaron su plazo.
+  const porArea = useMemo(() => {
+    const grupos = new Map<string, typeof tickets>();
+    for (const t of tickets) {
+      const area = t.area || "Sin área";
+      grupos.set(area, [...(grupos.get(area) ?? []), t]);
+    }
+    return [...grupos.entries()]
+      .map(([area, lista]) => ({
+        area,
+        total: lista.length,
+        terminados: lista.filter((t) => t.status === "terminado").length,
+        promedio: promedioResolucionMs(lista),
+        vencidos: lista.filter((t) => t.status !== "terminado" && estaVencido(t, sla)).length,
+      }))
+      .sort((a, b) => b.total - a.total);
+  }, [tickets, sla]);
+
+  const promedioGeneral = useMemo(() => promedioResolucionMs(tickets), [tickets]);
+
   if (!revelado) return <PageSpinner />;
 
   return (
@@ -153,8 +177,8 @@ export const Dashboard: React.FC = () => {
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie data={statusData} cx="50%" cy="50%" innerRadius={60} outerRadius={85} paddingAngle={4} dataKey="value">
-                    {statusData.map((e, i) => (
-                      <Cell key={i} fill={e.color} />
+                    {statusData.map((e) => (
+                      <Cell key={e.name} fill={e.color} />
                     ))}
                   </Pie>
                   <Tooltip contentStyle={tooltipStyle} />
@@ -179,8 +203,8 @@ export const Dashboard: React.FC = () => {
                   <YAxis tick={{ fill: axisColor, fontSize: 12 }} stroke={gridColor} allowDecimals={false} />
                   <Tooltip contentStyle={tooltipStyle} cursor={{ fill: gridColor, opacity: 0.3 }} />
                   <Bar dataKey="value" radius={[6, 6, 0, 0]}>
-                    {urgencyData.map((e, i) => (
-                      <Cell key={i} fill={e.color} />
+                    {urgencyData.map((e) => (
+                      <Cell key={e.name} fill={e.color} />
                     ))}
                   </Bar>
                 </BarChart>
@@ -211,6 +235,46 @@ export const Dashboard: React.FC = () => {
                   <Area type="monotone" dataKey="tickets" stroke="#6366f1" strokeWidth={2.5} fill="url(#grad)" />
                 </AreaChart>
               </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Resolución y SLA por área */}
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle>Resolución y SLA por Área</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Tiempo promedio de resolución general: {fmtDuracion(promedioGeneral)}
+            </p>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-hidden rounded-lg border bg-card shadow-sm">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>#</TableHead>
+                    <TableHead>Área</TableHead>
+                    <TableHead>Tickets</TableHead>
+                    <TableHead>Terminados</TableHead>
+                    <TableHead>Tiempo prom. resolución</TableHead>
+                    <TableHead>Abiertos vencidos</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {porArea.map((f, i) => (
+                    <TableRow key={f.area}>
+                      <TableCell>{i + 1}</TableCell>
+                      <TableCell className="font-medium">{f.area}</TableCell>
+                      <TableCell>{f.total}</TableCell>
+                      <TableCell>{f.terminados}</TableCell>
+                      <TableCell>{fmtDuracion(f.promedio)}</TableCell>
+                      <TableCell>
+                        <Badge variant={f.vencidos > 0 ? "red" : "gray"}>{f.vencidos}</Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             </div>
           </CardContent>
         </Card>

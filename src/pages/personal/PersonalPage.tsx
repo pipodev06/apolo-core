@@ -65,7 +65,7 @@ export const PersonalPage: React.FC = () => {
 
       {tab === "empleados" && <EmpleadosTab ref={empleadosRef} />}
       {tab === "cargos" && <CatalogoCrud ref={cargosRef} singular="cargo" service={cargosService} />}
-      {tab === "areas" && <CatalogoCrud ref={areasRef} singular="área" service={areasService} />}
+      {tab === "areas" && <CatalogoCrud ref={areasRef} singular="área" femenino service={areasService} />}
     </div>
   );
 };

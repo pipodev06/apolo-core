@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { IconSearch as Search, IconFilterOff as FilterX, IconHistory as History, IconEye as Eye } from "@tabler/icons-react";
+import { IconSearch as Search, IconFilterOff as FilterX, IconHistory as History, IconEye as Eye, IconDownload as Download } from "@tabler/icons-react";
 import { empleadosService } from "../services/empleadosService";
 import { useTickets } from "../context/TicketsContext";
 import type { Empleado } from "../types/empleado";
@@ -12,6 +12,8 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectVa
 import { SimplePagination } from "../components/ui/pagination";
 import { PageSpinner } from "../components/ui/spinner";
 import { notificarError } from "../lib/alertas";
+import { fmtDuracion, promedioResolucionMs } from "../lib/sla";
+import { descargarCsv } from "../lib/csv";
 
 const PAGE_SIZE = 10;
 
@@ -19,6 +21,7 @@ interface FilaHistorico {
   empleado: Empleado;
   asignados: number;
   terminados: number;
+  promedioMs: number | null; // tiempo promedio registro → terminado
 }
 
 export const Historico: React.FC = () => {
@@ -54,6 +57,7 @@ export const Historico: React.FC = () => {
         empleado,
         asignados: deEsteEmpleado.length,
         terminados: deEsteEmpleado.filter((t) => t.status === "terminado").length,
+        promedioMs: promedioResolucionMs(deEsteEmpleado),
       };
     });
   }, [empleados, tickets]);
@@ -106,13 +110,33 @@ export const Historico: React.FC = () => {
 
   const cargando = loading || ticketsLoading;
 
+  const exportar = () =>
+    descargarCsv(
+      `historico-${new Date().toISOString().slice(0, 10)}.csv`,
+      ["Empleado", "Cargo", "Área", "Asignados", "Terminados", "Tiempo prom. resolución"],
+      filtered.map((f) => [
+        f.empleado.nombre,
+        f.empleado.cargo ?? "",
+        f.empleado.area ?? "",
+        f.asignados,
+        f.terminados,
+        fmtDuracion(f.promedioMs),
+      ])
+    );
+
   return (
     <div className="space-y-2">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Histórico</h1>
-        <p className="text-sm text-muted-foreground">
-          Cantidad de tickets asignados y terminados por empleado, de toda la historia.
-        </p>
+      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Histórico</h1>
+          <p className="text-sm text-muted-foreground">
+            Cantidad de tickets asignados y terminados por empleado, de toda la historia.
+          </p>
+        </div>
+        <Button variant="outline" onClick={exportar} disabled={cargando || filtered.length === 0}>
+          <Download className="h-4 w-4" />
+          Exportar CSV
+        </Button>
       </div>
 
       <div className="flex flex-wrap items-end gap-3 rounded-lg border bg-card p-2 shadow-sm">
@@ -184,6 +208,7 @@ export const Historico: React.FC = () => {
                   <TableHead>Área</TableHead>
                   <TableHead>Asignados</TableHead>
                   <TableHead>Terminados</TableHead>
+                  <TableHead>Tiempo prom.</TableHead>
                   <TableHead>Detalle</TableHead>
                 </TableRow>
               </TableHeader>
@@ -207,6 +232,7 @@ export const Historico: React.FC = () => {
                     <TableCell>
                       <Badge variant="green">{f.terminados}</Badge>
                     </TableCell>
+                    <TableCell>{fmtDuracion(f.promedioMs)}</TableCell>
                     <TableCell>
                       <Button variant="outline" size="sm" onClick={() => navigate(`/historico/${f.empleado.id}`)}>
                         <Eye className="h-4 w-4" />

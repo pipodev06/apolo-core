@@ -3,16 +3,28 @@ import { configService } from "../../../services/configService";
 import { Button } from "../../../components/ui/button";
 import { Field, FieldLabel } from "../../../components/ui/field";
 import { Input } from "../../../components/ui/input";
+import { Checkbox } from "../../../components/ui/checkbox";
 import { PageSpinner } from "../../../components/ui/spinner";
 import { notificarExito, notificarError } from "../../../lib/alertas";
 import { IconRobot as Bot, IconUser as User } from "@tabler/icons-react";
 import { cn } from "../../../lib/cn";
+import { SLA_DEFAULT, type SlaHoras } from "../../../lib/sla";
+import type { Urgency } from "../../../types/ticket";
 
 const MAX_DEFAULT = 5;
+
+const URGENCIAS: { value: Urgency; label: string }[] = [
+  { value: "CRITICO", label: "Crítico" },
+  { value: "ALTO", label: "Alto" },
+  { value: "MEDIO", label: "Medio" },
+  { value: "BAJO", label: "Bajo" },
+];
 
 export const ModoTab: React.FC = () => {
   const [mode, setMode] = useState<"ia" | "manual">("manual");
   const [maxTicketsAbiertos, setMaxTicketsAbiertos] = useState(MAX_DEFAULT);
+  const [sla, setSla] = useState<SlaHoras>(SLA_DEFAULT);
+  const [emailHabilitado, setEmailHabilitado] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -21,6 +33,8 @@ export const ModoTab: React.FC = () => {
       .then((config) => {
         setMode(config.assignmentMode);
         setMaxTicketsAbiertos(config.maxTicketsAbiertos ?? MAX_DEFAULT);
+        setSla({ ...SLA_DEFAULT, ...config.slaHoras });
+        setEmailHabilitado(config.emailHabilitado === true);
       })
       .catch(() => notificarError("Error al cargar la configuración"))
       .finally(() => setLoading(false));
@@ -31,11 +45,14 @@ export const ModoTab: React.FC = () => {
       notificarError("El máximo de tickets abiertos debe ser al menos 1");
       return;
     }
+    if (Object.values(sla).some((h) => !(h > 0))) {
+      notificarError("Las horas de SLA deben ser mayores a 0");
+      return;
+    }
     setSaving(true);
     try {
-      await configService.updateAssignmentMode(mode);
-      await configService.updateMaxTicketsAbiertos(maxTicketsAbiertos);
-      notificarExito("Modo de asignación actualizado");
+      await configService.update({ assignmentMode: mode, maxTicketsAbiertos, slaHoras: sla, emailHabilitado });
+      notificarExito("Configuración actualizada");
     } catch {
       notificarError("Error al actualizar");
     } finally {
@@ -91,6 +108,13 @@ export const ModoTab: React.FC = () => {
         </div>
       </div>
 
+      {mode === "ia" && (
+        <p className="mx-auto max-w-xl text-center text-sm text-muted-foreground">
+          En modo IA, el título y la descripción de cada ticket se envían a Groq (proveedor externo) para
+          clasificarlo. Si la información de tus tickets no puede salir de la empresa, usa el modo manual.
+        </p>
+      )}
+
       <Field className="mx-auto max-w-xs">
         <FieldLabel htmlFor="maxTicketsAbiertos">Máximo de tickets abiertos por empleado</FieldLabel>
         <Input
@@ -101,6 +125,42 @@ export const ModoTab: React.FC = () => {
           onChange={(e) => setMaxTicketsAbiertos(Number(e.target.value))}
         />
       </Field>
+
+      <div className="space-y-3 border-t pt-6">
+        <h3 className="text-center text-lg font-medium">SLA: horas máximas de resolución</h3>
+        <div className="mx-auto grid max-w-xl grid-cols-2 gap-4 sm:grid-cols-4">
+          {URGENCIAS.map((u) => (
+            <Field key={u.value}>
+              <FieldLabel htmlFor={`sla-${u.value}`}>{u.label}</FieldLabel>
+              <Input
+                id={`sla-${u.value}`}
+                type="number"
+                min={1}
+                value={sla[u.value]}
+                onChange={(e) => setSla((prev) => ({ ...prev, [u.value]: Number(e.target.value) }))}
+              />
+            </Field>
+          ))}
+        </div>
+        <p className="text-center text-xs text-muted-foreground">
+          Se cuenta desde que se registra el ticket. Pasado ese plazo sin terminar, el ticket se marca como vencido.
+        </p>
+      </div>
+
+      <div className="space-y-2 border-t pt-6">
+        <Field orientation="horizontal" className="mx-auto max-w-xl">
+          <Checkbox
+            id="emailHabilitado"
+            checked={emailHabilitado}
+            onCheckedChange={(v) => setEmailHabilitado(v === true)}
+          />
+          <FieldLabel htmlFor="emailHabilitado">Enviar también las notificaciones por correo</FieldLabel>
+        </Field>
+        <p className="mx-auto max-w-xl text-xs text-muted-foreground">
+          Requiere instalar la extensión "Trigger Email from Firestore" en el proyecto de Firebase (colección
+          <code> mail</code>) con los datos SMTP. Solo reciben correo los usuarios que tienen email registrado.
+        </p>
+      </div>
 
       <div className="flex justify-end border-t pt-6">
         <Button onClick={handleSave} disabled={saving}>

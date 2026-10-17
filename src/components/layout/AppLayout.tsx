@@ -13,8 +13,10 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
     <div className="flex h-screen overflow-hidden bg-background text-foreground">
       {/* Overlay for mobile */}
       {isSidebarOpen && (
-        <div
-          className="fixed inset-0 z-40 bg-black/50 lg:hidden"
+        <button
+          type="button"
+          aria-label="Cerrar menú"
+          className="fixed inset-0 z-40 cursor-default bg-black/50 lg:hidden"
           onClick={() => setIsSidebarOpen(false)}
         />
       )}

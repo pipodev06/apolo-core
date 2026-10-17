@@ -66,9 +66,9 @@ export const CierreTicketPanel: React.FC<{ ticket: Ticket }> = ({ ticket }) => {
       <h3 className="text-sm font-semibold uppercase tracking-wider">Cerrar / Actualizar Ticket</h3>
 
       <div className="space-y-1.5">
-        <label className="text-sm font-medium">Estado</label>
+        <label htmlFor="cierre-estado" className="text-sm font-medium">Estado</label>
         <Select items={estadosDisponibles} value={status} onValueChange={(v) => v && setStatus(v as TicketStatus)}>
-          <SelectTrigger className="w-full">
+          <SelectTrigger id="cierre-estado" className="w-full">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -84,10 +84,11 @@ export const CierreTicketPanel: React.FC<{ ticket: Ticket }> = ({ ticket }) => {
       </div>
 
       <div className="space-y-1.5">
-        <label className="text-sm font-medium">
+        <label htmlFor="cierre-solucion" className="text-sm font-medium">
           Descripción de la solución {requiereSolucion && <span className="text-destructive">*</span>}
         </label>
         <Textarea
+          id="cierre-solucion"
           value={solutionDescription}
           onChange={(e) => setSolutionDescription(e.target.value)}
           rows={4}
@@ -96,7 +97,7 @@ export const CierreTicketPanel: React.FC<{ ticket: Ticket }> = ({ ticket }) => {
       </div>
 
       <div className="space-y-1.5">
-        <label className="text-sm font-medium">Imágenes de la solución</label>
+        <p className="text-sm font-medium">Imágenes de la solución</p>
         <ImageUploader
           value={solutionImages}
           onChange={setSolutionImages}

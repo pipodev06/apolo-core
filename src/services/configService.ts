@@ -1,5 +1,6 @@
 import { doc, getDoc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "../firebase";
+import type { SlaHoras } from "../lib/sla";
 
 export interface AppConfig {
   assignmentMode: "ia" | "manual";
@@ -8,6 +9,10 @@ export interface AppConfig {
   // Techo de carga (tickets abiertos) por empleado — ausente en docs viejos,
   // creados antes de este campo.
   maxTicketsAbiertos?: number;
+  // Horas de SLA por urgencia (ausente = SLA_DEFAULT de lib/sla.ts).
+  slaHoras?: SlaHoras;
+  // Encola correos en `mail` (extensión Trigger Email) al notificar.
+  emailHabilitado?: boolean;
 }
 
 export const configService = {
@@ -18,19 +23,10 @@ export const configService = {
     return configDoc.data() as AppConfig;
   },
 
-  updateAssignmentMode: async (mode: "ia" | "manual") => {
+  update: async (
+    data: Pick<AppConfig, "assignmentMode" | "maxTicketsAbiertos" | "slaHoras" | "emailHabilitado">
+  ) => {
     const configRef = doc(db, "config", "app");
-    await updateDoc(configRef, {
-      assignmentMode: mode,
-      updatedAt: serverTimestamp(),
-    });
-  },
-
-  updateMaxTicketsAbiertos: async (max: number) => {
-    const configRef = doc(db, "config", "app");
-    await updateDoc(configRef, {
-      maxTicketsAbiertos: max,
-      updatedAt: serverTimestamp(),
-    });
+    await updateDoc(configRef, { ...data, updatedAt: serverTimestamp() });
   },
 };

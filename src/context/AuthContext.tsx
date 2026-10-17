@@ -1,4 +1,6 @@
-import React, { createContext, useContext, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { onIdTokenChanged } from "firebase/auth";
+import { auth } from "../firebase";
 import { authService } from "../services/authService";
 
 interface Session {
@@ -22,18 +24,45 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // estado de "cargando" para esperar nada, se resuelve en el primer render.
   const [user, setUser] = useState<Session | null>(() => authService.getSession());
 
-  const login = async (username: string, password: string) => {
+  // La sesión de localStorage es solo para pintar la UI sin esperar; la
+  // fuente de verdad es Firebase Auth. Si Auth no tiene sesión (revocada por
+  // un admin, expirada, borrada a mano) se cierra la de la UI; si la tiene,
+  // rol y personalId se toman de los claims del token (no del localStorage,
+  // que se puede editar a mano).
+  useEffect(() => {
+    return onIdTokenChanged(auth, async (fbUser) => {
+      if (!fbUser) {
+        if (authService.getSession()) {
+          authService.logout();
+          setUser(null);
+        }
+        return;
+      }
+      const { claims } = await fbUser.getIdTokenResult();
+      const role = typeof claims.role === "string" ? claims.role : "usuario";
+      const personalId = typeof claims.personalId === "string" ? claims.personalId : undefined;
+      const actual = authService.getSession();
+      if (!actual || (actual.role === role && actual.personalId === personalId)) return;
+      const actualizada = { ...actual, role, personalId };
+      localStorage.setItem("session", JSON.stringify(actualizada));
+      setUser(actualizada);
+    });
+  }, []);
+
+  const login = useCallback(async (username: string, password: string) => {
     const session = await authService.login(username, password);
     setUser(session);
-  };
+  }, []);
 
-  const logout = () => {
+  const logout = useCallback(() => {
     authService.logout();
     setUser(null);
-  };
+  }, []);
+
+  const value = useMemo(() => ({ user, login, logout }), [user, login, logout]);
 
   return (
-    <AuthContext.Provider value={{ user, login, logout }}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );
