@@ -22,7 +22,7 @@ rules_version = '2';
 //     los admins ven todos.
 //   • Gestión (users, access, personal, catálogos, config, update de
 //     tickets) exige rol admin/super_admin vía custom claim.
-//   • `credenciales`, `loginIntentos` y `mail` solo los toca la Admin SDK
+//   • `credenciales` y `loginIntentos` solo los toca la Admin SDK
 //     (catch-all del final).
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -291,8 +291,6 @@ service cloud.firestore {
                     && (!('maxTicketsAbiertos' in request.resource.data)
                         || (request.resource.data.maxTicketsAbiertos is int
                             && request.resource.data.maxTicketsAbiertos >= 1))
-                    && (!('emailHabilitado' in request.resource.data)
-                        || request.resource.data.emailHabilitado is bool)
                     && (!('slaHoras' in request.resource.data)
                         || (request.resource.data.slaHoras is map
                             && request.resource.data.slaHoras.keys().hasOnly(['CRITICO', 'ALTO', 'MEDIO', 'BAJO'])))
@@ -311,7 +309,7 @@ service cloud.firestore {
       allow write: if false;
     }
 
-    // Todo lo demás (credenciales, loginIntentos, mail, ...): denegado.
+    // Todo lo demás (credenciales, loginIntentos, ...): denegado.
     match /{document=**} {
       allow read, write: if false;
     }

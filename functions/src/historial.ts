@@ -92,10 +92,7 @@ export const registrarCambiosTicket = onDocumentUpdated("tickets/{ticketId}", as
 
 type Db = FirebaseFirestore.Firestore;
 
-// Notificación in-app + (si config/app.emailHabilitado) correo. El correo se
-// encola en la colección `mail`, formato de la extensión oficial "Trigger
-// Email from Firestore" (firebase/firestore-send-email), que es la que lo
-// envía vía SMTP — sin la extensión instalada, no se encola nada.
+// Notificación in-app a cada destinatario (sin duplicados).
 async function notificar(
   db: Db,
   userIds: Iterable<string>,
@@ -105,7 +102,6 @@ async function notificar(
 ) {
   const ids = [...new Set(userIds)];
   if (ids.length === 0) return;
-  const emailHabilitado = (await db.collection("config").doc("app").get()).data()?.emailHabilitado === true;
 
   await Promise.all(
     ids.map(async (userId) => {
@@ -116,19 +112,6 @@ async function notificar(
         mensaje,
         leida: false,
         createdAt: FieldValue.serverTimestamp(),
-      });
-      if (!emailHabilitado) return;
-      const email = (await db.collection("users").doc(userId).get()).data()?.email as string | undefined;
-      if (!email) return;
-      await db.collection("mail").add({
-        to: email,
-        message: {
-          subject: `[${ticketCode}] ${truncar(mensaje, 80)}`,
-          text: `${mensaje}
-
-Ticket: ${ticketCode}
-Ingresa a Apolo Core para ver el detalle.`,
-        },
       });
     })
   );
