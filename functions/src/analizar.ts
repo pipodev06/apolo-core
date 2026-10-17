@@ -14,6 +14,10 @@ interface AnalizarYAsignarParams {
   // Techo de carga (tickets abiertos) por empleado, desde config/app. Si no
   // se pasa, no se filtra por ocupación — todos cuentan como disponibles.
   maxTicketsAbiertos?: number;
+  // Estado/asignación actuales del ticket: si al reanalizar la IA elige al
+  // mismo técnico, el ticket conserva su estado (no retrocede en_proceso → asignado).
+  statusActual?: string;
+  assignedToActual?: string;
 }
 
 export interface ResultadoAnalisis {
@@ -27,7 +31,7 @@ export interface ResultadoAnalisis {
  * Usado tanto por el trigger de creación como por la re-ejecución manual.
  */
 export async function analizarYAsignar(params: AnalizarYAsignarParams): Promise<ResultadoAnalisis> {
-  const { db, ticketId, ticketRef, title, description, apiKey, maxTicketsAbiertos } = params;
+  const { db, ticketId, ticketRef, title, description, apiKey, maxTicketsAbiertos, statusActual, assignedToActual } = params;
 
   const areasSnap = await db.collection("areas").where("activo", "==", true).get();
   const areas = areasSnap.docs.flatMap((d) => {
@@ -109,9 +113,13 @@ export async function analizarYAsignar(params: AnalizarYAsignarParams): Promise<
   const elegido = (disponibles.length > 0 ? disponibles : empleados)[0];
 
   update.area = analisis.area;
-  update.assignedTo = elegido.id;
-  update.assignedAt = FieldValue.serverTimestamp();
-  update.status = "asignado";
+  if (elegido.id !== assignedToActual) {
+    update.assignedTo = elegido.id;
+    update.assignedAt = FieldValue.serverTimestamp();
+    update.status = "asignado";
+  } else if (statusActual === "pendiente") {
+    update.status = "asignado";
+  }
   await ticketRef.update(update);
 
   logger.info(

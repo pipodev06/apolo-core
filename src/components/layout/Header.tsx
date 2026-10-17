@@ -1,9 +1,10 @@
-import React from "react";
-import { IconMenu2 as Menu } from "@tabler/icons-react";
+import React, { useState } from "react";
+import { IconMenu2 as Menu, IconKey as Key } from "@tabler/icons-react";
 import { useAuth } from "../../context/AuthContext";
 import { NotificationBell } from "./NotificationBell";
 import { ThemeToggle } from "./ThemeToggle";
 import { Avatar, AvatarFallback } from "../ui/avatar";
+import { EditarPasswordModal } from "../admin/EditarPasswordModal";
 
 interface HeaderProps {
   onMenuClick: () => void;
@@ -11,6 +12,7 @@ interface HeaderProps {
 
 export const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
   const { user } = useAuth();
+  const [passwordOpen, setPasswordOpen] = useState(false);
 
   return (
     <header className="flex h-16 items-center justify-between border-b bg-background px-4 lg:px-8">
@@ -26,6 +28,14 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
 
       <div className="flex items-center gap-2">
         <ThemeToggle />
+        <button
+          onClick={() => setPasswordOpen(true)}
+          aria-label="Cambiar contraseña"
+          title="Cambiar contraseña"
+          className="cursor-pointer rounded-md p-2 text-foreground transition-colors hover:bg-muted"
+        >
+          <Key className="h-5 w-5" />
+        </button>
         <NotificationBell />
         <div className="flex items-center gap-3">
           <div className="hidden text-right sm:block">
@@ -37,6 +47,13 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
           </Avatar>
         </div>
       </div>
+
+      <EditarPasswordModal
+        open={passwordOpen}
+        onClose={() => setPasswordOpen(false)}
+        user={user ? { id: user.userId, username: user.username } : null}
+        propio
+      />
     </header>
   );
 };

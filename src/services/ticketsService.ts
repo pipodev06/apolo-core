@@ -1,7 +1,6 @@
 import {
   collection,
   getDoc,
-  getDocs,
   doc,
   updateDoc,
   query,
@@ -14,8 +13,9 @@ import {
 } from "firebase/firestore";
 import { httpsCallable } from "firebase/functions";
 import { db, functions } from "../firebase";
-import type { Ticket, Urgency, TicketStatus } from "../types/ticket";
+import type { Ticket } from "../types/ticket";
 import { generateTicketCode } from "../lib/ticketNumber";
+import { esAdmin } from "../lib/roles";
 
 export const ticketsService = {
   create: async (data: Omit<Ticket, "id" | "order" | "code" | "createdAt" | "updatedAt">) => {
@@ -50,23 +50,6 @@ export const ticketsService = {
     });
   },
 
-  getAll: async (filters?: { status?: TicketStatus; urgency?: Urgency }) => {
-    const ticketsRef = collection(db, "tickets");
-    let q = query(ticketsRef, orderBy("order", "desc"));
-
-    if (filters?.status) {
-      q = query(q, where("status", "==", filters.status));
-    }
-    if (filters?.urgency) {
-      q = query(q, where("urgency", "==", filters.urgency));
-    }
-
-    const querySnapshot = await getDocs(q);
-    return querySnapshot.docs
-      .map(doc => ({ id: doc.id, ...doc.data() } as Ticket))
-      .filter(ticket => !ticket.deletedAt);
-  },
-
   getById: async (id: string) => {
     const ticketRef = doc(db, "tickets", id);
     const ticketDoc = await getDoc(ticketRef);
@@ -77,13 +60,48 @@ export const ticketsService = {
   // Tiempo real: la IA (u otro admin) puede modificar el ticket después de
   // creado (urgencia, asignación) — sin esto la UI se queda con los datos
   // viejos hasta que el usuario recarga la página a mano.
-  watch: (cb: (tickets: Ticket[]) => void, soloPapelera = false) => {
+  //
+  // Visibilidad (espejo de puedeVerTicket en firestore.rules): un admin ve
+  // la colección entera; el resto, solo los que creó y los que tiene
+  // asignados (2 listeners combinados). Firestore rechaza una query sin esos
+  // filtros para un no-admin, aunque después se filtrara en el cliente.
+  watch: (
+    sesion: { userId: string; role: string; personalId?: string },
+    cb: (tickets: Ticket[]) => void,
+    soloPapelera = false,
+    onError?: (error: Error) => void
+  ) => {
     const ticketsRef = collection(db, "tickets");
-    const q = query(ticketsRef, orderBy("order", "desc"));
-    return onSnapshot(q, (snap) => {
-      const todos = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Ticket));
-      cb(todos.filter((t) => (soloPapelera ? !!t.deletedAt : !t.deletedAt)));
-    });
+    const queries = esAdmin(sesion.role)
+      ? [query(ticketsRef, orderBy("order", "desc"))]
+      : [
+          query(ticketsRef, where("createdBy", "==", sesion.userId)),
+          ...(sesion.personalId ? [query(ticketsRef, where("assignedTo", "==", sesion.personalId))] : []),
+        ];
+
+    const parciales: (Ticket[] | null)[] = queries.map(() => null);
+    const emitir = () => {
+      if (parciales.some((p) => p === null)) return; // esperar a que respondan todas
+      const porId = new Map<string, Ticket>();
+      for (const lista of parciales) for (const t of lista!) porId.set(t.id, t);
+      cb(
+        [...porId.values()]
+          .filter((t) => (soloPapelera ? !!t.deletedAt : !t.deletedAt))
+          .sort((a, b) => b.order - a.order)
+      );
+    };
+
+    const unsubs = queries.map((q, i) =>
+      onSnapshot(
+        q,
+        (snap) => {
+          parciales[i] = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Ticket));
+          emitir();
+        },
+        (error) => onError?.(error)
+      )
+    );
+    return () => unsubs.forEach((u) => u());
   },
 
   watchById: (id: string, cb: (ticket: Ticket | null) => void) => {
@@ -118,15 +136,6 @@ export const ticketsService = {
       deletedAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });
-  },
-
-  listarPapelera: async () => {
-    const ticketsRef = collection(db, "tickets");
-    const q = query(ticketsRef, orderBy("order", "desc"));
-    const querySnapshot = await getDocs(q);
-    return querySnapshot.docs
-      .map((doc) => ({ id: doc.id, ...doc.data() } as Ticket))
-      .filter((ticket) => !!ticket.deletedAt);
   },
 
   restaurar: async (id: string) => {

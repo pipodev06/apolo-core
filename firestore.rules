@@ -1,32 +1,29 @@
 rules_version = '2';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Reglas pragmáticas de Firestore — Sistema de Tickets
+// Reglas de Firestore — Sistema de Tickets
 //
 // AUTENTICACIÓN: el login pasa por la Cloud Function "login" (compara el
-// passwordHash server-side con la Admin SDK) que emite un Firebase Auth custom
-// token con el rol del usuario como claim; el cliente hace signInWithCustomToken
-// con eso. A partir de ahí `request.auth` y `request.auth.token.role` SÍ son
-// verificables de forma real en estas reglas (no falseables desde el cliente) —
-// se usan así en el match de `users`. La mayoría del resto de las colecciones
-// (personal, cargos, areas, access, config) NO tiene datos sensibles tipo
-// passwordHash: la LECTURA sigue abierta (`allow read: if true`). `tickets`
-// (y su subcolección `eventos`) es la excepción — título/descripción son
-// texto libre que puede describir un incidente sensible, así que exige
-// sesión real también para leer. Toda ESCRITURA exige sesión real
-// (`request.auth != null`), salvo la ventana de bootstrap de /setup (antes
-// de que exista `config/app`).
+// hash de `credenciales/{userId}` server-side con la Admin SDK) que emite un
+// Firebase Auth custom token con el rol (y personalId, si es técnico) como
+// claims; el cliente hace signInWithCustomToken con eso. `request.auth.token`
+// es verificable de forma real acá (no falseable desde el cliente).
 //
-// Lo que SÍ hacen estas reglas en general:
+// Toda LECTURA exige sesión, salvo `config` (el SetupGuard necesita saber si
+// la app ya fue inicializada antes de que exista nadie logueado).
+//
+// Lo que hacen estas reglas en general:
 //   • Validar forma/tipos de los datos en cada escritura (evita basura).
 //   • Restringir valores de enums (urgency/status/role).
-//   • Prohibir borrados FÍSICOS (se fuerza soft-delete vía deletedAt).
+//   • Prohibir borrados FÍSICOS (se fuerza soft-delete vía deletedAt; el
+//     borrado definitivo pasa por la Cloud Function eliminarDefinitivo).
 //   • Acotar el tamaño de los textos.
-//   • Exigir sesión real (`request.auth != null`) para escribir en cualquier
-//     colección una vez pasado el /setup inicial — en `users`, `access`,
-//     `personal`, `cargos`, `areas` y el update de `tickets` además se
-//     exige el rol admin/super_admin vía custom claim (crear un ticket y
-//     comentar siguen abiertos a cualquier usuario autenticado).
+//   • Tickets: cada usuario ve solo los suyos (creados o asignados a él);
+//     los admins ven todos.
+//   • Gestión (users, access, personal, catálogos, config, update de
+//     tickets) exige rol admin/super_admin vía custom claim.
+//   • `credenciales`, `loginIntentos` y `mail` solo los toca la Admin SDK
+//     (catch-all del final).
 // ─────────────────────────────────────────────────────────────────────────────
 
 service cloud.firestore {
@@ -34,6 +31,29 @@ service cloud.firestore {
 
     function nonEmptyStr(v, max) {
       return v is string && v.size() > 0 && v.size() <= max;
+    }
+
+    function logueado() {
+      return request.auth != null;
+    }
+
+    function usernameDe(uid) {
+      return get(/databases/$(database)/documents/users/$(uid)).data.username;
+    }
+
+    function esAdmin() {
+      return request.auth != null && request.auth.token.get('role', '') in ['admin', 'super_admin'];
+    }
+
+    // Quién puede ver un ticket: admins (todos), quien lo creó, y el técnico
+    // asignado (claim personalId). Un usuario no ve tickets ajenos.
+    // Acceso directo a campos (no .get()) para que Firestore pueda validar
+    // las queries filtradas por createdBy / assignedTo contra esta regla.
+    function puedeVerTicket(t) {
+      return esAdmin()
+             || t.createdBy == request.auth.uid
+             || (request.auth.token.get('personalId', '') != ''
+                 && t.assignedTo == request.auth.token.personalId);
     }
 
     // Máquina de estados de ticket: no se puede saltar pasos hacia adelante
@@ -51,50 +71,32 @@ service cloud.firestore {
     }
 
     // ── users ──────────────────────────────────────────────────────────────
-    // `config/app` solo existe después de correr /setup una vez: lo usamos como
-    // "marca de agua" de que la app ya tiene super_admin. Antes de eso (única
-    // ventana legítima sin nadie logueado) se permite el bootstrap inicial;
-    // después, toda lectura/escritura exige estar autenticado (custom claim
-    // `role` real del Firebase Auth token, emitido por la Cloud Function
-    // "login" — no falseable desde el cliente, a diferencia del resto de
-    // este archivo, que no puede verificar identidad).
-    function appYaInicializada() {
-      return exists(/databases/$(database)/documents/config/app);
-    }
-
+    // passwordHash NO vive acá: está en `credenciales/{userId}`, sin acceso
+    // desde el cliente. Crear usuarios y cambiar contraseñas pasa por Cloud
+    // Functions (setupInicial, crearUsuario, cambiarPassword), que hashean
+    // server-side.
     match /users/{userId} {
-      // Antes del setup inicial: lectura abierta (necesaria para que /setup
-      // pueda chequear "¿ya hay usuarios?" sin que nadie esté logueado aún).
-      // Después: solo usuarios autenticados pueden leer.
-      allow read: if !appYaInicializada() || request.auth != null;
+      allow read: if logueado();
+      allow create: if false;
 
-      allow create: if (
-                         (!appYaInicializada() && request.resource.data.role == 'super_admin')
-                         || (request.auth != null && request.auth.token.role in ['admin', 'super_admin'])
-                       )
-                    && (request.resource.data.role != 'super_admin' || request.auth == null || request.auth.token.role == 'super_admin')
-                    && request.resource.data.keys().hasAll(
-                       ['username', 'usernameHash', 'passwordHash', 'role', 'active'])
-                    && nonEmptyStr(request.resource.data.username, 60)
-                    && request.resource.data.usernameHash is string
-                    && request.resource.data.passwordHash is string
-                    && request.resource.data.role in ['super_admin', 'admin', 'usuario']
-                    && request.resource.data.active is bool;
-
-      // Update: exige admin/super_admin logueado. El username es inmutable
-      // salvo que quien escribe sea super_admin, y solo un super_admin puede
-      // otorgar o conservar el rol super_admin (evita que un admin se
-      // autopromueva).
-      allow update: if request.auth != null
-                    && request.auth.token.role in ['admin', 'super_admin']
+      // Update: exige admin/super_admin. El username es inmutable salvo que
+      // quien escribe sea super_admin, y solo un super_admin puede otorgar,
+      // conservar o editar el rol super_admin (evita autopromoverse).
+      // passwordHash no se puede escribir (solo se tolera conservar el valor
+      // viejo en docs todavía no migrados a `credenciales`).
+      allow update: if esAdmin()
                     && (request.resource.data.username == resource.data.username
                         || request.auth.token.role == 'super_admin')
                     && (request.resource.data.role != 'super_admin' || request.auth.token.role == 'super_admin')
+                    && (resource.data.role != 'super_admin' || request.auth.token.role == 'super_admin')
                     && nonEmptyStr(request.resource.data.username, 60)
                     && request.resource.data.usernameHash is string
-                    && request.resource.data.passwordHash is string
+                    && (!('passwordHash' in request.resource.data)
+                        || request.resource.data.passwordHash == resource.data.get('passwordHash', null))
                     && request.resource.data.role in ['super_admin', 'admin', 'usuario']
-                    && request.resource.data.active is bool;
+                    && request.resource.data.active is bool
+                    && (!('email' in request.resource.data)
+                        || (request.resource.data.email is string && request.resource.data.email.size() <= 120));
 
       // Sin borrado físico: desactivar (active=false) en su lugar.
       allow delete: if false;
@@ -102,12 +104,32 @@ service cloud.firestore {
 
     // ── tickets ────────────────────────────────────────────────────────────
     match /tickets/{ticketId} {
-      // A diferencia del resto de este archivo, el contenido de un ticket SÍ
-      // puede ser sensible (título/descripción libres, ej. reportar un
-      // incidente de seguridad) — exige sesión real, no lectura pública.
-      allow read: if request.auth != null;
+      allow read: if logueado() && puedeVerTicket(resource.data);
 
-      allow create: if request.auth != null
+      allow create: if logueado()
+                    // Solo campos conocidos, y nace sin asignar ni borrado: la
+                    // asignación la hace después un admin o la IA.
+                    && request.resource.data.keys().hasOnly([
+                         'title', 'description', 'incidentTime', 'urgency', 'status', 'categoria',
+                         'assignedTo', 'assignedAt', 'area', 'createdBy', 'createdByUsername',
+                         'order', 'code', 'deletedAt', 'createdAt', 'updatedAt', 'problemImages'])
+                    && request.resource.data.createdBy == request.auth.uid
+                    && request.resource.data.get('assignedTo', '') == ''
+                    && request.resource.data.get('assignedAt', null) == null
+                    && request.resource.data.get('deletedAt', null) == null
+                    // order = el contador que la MISMA transacción sube en 1 en
+                    // config/app, y code = serie + order: así no se repiten.
+                    && getAfter(/databases/$(database)/documents/config/app).data.ticketCounter
+                         == get(/databases/$(database)/documents/config/app).data.ticketCounter + 1
+                    && request.resource.data.order == getAfter(/databases/$(database)/documents/config/app).data.ticketCounter
+                    && request.resource.data.code.matches(
+                         get(/databases/$(database)/documents/config/app).data.series
+                         + '-0*' + string(request.resource.data.order))
+                    && (!('createdByUsername' in request.resource.data)
+                        || request.resource.data.createdByUsername == usernameDe(request.auth.uid))
+                    && request.resource.data.incidentTime is timestamp
+                    // La urgencia inicial de un usuario es MEDIO; la ajusta la IA o un admin.
+                    && (esAdmin() || request.resource.data.urgency == 'MEDIO')
                     && nonEmptyStr(request.resource.data.title, 200)
                     && request.resource.data.description is string
                     && request.resource.data.description.size() <= 5000
@@ -117,7 +139,9 @@ service cloud.firestore {
                     && request.resource.data.status == 'pendiente'
                     && request.resource.data.code is string
                     && request.resource.data.order is int
-                    && nonEmptyStr(request.resource.data.createdBy, 100)
+                    && (!('categoria' in request.resource.data)
+                        || request.resource.data.categoria == ''
+                        || nonEmptyStr(request.resource.data.categoria, 120))
                     && (!('problemImages' in request.resource.data)
                         || (request.resource.data.problemImages is list
                             && request.resource.data.problemImages.size() <= 5));
@@ -126,34 +150,36 @@ service cloud.firestore {
       // gestión, no de reporte -- exige admin/super_admin. Cerrar un ticket a
       // 'terminado' exige dejar la descripción de la solución (mismo criterio
       // que el update de técnico de abajo).
-      allow update: if request.auth != null
-                    && request.auth.token.role in ['admin', 'super_admin']
+      allow update: if esAdmin()
+                    && nonEmptyStr(request.resource.data.title, 200)
+                    && request.resource.data.description is string
+                    && request.resource.data.description.size() <= 5000
                     && request.resource.data.urgency in ['CRITICO', 'ALTO', 'MEDIO', 'BAJO']
                     && request.resource.data.status in ['pendiente', 'asignado', 'en_proceso', 'terminado']
                     && transicionDeEstadoValida(resource.data.status, request.resource.data.status)
                     && (request.resource.data.status != 'terminado'
                         || nonEmptyStr(request.resource.data.solutionDescription, 5000))
-                    // code y order son inmutables tras crearse
+                    // code, order y createdBy son inmutables tras crearse
                     && request.resource.data.code == resource.data.code
-                    && request.resource.data.order == resource.data.order;
+                    && request.resource.data.order == resource.data.order
+                    && request.resource.data.createdBy == resource.data.createdBy;
 
-      // El técnico asignado (cuenta "usuario" con personalId vinculado, ver
-      // users/{uid}.personalId y el claim que emite la Cloud Function login)
-      // puede cerrar/reabrir SOLO su propio ticket asignado, y SOLO tocando
-      // estado + solución + imágenes de solución. hasOnly() sobre el diff es
-      // allow-list (no block-list): a diferencia de comparar campo por campo
-      // contra resource.data (fácil de olvidar uno — code/order/createdBy/
-      // deletedAt/etc), esto garantiza que NINGÚN otro campo puede cambiar,
-      // los conozca esta regla o no. Mismo patrón que notificaciones.update.
-      allow update: if request.auth != null
-                    && request.auth.token.personalId is string
-                    && resource.data.assignedTo == request.auth.token.personalId
+      // El técnico asignado (cuenta "usuario" con personalId vinculado) puede
+      // cerrar/reabrir SOLO su propio ticket asignado, y SOLO tocando estado +
+      // solución + imágenes de solución. hasOnly() sobre el diff es
+      // allow-list: ningún otro campo puede cambiar, lo conozca esta regla o no.
+      allow update: if logueado()
+                    && request.auth.token.get('personalId', '') != ''
+                    && resource.data.get('assignedTo', '') == request.auth.token.personalId
                     && request.resource.data.diff(resource.data).affectedKeys()
                          .hasOnly(['status', 'solutionDescription', 'solutionImages', 'finishedAt', 'updatedAt'])
                     && request.resource.data.status in ['pendiente', 'asignado', 'en_proceso', 'terminado']
                     && transicionDeEstadoValida(resource.data.status, request.resource.data.status)
                     && (request.resource.data.status != 'terminado'
                         || nonEmptyStr(request.resource.data.solutionDescription, 5000))
+                    && (!('solutionDescription' in request.resource.data)
+                        || (request.resource.data.solutionDescription is string
+                            && request.resource.data.solutionDescription.size() <= 5000))
                     && (!('solutionImages' in request.resource.data)
                         || (request.resource.data.solutionImages is list
                             && request.resource.data.solutionImages.size() <= 5));
@@ -162,17 +188,18 @@ service cloud.firestore {
       allow delete: if false;
 
       // ── eventos (historial automático + comentarios) ──────────────────────
-      // Los eventos tipo:"sistema" los escribe la Cloud Function `registrarCambiosTicket`
-      // vía Admin SDK (ignora estas reglas); el cliente solo puede crear comentarios.
+      // Los eventos tipo:"sistema" los escribe la Cloud Function
+      // `registrarCambiosTicket` vía Admin SDK; el cliente solo crea
+      // comentarios. Mismo criterio de visibilidad que el ticket padre.
       match /eventos/{eventoId} {
-        // Mismo criterio que el ticket padre: comentarios/historial pueden
-        // tener info sensible, exige sesión real.
-        allow read: if request.auth != null;
-        allow create: if request.auth != null
+        allow read: if logueado()
+                    && puedeVerTicket(get(/databases/$(database)/documents/tickets/$(ticketId)).data);
+        allow create: if logueado()
+                      && puedeVerTicket(get(/databases/$(database)/documents/tickets/$(ticketId)).data)
                       && request.resource.data.tipo == 'comentario'
                       && request.resource.data.actorId == request.auth.uid
                       && nonEmptyStr(request.resource.data.texto, 2000)
-                      && nonEmptyStr(request.resource.data.actorNombre, 120)
+                      && request.resource.data.actorNombre == usernameDe(request.auth.uid)
                       && (!('imagenes' in request.resource.data)
                           || (request.resource.data.imagenes is list
                               && request.resource.data.imagenes.size() <= 5));
@@ -184,9 +211,9 @@ service cloud.firestore {
     // Solo las Cloud Functions (Admin SDK) crean notificaciones. El destinatario
     // solo puede leer las suyas y marcarlas como leídas (ningún otro campo).
     match /notificaciones/{notifId} {
-      allow read: if request.auth != null && request.auth.uid == resource.data.userId;
+      allow read: if logueado() && request.auth.uid == resource.data.userId;
       allow create: if false;
-      allow update: if request.auth != null
+      allow update: if logueado()
                     && request.auth.uid == resource.data.userId
                     && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['leida'])
                     && request.resource.data.leida is bool;
@@ -194,32 +221,35 @@ service cloud.firestore {
     }
 
     // ── personal (empleados a los que se asignan tickets) ─────────────────────
-    // Gestión de personal es admin/super_admin -- un usuario comun no crea ni
-    // edita empleados aunque este autenticado.
     match /personal/{personalId} {
-      allow read: if true;
-      allow create, update: if request.auth != null
-                            && request.auth.token.role in ['admin', 'super_admin']
+      allow read: if logueado();
+      allow create, update: if esAdmin()
                             && nonEmptyStr(request.resource.data.nombre, 120)
                             && request.resource.data.activo is bool;
       // Sin borrado físico: soft-delete vía deletedAt.
       allow delete: if false;
     }
 
-    // ── catálogos: cargos y areas ─────────────────────────────────────────────
+    // ── catálogos: cargos, áreas y categorías de ticket ──────────────────────
     match /cargos/{cargoId} {
-      allow read: if true;
-      allow create, update: if request.auth != null
-                            && request.auth.token.role in ['admin', 'super_admin']
+      allow read: if logueado();
+      allow create, update: if esAdmin()
                             && nonEmptyStr(request.resource.data.nombre, 120)
                             && request.resource.data.activo is bool;
       allow delete: if false;
     }
 
     match /areas/{areaId} {
-      allow read: if true;
-      allow create, update: if request.auth != null
-                            && request.auth.token.role in ['admin', 'super_admin']
+      allow read: if logueado();
+      allow create, update: if esAdmin()
+                            && nonEmptyStr(request.resource.data.nombre, 120)
+                            && request.resource.data.activo is bool;
+      allow delete: if false;
+    }
+
+    match /categorias/{categoriaId} {
+      allow read: if logueado();
+      allow create, update: if esAdmin()
                             && nonEmptyStr(request.resource.data.nombre, 120)
                             && request.resource.data.activo is bool;
       allow delete: if false;
@@ -227,7 +257,8 @@ service cloud.firestore {
 
     // ── access (matriz de permisos por sección) ──────────────────────────────
     match /access/{userId} {
-      allow read: if true;
+      // Cada quien lee su propia matriz; los admins, todas.
+      allow read: if logueado() && (request.auth.uid == userId || esAdmin());
       function seccionesValidas() {
         return request.resource.data.sections is map
               && request.resource.data.sections.dashboard is bool
@@ -238,67 +269,44 @@ service cloud.firestore {
               && request.resource.data.sections.papelera is bool
               && request.resource.data.sections.historico is bool;
       }
-      // create: el /setup inicial crea el primer access junto con el primer
-      // super_admin dentro de la MISMA transacción, sin sesión todavía (mismo
-      // bootstrap que `users` arriba); de ahí en más, solo admin/super_admin
-      // crea el access de un usuario nuevo (usersService.create).
-      allow create: if (
-                          (!appYaInicializada() && request.auth == null)
-                          || (request.auth != null && request.auth.token.role in ['admin', 'super_admin'])
-                        )
-                    && seccionesValidas();
-      // update: siempre a través de la Matriz de Accesos, ya con sesión de
-      // admin/super_admin real.
-      allow update: if request.auth != null
-                    && request.auth.token.role in ['admin', 'super_admin']
-                    && seccionesValidas();
+      // El setup inicial y crearUsuario lo crean vía Cloud Function; desde el
+      // cliente solo un admin (ej. reparar un access faltante).
+      allow create, update: if esAdmin() && seccionesValidas();
       allow delete: if false;
     }
 
     // ── config (singleton 'app') ─────────────────────────────────────────────
     match /config/{docId} {
-      // Antes del setup inicial: lectura abierta (SetupGuard chequea si ya
-      // existe config/app sin que nadie esté logueado). Después: cualquier
-      // sesión autenticada puede leer (lo usa toda la app).
+      // Lectura abierta: SetupGuard chequea si ya existe config/app sin que
+      // nadie esté logueado. No guarda nada sensible.
       allow read: if true;
-      // create: solo puede pasar una vez en la vida del doc (delete: false de
-      // abajo), y siempre durante el /setup inicial sin sesión todavía — igual
-      // que `users`/`access`. update sí exige sesión real (toggle de modo IA,
-      // contador de tickets en cada creación).
-      // maxTicketsAbiertos (techo de carga por empleado) es opcional a
-      // propósito: docs viejos (creados antes de este campo) no lo tienen y
-      // updates que no lo tocan (ej. el contador de tickets al crear uno
-      // nuevo) no deben romperse por su ausencia — si viene, se valida.
-      allow create: if !appYaInicializada()
-                    && request.resource.data.assignmentMode in ['ia', 'manual']
-                    && request.resource.data.ticketCounter is int
-                    && request.resource.data.ticketCounter >= 0
-                    && (!('maxTicketsAbiertos' in request.resource.data)
-                        || (request.resource.data.maxTicketsAbiertos is int
-                            && request.resource.data.maxTicketsAbiertos >= 1));
-      // update exige rol admin/super_admin: es config global (modo de
-      // asignación, techo de carga), no algo que cualquier usuario logueado
-      // deba poder tocar aunque no vea la pantalla de Administración.
-      // Excepción: el contador de tickets (ticketCounter) lo actualiza
-      // CUALQUIER usuario autenticado, en la misma transacción de crear un
-      // ticket (ticketsService.create) — por eso, si el único campo que
-      // cambia es ticketCounter, no se exige rol admin.
+      // create: solo la Cloud Function setupInicial (Admin SDK).
+      allow create: if false;
+      // update exige rol admin/super_admin (config global). Excepción: el
+      // contador de tickets lo sube CUALQUIER usuario autenticado, en la
+      // misma transacción de crear un ticket — y solo de a 1 (nadie puede
+      // resetearlo y duplicar códigos de ticket).
       allow update: if request.resource.data.assignmentMode in ['ia', 'manual']
                     && request.resource.data.ticketCounter is int
-                    && request.resource.data.ticketCounter >= 0
+                    && (request.resource.data.ticketCounter == resource.data.ticketCounter
+                        || request.resource.data.ticketCounter == resource.data.ticketCounter + 1)
                     && (!('maxTicketsAbiertos' in request.resource.data)
                         || (request.resource.data.maxTicketsAbiertos is int
                             && request.resource.data.maxTicketsAbiertos >= 1))
+                    && (!('emailHabilitado' in request.resource.data)
+                        || request.resource.data.emailHabilitado is bool)
+                    && (!('slaHoras' in request.resource.data)
+                        || (request.resource.data.slaHoras is map
+                            && request.resource.data.slaHoras.keys().hasOnly(['CRITICO', 'ALTO', 'MEDIO', 'BAJO'])))
                     && (
-                         (request.auth != null
-                          && request.auth.token.role in ['admin', 'super_admin'])
-                         || (request.auth != null
+                         esAdmin()
+                         || (logueado()
                              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['ticketCounter', 'updatedAt']))
                        );
       allow delete: if false;
     }
 
-    // Todo lo demás: denegado.
+    // Todo lo demás (credenciales, loginIntentos, mail, ...): denegado.
     match /{document=**} {
       allow read, write: if false;
     }

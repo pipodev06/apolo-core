@@ -17,6 +17,8 @@ import { useAuth } from "../../context/AuthContext";
 import { esAdmin } from "../../lib/roles";
 import { empleadosService } from "../../services/empleadosService";
 import { configService } from "../../services/configService";
+import { categoriasService } from "../../services/catalogosService";
+import type { Catalogo } from "../../types/catalogo";
 import { useTickets } from "../../context/TicketsContext";
 import { calcularCarga, estaOcupado } from "../../lib/carga";
 import { transicionEstadoValida } from "../../lib/ticketStatus";
@@ -29,6 +31,7 @@ const ticketSchema = z.object({
   urgency: z.enum(["CRITICO", "ALTO", "MEDIO", "BAJO"]),
   status: z.enum(["pendiente", "asignado", "en_proceso", "terminado"]),
   assignedTo: z.string().optional(),
+  categoria: z.string().optional(),
   problemImages: z.array(z.string()).optional(),
 });
 
@@ -48,6 +51,7 @@ export const TicketForm: React.FC<TicketFormProps> = ({ initialData, onSubmit, l
   const isNew = !initialData?.id;
   const mostrarCamposAdmin = isAdmin && !isNew;
   const [empleados, setEmpleados] = useState<Empleado[]>([]);
+  const [categorias, setCategorias] = useState<Catalogo[]>([]);
   // Tickets viene de TicketsProvider (App.tsx) — un solo listener compartido
   // por sesión, en vez de que este form pida la colección entera cada vez
   // que se abre para crear/editar un ticket.
@@ -64,6 +68,13 @@ export const TicketForm: React.FC<TicketFormProps> = ({ initialData, onSubmit, l
   // agrupar las imágenes en Storage; no necesita corresponder a un doc real.
   const [tempTicketId] = useState(() => crypto.randomUUID());
   const storageTicketId = initialData?.id || tempTicketId;
+
+  useEffect(() => {
+    categoriasService
+      .getAll()
+      .then((lista) => setCategorias(lista.filter((c) => c.activo || c.nombre === initialData?.categoria)))
+      .catch(() => {});
+  }, [initialData?.categoria]);
 
   useEffect(() => {
     if (!mostrarCamposAdmin) return;
@@ -91,6 +102,7 @@ export const TicketForm: React.FC<TicketFormProps> = ({ initialData, onSubmit, l
       urgency: initialData?.urgency || "MEDIO",
       status: initialData?.status || "pendiente",
       assignedTo: initialData?.assignedTo || "",
+      categoria: initialData?.categoria || "",
       problemImages: initialData?.problemImages || [],
     },
   });
@@ -114,6 +126,10 @@ export const TicketForm: React.FC<TicketFormProps> = ({ initialData, onSubmit, l
     .filter((e) => e.activo || e.id === initialData?.assignedTo)
     .map((e) => ({ ...e, carga: calcularCarga(ticketsParaCarga, e.id) }))
     .sort((a, b) => (a.carga !== b.carga ? a.carga - b.carga : a.nombre.localeCompare(b.nombre)));
+  // El empleado asignado pudo ser eliminado (ya no viene en getAll): sin
+  // esta opción, el Select mostraría su id crudo.
+  const asignadoEliminado =
+    !!initialData?.assignedTo && !empleados.some((e) => e.id === initialData.assignedTo);
 
   // No dejar elegir un salto de estado hacia adelante invalido (ver
   // lib/ticketStatus.ts) — comparado contra el status que el ticket tiene
@@ -194,6 +210,39 @@ export const TicketForm: React.FC<TicketFormProps> = ({ initialData, onSubmit, l
             {...register("description")}
           />
           <FieldError errors={[errors.description]} />
+        </Field>
+
+        {/* Categoría (opcional, catálogo administrado en Administración) */}
+        <Field>
+          <FieldLabel htmlFor="categoria">Categoría</FieldLabel>
+          <Controller
+            name="categoria"
+            control={control}
+            render={({ field }) => (
+              <Select
+                items={[
+                  { value: "__none__", label: "Sin categoría" },
+                  ...categorias.map((c) => ({ value: c.nombre, label: c.nombre })),
+                ]}
+                value={field.value || "__none__"}
+                onValueChange={(v) => field.onChange(v === "__none__" || v == null ? "" : v)}
+              >
+                <SelectTrigger id="categoria" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectItem value="__none__">Sin categoría</SelectItem>
+                    {categorias.map((c) => (
+                      <SelectItem key={c.id} value={c.nombre}>
+                        {c.nombre}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            )}
+          />
         </Field>
 
         {/* Fila 4 — Imágenes del problema */}
@@ -286,6 +335,7 @@ export const TicketForm: React.FC<TicketFormProps> = ({ initialData, onSubmit, l
                     <Select
                       items={[
                         { value: "__none__", label: "Sin asignar" },
+                        ...(asignadoEliminado ? [{ value: initialData!.assignedTo!, label: "Empleado eliminado" }] : []),
                         ...empleadosSeleccionables.map((e) => ({
                           value: e.id,
                           label: `${e.nombre}${e.cargo ? ` — ${e.cargo}` : ""}${
@@ -304,6 +354,9 @@ export const TicketForm: React.FC<TicketFormProps> = ({ initialData, onSubmit, l
                       <SelectContent>
                         <SelectGroup>
                           <SelectItem value="__none__">Sin asignar</SelectItem>
+                          {asignadoEliminado && (
+                            <SelectItem value={initialData!.assignedTo!}>Empleado eliminado</SelectItem>
+                          )}
                           {empleadosSeleccionables.map((e) => {
                             const ocupado = estaOcupado(e.carga, maxTicketsAbiertos);
                             return (

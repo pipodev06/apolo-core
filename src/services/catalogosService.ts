@@ -16,7 +16,7 @@ import { db, functions } from "../firebase";
 import type { Catalogo } from "../types/catalogo";
 
 // Firestore corta un WriteBatch a los 500 writes — se trocea por las dudas,
-// aunque en la práctica un catálogo (cargos/áreas) nunca debería acercarse.
+// aunque en la práctica un catálogo (cargos/áreas/categorías) nunca debería acercarse.
 const TAMANO_LOTE = 450;
 
 interface Cascada {
@@ -115,3 +115,4 @@ export const areasService = crearCatalogoService("areas", [
   { coleccion: "personal", campo: "area" },
   { coleccion: "tickets", campo: "area" },
 ]);
+export const categoriasService = crearCatalogoService("categorias", [{ coleccion: "tickets", campo: "categoria" }]);
