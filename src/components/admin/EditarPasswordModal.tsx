@@ -1,19 +1,17 @@
-import React, { useState } from "react";
+import React from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { IconEye as Eye, IconEyeOff as EyeOff } from "@tabler/icons-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "../ui/dialog";
 import { Button } from "../ui/button";
 import { Field, FieldError, FieldGroup, FieldLabel } from "../ui/field";
-import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "../ui/input-group";
-import { Input } from "../ui/input";
 import { authService } from "../../services/authService";
 import { notificarExito, notificarError } from "../../lib/alertas";
+import { PasswordInput } from "../ui/password-input";
 
 const schema = z
   .object({
-    // Solo se exige en modo "propio" (ver refine de abajo).
+    // Solo se exige en modo "propio" (se valida en onSubmit).
     passwordActual: z.string().optional(),
     password: z.string().min(8, "Mínimo 8 caracteres"),
     confirmPassword: z.string().min(8, "Mínimo 8 caracteres"),
@@ -35,8 +33,6 @@ interface Props {
 }
 
 export const EditarPasswordModal: React.FC<Props> = ({ open, onClose, user, propio = false }) => {
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const {
     register,
     handleSubmit,
@@ -81,9 +77,8 @@ export const EditarPasswordModal: React.FC<Props> = ({ open, onClose, user, prop
           {propio && (
             <Field data-invalid={!!errors.passwordActual}>
               <FieldLabel htmlFor="passwordActual">Contraseña actual</FieldLabel>
-              <Input
+              <PasswordInput
                 id="passwordActual"
-                type="password"
                 autoComplete="current-password"
                 aria-invalid={!!errors.passwordActual}
                 {...register("passwordActual")}
@@ -93,44 +88,20 @@ export const EditarPasswordModal: React.FC<Props> = ({ open, onClose, user, prop
           )}
           <Field data-invalid={!!errors.password}>
             <FieldLabel htmlFor="password">Nueva contraseña</FieldLabel>
-            <InputGroup>
-              <InputGroupInput
-                id="password"
-                type={showPassword ? "text" : "password"}
-                aria-invalid={!!errors.password}
-                {...register("password")}
-              />
-              <InputGroupAddon align="inline-end">
-                <InputGroupButton
-                  type="button"
-                  aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
-                  onClick={() => setShowPassword((v) => !v)}
-                >
-                  {showPassword ? <EyeOff /> : <Eye />}
-                </InputGroupButton>
-              </InputGroupAddon>
-            </InputGroup>
+            <PasswordInput
+              id="password"
+              aria-invalid={!!errors.password}
+              {...register("password")}
+            />
             <FieldError errors={[errors.password]} />
           </Field>
           <Field data-invalid={!!errors.confirmPassword}>
             <FieldLabel htmlFor="confirmPassword">Confirmar contraseña</FieldLabel>
-            <InputGroup>
-              <InputGroupInput
-                id="confirmPassword"
-                type={showConfirmPassword ? "text" : "password"}
-                aria-invalid={!!errors.confirmPassword}
-                {...register("confirmPassword")}
-              />
-              <InputGroupAddon align="inline-end">
-                <InputGroupButton
-                  type="button"
-                  aria-label={showConfirmPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
-                  onClick={() => setShowConfirmPassword((v) => !v)}
-                >
-                  {showConfirmPassword ? <EyeOff /> : <Eye />}
-                </InputGroupButton>
-              </InputGroupAddon>
-            </InputGroup>
+            <PasswordInput
+              id="confirmPassword"
+              aria-invalid={!!errors.confirmPassword}
+              {...register("confirmPassword")}
+            />
             <FieldError errors={[errors.confirmPassword]} />
           </Field>
 
