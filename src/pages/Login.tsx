@@ -3,7 +3,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useNavigate, useLocation, Navigate } from "react-router-dom";
-import { IconEye as Eye, IconEyeOff as EyeOff, IconTicket as Ticket } from "@tabler/icons-react";
+import { IconTicket as Ticket } from "@tabler/icons-react";
 import { useAuth } from "../context/AuthContext";
 import { authService } from "../services/authService";
 import { ThemeToggle } from "../components/layout/ThemeToggle";
@@ -11,8 +11,8 @@ import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
 import { Card, CardContent } from "../components/ui/card";
 import { Field, FieldError, FieldGroup, FieldLabel } from "../components/ui/field";
-import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "../components/ui/input-group";
 import { notificarExito, notificarError } from "../lib/alertas";
+import { PasswordInput } from "../components/ui/password-input";
 
 const loginSchema = z.object({
   username: z.string().min(1, "Usuario requerido"),
@@ -23,7 +23,6 @@ type LoginForm = z.infer<typeof loginSchema>;
 
 export const Login: React.FC = () => {
   const [loading, setLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const { login } = useAuth();
@@ -100,25 +99,13 @@ export const Login: React.FC = () => {
               </Field>
               <Field data-invalid={!!errors.password}>
                 <FieldLabel htmlFor="password">Contraseña</FieldLabel>
-                <InputGroup>
-                  <InputGroupInput
-                    id="password"
-                    type={showPassword ? "text" : "password"}
-                    autoComplete="current-password"
-                    required
-                    aria-invalid={!!errors.password}
-                    {...register("password")}
-                  />
-                  <InputGroupAddon align="inline-end">
-                    <InputGroupButton
-                      type="button"
-                      aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
-                      onClick={() => setShowPassword((v) => !v)}
-                    >
-                      {showPassword ? <EyeOff /> : <Eye />}
-                    </InputGroupButton>
-                  </InputGroupAddon>
-                </InputGroup>
+                <PasswordInput
+                  id="password"
+                  autoComplete="current-password"
+                  required
+                  aria-invalid={!!errors.password}
+                  {...register("password")}
+                />
                 <FieldError errors={[errors.password]} />
               </Field>
               <Button type="submit" className="w-full" disabled={loading}>
