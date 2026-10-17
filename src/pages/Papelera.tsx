@@ -32,7 +32,6 @@ export const Papelera: React.FC = () => {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Papelera</h1>
-        <p className="text-muted-foreground">Elementos eliminados de todos los módulos, en un solo lugar.</p>
       </div>
 
       <div className="rounded-xl border bg-card p-6 shadow-sm">
