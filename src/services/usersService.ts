@@ -9,14 +9,12 @@ import {
   orderBy,
   limit,
   serverTimestamp,
-  runTransaction,
 } from "firebase/firestore";
 import { httpsCallable } from "firebase/functions";
 import { db, functions } from "../firebase";
 import type { User } from "../types/user";
 import type { Role } from "../lib/roles";
-import { esAdmin } from "../lib/roles";
-import { hashPassword, hashUsername } from "../lib/hash";
+import { hashUsername } from "../lib/hash";
 
 export const usersService = {
   getAll: async () => {
@@ -28,45 +26,11 @@ export const usersService = {
       .filter((u) => !u.deletedAt);
   },
 
+  // Vía Cloud Function: hashea la contraseña server-side y crea users +
+  // credenciales + access en una transacción.
   create: async (data: { username: string; password: string; email?: string; role: Role; personalId?: string }) => {
-    const usernameHash = await hashUsername(data.username);
-
-    const usersRef = collection(db, "users");
-    const existing = await getDocs(query(usersRef, where("usernameHash", "==", usernameHash), limit(1)));
-    if (!existing.empty) throw new Error("El nombre de usuario ya existe");
-
-    const passwordHash = await hashPassword(data.password);
-    const allAccess = esAdmin(data.role);
-
-    await runTransaction(db, async (transaction) => {
-      const userRef = doc(collection(db, "users"));
-      transaction.set(userRef, {
-        username: data.username,
-        usernameHash,
-        passwordHash,
-        email: data.email || "",
-        role: data.role,
-        ...(data.personalId ? { personalId: data.personalId } : {}),
-        active: true,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
-
-      const accessRef = doc(db, "access", userRef.id);
-      transaction.set(accessRef, {
-        userId: userRef.id,
-        sections: {
-          dashboard: true,
-          tickets: true,
-          personal: allAccess,
-          administracion: allAccess,
-          notificaciones: true,
-          papelera: true,
-          historico: allAccess,
-        },
-        updatedAt: serverTimestamp(),
-      });
-    });
+    const fn = httpsCallable(functions, "crearUsuario");
+    await fn(data);
   },
 
   update: async (id: string, data: Partial<User>) => {

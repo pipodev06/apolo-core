@@ -3,8 +3,9 @@ import { Outlet, Navigate, useLocation } from "react-router-dom";
 import { NavTabs } from "../../components/ui/tabs";
 
 const tabs = [
-  { label: "Modo de Asignación", path: "/administracion/modo" },
+  { label: "Configuración", path: "/administracion/modo" },
   { label: "Usuarios", path: "/administracion/usuarios" },
+  { label: "Categorías", path: "/administracion/categorias" },
   { label: "Matriz de Accesos", path: "/administracion/accesos" },
 ];
 

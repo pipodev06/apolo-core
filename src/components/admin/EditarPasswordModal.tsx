@@ -7,13 +7,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Button } from "../ui/button";
 import { Field, FieldError, FieldGroup, FieldLabel } from "../ui/field";
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "../ui/input-group";
-import { usersService } from "../../services/usersService";
-import { hashPassword } from "../../lib/hash";
+import { Input } from "../ui/input";
+import { authService } from "../../services/authService";
 import { notificarExito, notificarError } from "../../lib/alertas";
-import type { User } from "../../types/user";
 
 const schema = z
   .object({
+    // Solo se exige en modo "propio" (ver refine de abajo).
+    passwordActual: z.string().optional(),
     password: z.string().min(8, "Mínimo 8 caracteres"),
     confirmPassword: z.string().min(8, "Mínimo 8 caracteres"),
   })
@@ -27,16 +28,20 @@ type FormData = z.infer<typeof schema>;
 interface Props {
   open: boolean;
   onClose: () => void;
-  user: User | null;
+  user: { id: string; username: string } | null;
+  // true: el usuario cambia su propia contraseña (pide la actual). false:
+  // reset por admin (cierra las sesiones abiertas de esa cuenta).
+  propio?: boolean;
 }
 
-export const EditarPasswordModal: React.FC<Props> = ({ open, onClose, user }) => {
+export const EditarPasswordModal: React.FC<Props> = ({ open, onClose, user, propio = false }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const {
     register,
     handleSubmit,
     reset,
+    setError,
     formState: { errors, isSubmitting },
   } = useForm<FormData>({ resolver: zodResolver(schema) });
 
@@ -47,10 +52,17 @@ export const EditarPasswordModal: React.FC<Props> = ({ open, onClose, user }) =>
 
   const onSubmit = async (data: FormData) => {
     if (!user) return;
+    if (propio && !data.passwordActual) {
+      setError("passwordActual", { message: "Ingresa tu contraseña actual" });
+      return;
+    }
     try {
-      const passwordHash = await hashPassword(data.password);
-      await usersService.update(user.id, { passwordHash });
-      notificarExito(`Contraseña de ${user.username} actualizada`);
+      await authService.cambiarPassword(
+        propio
+          ? { passwordNueva: data.password, passwordActual: data.passwordActual }
+          : { passwordNueva: data.password, userId: user.id }
+      );
+      notificarExito(propio ? "Contraseña actualizada" : `Contraseña de ${user.username} actualizada`);
       reset();
       onClose();
     } catch (error) {
@@ -66,6 +78,19 @@ export const EditarPasswordModal: React.FC<Props> = ({ open, onClose, user }) =>
         </DialogHeader>
       <form onSubmit={handleSubmit(onSubmit)}>
         <FieldGroup>
+          {propio && (
+            <Field data-invalid={!!errors.passwordActual}>
+              <FieldLabel htmlFor="passwordActual">Contraseña actual</FieldLabel>
+              <Input
+                id="passwordActual"
+                type="password"
+                autoComplete="current-password"
+                aria-invalid={!!errors.passwordActual}
+                {...register("passwordActual")}
+              />
+              <FieldError errors={[errors.passwordActual]} />
+            </Field>
+          )}
           <Field data-invalid={!!errors.password}>
             <FieldLabel htmlFor="password">Nueva contraseña</FieldLabel>
             <InputGroup>

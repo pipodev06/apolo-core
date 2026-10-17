@@ -2,11 +2,11 @@ import * as React from "react"
 import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage"
 import { IconUpload as Upload, IconPhoto as Photo, IconX as X } from "@tabler/icons-react"
 import { cn } from "@/lib/utils"
-import { storage } from "@/firebase"
+import { auth, storage } from "@/firebase"
 import { compressToWebp } from "@/lib/image"
 import { Spinner } from "@/components/ui/spinner"
 import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 
 interface ThumbnailsProps {
   value: string[]
@@ -60,6 +60,7 @@ export function ImageThumbnails({ value, onChange, disabled, className }: Thumbn
 
       <Dialog open={!!preview} onOpenChange={(o) => !o && setPreview(null)}>
         <DialogContent className="sm:max-w-2xl">
+          <DialogTitle className="sr-only">Vista previa de imagen</DialogTitle>
           {preview && <img src={preview} alt="" className="max-h-[80vh] w-full rounded-md object-contain" />}
         </DialogContent>
       </Dialog>
@@ -110,7 +111,10 @@ export function ImageUploader({
           const comprimido = await compressToWebp(file)
           const path = `${pathPrefix}/${crypto.randomUUID()}-${comprimido.name}`
           const fileRef = ref(storage, path)
-          await uploadBytes(fileRef, comprimido)
+          // uploadedBy: storage.rules solo deja borrar la imagen a quien la subió (o a un admin).
+          await uploadBytes(fileRef, comprimido, {
+            customMetadata: { uploadedBy: auth.currentUser?.uid ?? "" },
+          })
           return getDownloadURL(fileRef)
         })
       )

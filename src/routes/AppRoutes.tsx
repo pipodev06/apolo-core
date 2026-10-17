@@ -1,7 +1,7 @@
 import React, { Suspense, lazy } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { Login } from "../pages/Login";
-import { cargosService, areasService } from "../services/catalogosService";
+import { cargosService, areasService, categoriasService } from "../services/catalogosService";
 import { SetupGuard } from "./SetupGuard";
 import { ProtectedRoute } from "./ProtectedRoute";
 import { AccessGuard } from "./AccessGuard";
@@ -29,6 +29,7 @@ const HistoricoDetalle = lazy(() => import("../pages/HistoricoDetalle").then((m)
 const Administracion = lazy(() => import("../pages/administracion/Administracion").then((m) => ({ default: m.Administracion })));
 const ModoTab = lazy(() => import("../pages/administracion/tabs/ModoTab").then((m) => ({ default: m.ModoTab })));
 const UsuariosTab = lazy(() => import("../pages/administracion/tabs/UsuariosTab").then((m) => ({ default: m.UsuariosTab })));
+const CategoriasTab = lazy(() => import("../pages/administracion/tabs/CategoriasTab").then((m) => ({ default: m.CategoriasTab })));
 const AccesosTab = lazy(() => import("../pages/administracion/tabs/AccesosTab").then((m) => ({ default: m.AccesosTab })));
 const Papelera = lazy(() => import("../pages/Papelera").then((m) => ({ default: m.Papelera })));
 const EmpleadosTab = lazy(() => import("../components/personal/EmpleadosTab").then((m) => ({ default: m.EmpleadosTab })));
@@ -204,6 +205,7 @@ export const AppRoutes: React.FC = () => {
       >
         <Route path="modo" element={<ModoTab />} />
         <Route path="usuarios" element={<UsuariosTab />} />
+        <Route path="categorias" element={<CategoriasTab />} />
         <Route path="accesos" element={<AccesosTab />} />
       </Route>
 
@@ -222,7 +224,8 @@ export const AppRoutes: React.FC = () => {
         <Route path="tickets" element={<TicketsList soloPapelera />} />
         <Route path="empleados" element={<EmpleadosTab soloPapelera />} />
         <Route path="cargos" element={<CatalogoCrud singular="cargo" service={cargosService} soloPapelera />} />
-        <Route path="areas" element={<CatalogoCrud singular="área" service={areasService} soloPapelera />} />
+        <Route path="areas" element={<CatalogoCrud singular="área" femenino service={areasService} soloPapelera />} />
+        <Route path="categorias" element={<CatalogoCrud singular="categoría" femenino service={categoriasService} soloPapelera />} />
         <Route path="usuarios" element={<UsuariosTab soloPapelera />} />
       </Route>
 

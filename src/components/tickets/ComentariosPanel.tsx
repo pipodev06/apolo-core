@@ -82,7 +82,7 @@ export const ComentariosPanel: React.FC<{ ticketId: string; eventos: TicketEvent
                 {!!evento.imagenes?.length && (
                   <div className="mt-2 flex flex-wrap gap-1.5">
                     {evento.imagenes.map((url) => (
-                      <a key={url} href={url} target="_blank" rel="noreferrer">
+                      <a key={url} href={url} target="_blank" rel="noreferrer" aria-label="Abrir imagen adjunta">
                         <img src={url} alt="" className="h-14 w-14 rounded-md border object-cover" />
                       </a>
                     ))}
@@ -121,7 +121,7 @@ export const ComentariosPanel: React.FC<{ ticketId: string; eventos: TicketEvent
             variant="icon"
             hideThumbnails
           />
-          <Button onClick={handleComentar} disabled={enviando || !texto.trim()} size="icon">
+          <Button onClick={handleComentar} disabled={enviando || !texto.trim()} size="icon" aria-label="Enviar comentario">
             <Send className="h-4 w-4" />
           </Button>
         </div>

@@ -36,3 +36,4 @@ docs/
 
 .vercel
 .env*
+AGENTS.md

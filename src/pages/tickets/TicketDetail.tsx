@@ -16,12 +16,15 @@ import { Button } from "../../components/ui/button";
 import { Card } from "../../components/ui/card";
 import { ExpandableText } from "../../components/ui/expandable-text";
 import { PageSpinner } from "../../components/ui/spinner";
-import { IconPencil as Pencil, IconArrowLeft as ArrowLeft, IconCalendar as Calendar, IconUser as UserIcon, IconHash as Hash, IconClock as Clock, IconRobot as Bot, IconRefresh as RefreshCw, IconCircleCheck as CircleCheck } from "@tabler/icons-react";
+import { IconPencil as Pencil, IconArrowLeft as ArrowLeft, IconCalendar as Calendar, IconUser as UserIcon, IconHash as Hash, IconClock as Clock, IconRobot as Bot, IconRefresh as RefreshCw, IconCircleCheck as CircleCheck, IconTag as Tag, IconHourglass as Hourglass } from "@tabler/icons-react";
 import { fmtFechaHora } from "../../lib/fecha";
 import { confirmar, notificarExito, notificarError } from "../../lib/alertas";
 import { useAuth } from "../../context/AuthContext";
 import { esAdmin } from "../../lib/roles";
 import { cn } from "../../lib/cn";
+import { useTickets } from "../../context/TicketsContext";
+import { estaVencido, venceEnMs } from "../../lib/sla";
+import { Badge } from "../../components/ui/badge";
 
 // Sentinel usado cuando un ticket se crea de forma automática (sin usuario humano detrás).
 const IA_CREATED_BY = "ia-assistant";
@@ -29,6 +32,7 @@ const IA_CREATED_BY = "ia-assistant";
 export const TicketDetail: React.FC = () => {
   const { user } = useAuth();
   const isAdmin = esAdmin(user?.role);
+  const { sla } = useTickets();
   const [ticket, setTicket] = useState<Ticket | null>(null);
   const [empleados, setEmpleados] = useState<Empleado[]>([]);
   const [usuarios, setUsuarios] = useState<User[]>([]);
@@ -133,12 +137,14 @@ export const TicketDetail: React.FC = () => {
               {analizando ? "Analizando..." : "Reanalizar con IA"}
             </Button>
           )}
-          <Link to={`/tickets/${ticket.id}/editar`} state={{ from: "detalle" }}>
-            <Button>
-              <Pencil className="h-4 w-4" />
-              Editar
-            </Button>
-          </Link>
+          {isAdmin && (
+            <Link to={`/tickets/${ticket.id}/editar`} state={{ from: "detalle" }}>
+              <Button>
+                <Pencil className="h-4 w-4" />
+                Editar
+              </Button>
+            </Link>
+          )}
           {puedeGestionarCierre && (
             <Link to={`/tickets/${ticket.id}/cerrar`}>
               <Button variant="secondary">
@@ -186,7 +192,7 @@ export const TicketDetail: React.FC = () => {
                 {!!ticket.problemImages?.length && (
                   <div className="mt-3 flex flex-wrap gap-2">
                     {ticket.problemImages.map((url) => (
-                      <a key={url} href={url} target="_blank" rel="noreferrer">
+                      <a key={url} href={url} target="_blank" rel="noreferrer" aria-label="Abrir imagen adjunta">
                         <img src={url} alt="" className="h-20 w-20 rounded-md border object-cover" />
                       </a>
                     ))}
@@ -203,7 +209,7 @@ export const TicketDetail: React.FC = () => {
                   {!!ticket.solutionImages?.length && (
                     <div className="mt-3 flex flex-wrap gap-2">
                       {ticket.solutionImages.map((url) => (
-                        <a key={url} href={url} target="_blank" rel="noreferrer">
+                        <a key={url} href={url} target="_blank" rel="noreferrer" aria-label="Abrir imagen adjunta">
                           <img src={url} alt="" className="h-20 w-20 rounded-md border object-cover" />
                         </a>
                       ))}
@@ -231,8 +237,25 @@ export const TicketDetail: React.FC = () => {
                       {fmtFechaHora(ticket.finishedAt)}
                     </div>
                   )}
+                  {ticket.createdAt && (
+                    <div className="flex items-center text-sm">
+                      <Hourglass className="mr-3 h-4 w-4" />
+                      <span className="mr-2 font-medium">Vence (SLA):</span>
+                      {fmtFechaHora(new Date(venceEnMs(ticket, sla)))}
+                      {estaVencido(ticket, sla) && (
+                        <Badge variant="red" className="ml-2">
+                          {ticket.status === "terminado" ? "Fuera de plazo" : "Vencido"}
+                        </Badge>
+                      )}
+                    </div>
+                  )}
                 </div>
                 <div className="space-y-4">
+                  <div className="flex items-center text-sm">
+                    <Tag className="mr-3 h-4 w-4" />
+                    <span className="mr-2 font-medium">Categoría:</span>
+                    {ticket.categoria || "Sin categoría"}
+                  </div>
                   <div className="flex items-center text-sm">
                     <UserIcon className="mr-3 h-4 w-4 text-primary" />
                     <span className="mr-2 font-medium">Asignado a:</span>

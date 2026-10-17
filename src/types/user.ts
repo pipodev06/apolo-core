@@ -6,7 +6,6 @@ export interface User {
   id: string;
   username: string;
   usernameHash: string;
-  passwordHash: string;
   email?: string;
   role: Role;
   // id del doc en personal/ vinculado a esta cuenta — solo aplica a técnicos

@@ -1,14 +1,7 @@
-import {
-  collection,
-  getDoc,
-  serverTimestamp,
-  runTransaction,
-  doc
-} from "firebase/firestore";
+import { getDoc, doc } from "firebase/firestore";
 import { httpsCallable } from "firebase/functions";
 import { signInWithCustomToken, signOut } from "firebase/auth";
 import { auth, db, functions } from "../firebase";
-import { hashPassword, hashUsername } from "../lib/hash";
 
 interface LoginResult {
   customToken: string;
@@ -20,7 +13,7 @@ interface LoginResult {
 
 export const authService = {
   // La verificación de usuario/contraseña ocurre en la Cloud Function "login"
-  // (server-side, contra el passwordHash en Firestore). signInWithCustomToken
+  // (server-side, contra `credenciales/{userId}`). signInWithCustomToken
   // deja a Firebase Auth con un rol verificable en request.auth.token.role,
   // que las Cloud Functions sensibles (p. ej. reanalizarTicketIA) usan para
   // autorizar — a diferencia del "role" cacheado abajo en localStorage, que
@@ -66,54 +59,21 @@ export const authService = {
     return session;
   },
 
+  // El primer super_admin + config/app los crea la Cloud Function
+  // setupInicial (hashea la contraseña server-side; falla si ya hay setup).
   setupInitialAdmin: async (data: { username: string; password: string; email?: string }) => {
-    const { username, password, email } = data;
-    const usernameHash = await hashUsername(username);
-    const passwordHash = await hashPassword(password);
-
-    await runTransaction(db, async (transaction) => {
-      // 1. Create User
-      const userRef = doc(collection(db, "users"));
-      transaction.set(userRef, {
-        username,
-        usernameHash,
-        passwordHash,
-        email: email || "",
-        role: "super_admin",
-        active: true,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
-
-      // 2. Create Access
-      const accessRef = doc(db, "access", userRef.id);
-      transaction.set(accessRef, {
-        userId: userRef.id,
-        sections: {
-          dashboard: true,
-          tickets: true,
-          personal: true,
-          administracion: true,
-          notificaciones: true,
-          papelera: true,
-          historico: true,
-        },
-        updatedAt: serverTimestamp(),
-      });
-
-      // 3. Initialize Config
-      const configRef = doc(db, "config", "app");
-      transaction.set(configRef, {
-        ticketCounter: 0,
-        series: "TK01",
-        assignmentMode: "manual",
-        maxTicketsAbiertos: 5,
-        updatedAt: serverTimestamp(),
-      });
-    });
+    const fn = httpsCallable(functions, "setupInicial");
+    await fn(data);
   },
 
-  // Mismo criterio que appYaInicializada() en firestore.rules: existencia de
+  // Sin userId: cambia la contraseña propia (exige la actual). Con userId:
+  // reset por admin.
+  cambiarPassword: async (data: { passwordNueva: string; passwordActual?: string; userId?: string }) => {
+    const fn = httpsCallable(functions, "cambiarPassword");
+    await fn(data);
+  },
+
+  // Existencia de
   // config/app (lectura abierta siempre, a diferencia de `users`, que exige
   // sesión real una vez pasado el bootstrap) — no usar hasUsers()/leer
   // `users` acá, un cliente sin loguear no tiene permiso para eso después

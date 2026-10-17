@@ -20,13 +20,18 @@ export interface CatalogoCrudHandle {
 }
 
 interface Props {
-  singular: string; // "cargo" | "área"
+  singular: string; // "cargo" | "área" | "categoría"
+  // Concordancia de los textos ("Nueva área", "la primera categoría").
+  femenino?: boolean;
   service: CatalogoService;
   soloPapelera?: boolean;
 }
 
 export const CatalogoCrud = forwardRef<CatalogoCrudHandle, Props>(
-  ({ singular, service, soloPapelera = false }, ref) => {
+  ({ singular, femenino = false, service, soloPapelera = false }, ref) => {
+  const nuevo = femenino ? "Nueva" : "Nuevo";
+  const primero = femenino ? "la primera" : "el primer";
+  const del = femenino ? "de la" : "del";
   const [items, setItems] = useState<Catalogo[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
@@ -157,7 +162,7 @@ export const CatalogoCrud = forwardRef<CatalogoCrudHandle, Props>(
             {soloPapelera ? "Papelera vacía" : "Sin registros"}
           </h3>
           <p className="text-muted-foreground">
-            {soloPapelera ? "No hay elementos eliminados." : `Crea el primer ${singular} para empezar.`}
+            {soloPapelera ? "No hay elementos eliminados." : `Crea ${primero} ${singular} para empezar.`}
           </p>
         </div>
       ) : (
@@ -255,7 +260,7 @@ export const CatalogoCrud = forwardRef<CatalogoCrudHandle, Props>(
         <Dialog open={modalOpen} onOpenChange={(o) => !o && setModalOpen(false)}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>{editing ? `Editar ${singular}` : `Nuevo ${singular}`}</DialogTitle>
+              <DialogTitle>{editing ? `Editar ${singular}` : `${nuevo} ${singular}`}</DialogTitle>
             </DialogHeader>
             <Field>
               <FieldLabel htmlFor="nombre-catalogo">{titulo}</FieldLabel>
@@ -264,7 +269,7 @@ export const CatalogoCrud = forwardRef<CatalogoCrudHandle, Props>(
                 required
                 value={nombre}
                 onChange={(e) => setNombre(e.target.value)}
-                placeholder={`Nombre del ${singular}`}
+                placeholder={`Nombre ${del} ${singular}`}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") guardar();
                 }}
