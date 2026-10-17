@@ -1,5 +1,5 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useState } from "react";
-import { IconPencil as Pencil, IconTrash as Trash2, IconPower as Power, IconRestore as RotateCcw, IconTag as Tag } from "@tabler/icons-react";
+import { IconTag as Tag } from "@tabler/icons-react";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "../ui/table";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
@@ -11,7 +11,7 @@ import { PageSpinner } from "../ui/spinner";
 import { confirmar, notificarExito, notificarError } from "../../lib/alertas";
 import type { Catalogo } from "../../types/catalogo";
 import type { CatalogoService } from "../../services/catalogosService";
-import { cn } from "../../lib/cn";
+import { AccionesFila } from "../ui/acciones-fila";
 
 const PAGE_SIZE = 10;
 
@@ -194,53 +194,15 @@ export const CatalogoCrud = forwardRef<CatalogoCrudHandle, Props>(
                   )}
                 </TableCell>
                 <TableCell>
-                  <div className="flex items-center gap-1">
-                    {soloPapelera ? (
-                      <>
-                        <button
-                          onClick={() => restaurar(it)}
-                          className="cursor-pointer rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-green-500/10 hover:text-green-600"
-                          title="Restaurar"
-                        >
-                          <RotateCcw className="h-5 w-5" />
-                        </button>
-                        <button
-                          onClick={() => purgar(it)}
-                          className="cursor-pointer rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
-                          title="Eliminar definitivo"
-                        >
-                          <Trash2 className="h-5 w-5" />
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        <button
-                          onClick={() => toggle(it)}
-                          className={cn(
-                            "cursor-pointer rounded-md p-1.5 text-muted-foreground transition-colors",
-                            it.activo ? "hover:bg-muted hover:text-foreground" : "hover:bg-green-500/10 hover:text-green-600"
-                          )}
-                          title={it.activo ? "Desactivar" : "Activar"}
-                        >
-                          <Power className="h-5 w-5" />
-                        </button>
-                        <button
-                          onClick={() => openEditar(it)}
-                          className="cursor-pointer rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-primary"
-                          title="Editar"
-                        >
-                          <Pencil className="h-5 w-5" />
-                        </button>
-                        <button
-                          onClick={() => eliminar(it)}
-                          className="cursor-pointer rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
-                          title="Eliminar"
-                        >
-                          <Trash2 className="h-5 w-5" />
-                        </button>
-                      </>
-                    )}
-                  </div>
+                  <AccionesFila
+                    soloPapelera={soloPapelera}
+                    onRestaurar={() => restaurar(it)}
+                    onPurgar={() => purgar(it)}
+                    activo={it.activo}
+                    onToggle={() => toggle(it)}
+                    onEditar={() => openEditar(it)}
+                    onEliminar={() => eliminar(it)}
+                  />
                 </TableCell>
               </TableRow>
             ))}
