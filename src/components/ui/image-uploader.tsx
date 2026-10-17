@@ -68,6 +68,21 @@ export function ImageThumbnails({ value, onChange, disabled, className }: Thumbn
   )
 }
 
+// Imágenes ya guardadas (solo lectura): miniaturas que abren la original en
+// otra pestaña. Componente único para el detalle del ticket y los comentarios.
+export function ImagenesAdjuntas({ urls, size = "md", className }: { urls?: string[]; size?: "sm" | "md"; className?: string }) {
+  if (!urls?.length) return null
+  return (
+    <div className={cn("flex flex-wrap", size === "sm" ? "gap-1.5" : "gap-2", className)}>
+      {urls.map((url) => (
+        <a key={url} href={url} target="_blank" rel="noreferrer" aria-label="Abrir imagen adjunta">
+          <img src={url} alt="" className={cn("rounded-md border object-cover", size === "sm" ? "h-14 w-14" : "h-20 w-20")} />
+        </a>
+      ))}
+    </div>
+  )
+}
+
 interface ImageUploaderProps {
   value: string[]
   onChange: (urls: string[]) => void

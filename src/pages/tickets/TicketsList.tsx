@@ -2,18 +2,14 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   IconPlus as Plus, IconEye as Eye, IconPencil as Pencil, IconTrash as Trash2, IconSearch as Search, IconTicket as TicketIcon,
-  IconUser as User, IconFilterOff as FilterX, IconDownload as Download,
+  IconFilterOff as FilterX, IconDownload as Download,
 } from "@tabler/icons-react";
 import { ticketsService } from "../../services/ticketsService";
 import { empleadosService } from "../../services/empleadosService";
 import { useTickets } from "../../context/TicketsContext";
 import type { Ticket, Urgency, TicketStatus } from "../../types/ticket";
 import type { Empleado } from "../../types/empleado";
-import { Card } from "../../components/ui/card";
 import { PageSpinner } from "../../components/ui/spinner";
-import { UrgencyBadge } from "../../components/tickets/UrgencyBadge";
-import { StatusBadge } from "../../components/tickets/StatusBadge";
-import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
@@ -25,6 +21,7 @@ import { estaVencido, fechaMs, fmtDuracion, tiempoResolucionMs } from "../../lib
 import { descargarCsv } from "../../lib/csv";
 import { AccionesFila } from "../../components/ui/acciones-fila";
 import { useAlturaScrollViewport } from "../../lib/useAlturaScrollViewport";
+import { TicketCard } from "../../components/tickets/TicketCard";
 
 const statusLabels: Record<TicketStatus, string> = {
   pendiente: "Pendiente",
@@ -248,63 +245,6 @@ export const TicketsList: React.FC<Props> = ({ soloPapelera = false }) => {
       </>
     );
 
-  // Card de ticket compartida entre el tablero y la grilla plana de Papelera.
-  // Fila 1: contador + código + estado (pastilla). Fila 2: título. Fila 3:
-  // descripción. Fila 4: urgencia + hora. Fila 5: asignado.
-  // Texto: un solo color (foreground) en todo el card — la jerarquía
-  // (título vs. resto) se marca solo con font-bold, no con color.
-  const renderTicketCard = (ticket: Ticket, index: number) => (
-    <Card key={ticket.id} className="flex flex-col p-5">
-      <div className="mb-3 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
-            {index + 1}
-          </span>
-          <span className="text-sm font-bold text-primary">{ticket.code}</span>
-        </div>
-        {soloPapelera ? (
-          <Badge variant="red" dot>
-            Eliminado
-          </Badge>
-        ) : (
-          <div className="flex items-center gap-1.5">
-            <span className="text-xs font-bold">Estado:</span>
-            <StatusBadge status={ticket.status} />
-          </div>
-        )}
-      </div>
-      <h3 className="mb-2 line-clamp-2 font-bold uppercase">{ticket.title}</h3>
-      <p className="mb-4 line-clamp-2 text-sm text-muted-foreground">{ticket.description}</p>
-
-      <div className="mt-auto space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1.5">
-            <span className="text-xs font-bold">Urgencia:</span>
-            <UrgencyBadge urgency={ticket.urgency} />
-            {!soloPapelera && ticket.status !== "terminado" && estaVencido(ticket, sla) && (
-              <Badge variant="red">Vencido</Badge>
-            )}
-          </div>
-          <span className="text-xs text-muted-foreground">{fmtFechaHora(ticket.incidentTime)}</span>
-        </div>
-        <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-          <User className="h-4 w-4" />
-          {/* empleadosService.getAll() incluye inactivos (solo excluye
-              eliminados) — si assignedTo está seteado y no aparece acá, es
-              porque el empleado fue eliminado, no que el ticket esté sin
-              asignar. Distinguirlo evita que parezca "sin asignar" cuando en
-              realidad sí tiene a alguien (borrado) asignado. */}
-          {ticket.assignedTo
-            ? empleadoNombre(ticket.assignedTo) || "Empleado eliminado"
-            : "Sin asignar"}
-        </div>
-        <div className="flex items-center justify-end gap-1 border-t pt-3">
-          {acciones(ticket)}
-        </div>
-      </div>
-    </Card>
-  );
-
   return (
     <div className="space-y-2">
       {!soloPapelera && (
@@ -435,7 +375,20 @@ export const TicketsList: React.FC<Props> = ({ soloPapelera = false }) => {
       ) : (
         <div ref={cardsRef} style={cardsStyle} className="pr-1">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {filtered.map((ticket, i) => renderTicketCard(ticket, i))}
+            {filtered.map((ticket, i) => (
+              <TicketCard
+                key={ticket.id}
+                ticket={ticket}
+                numero={i + 1}
+                soloPapelera={soloPapelera}
+                vencido={!soloPapelera && ticket.status !== "terminado" && estaVencido(ticket, sla)}
+                // empleadosService.getAll() incluye inactivos (solo excluye
+                // eliminados): assignedTo seteado que no aparece = empleado
+                // eliminado, no "sin asignar".
+                asignado={ticket.assignedTo ? empleadoNombre(ticket.assignedTo) || "Empleado eliminado" : "Sin asignar"}
+                acciones={acciones(ticket)}
+              />
+            ))}
           </div>
         </div>
       )}
