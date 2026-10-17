@@ -25,6 +25,7 @@ import { cn } from "../../lib/cn";
 import { useTickets } from "../../context/TicketsContext";
 import { estaVencido, venceEnMs } from "../../lib/sla";
 import { Badge } from "../../components/ui/badge";
+import { ImagenesAdjuntas } from "../../components/ui/image-uploader";
 
 // Sentinel usado cuando un ticket se crea de forma automática (sin usuario humano detrás).
 const IA_CREATED_BY = "ia-assistant";
@@ -189,15 +190,7 @@ export const TicketDetail: React.FC = () => {
                   maxChars={425}
                   className="whitespace-pre-wrap break-words leading-relaxed"
                 />
-                {!!ticket.problemImages?.length && (
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {ticket.problemImages.map((url) => (
-                      <a key={url} href={url} target="_blank" rel="noreferrer" aria-label="Abrir imagen adjunta">
-                        <img src={url} alt="" className="h-20 w-20 rounded-md border object-cover" />
-                      </a>
-                    ))}
-                  </div>
-                )}
+                <ImagenesAdjuntas urls={ticket.problemImages} className="mt-3" />
               </div>
 
               {ticket.solutionDescription && (
@@ -206,15 +199,7 @@ export const TicketDetail: React.FC = () => {
                     Solución
                   </h3>
                   <p className="whitespace-pre-wrap break-words leading-relaxed">{ticket.solutionDescription}</p>
-                  {!!ticket.solutionImages?.length && (
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      {ticket.solutionImages.map((url) => (
-                        <a key={url} href={url} target="_blank" rel="noreferrer" aria-label="Abrir imagen adjunta">
-                          <img src={url} alt="" className="h-20 w-20 rounded-md border object-cover" />
-                        </a>
-                      ))}
-                    </div>
-                  )}
+                  <ImagenesAdjuntas urls={ticket.solutionImages} className="mt-3" />
                 </div>
               )}
 

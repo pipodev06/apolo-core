@@ -17,8 +17,7 @@ import { useAuth } from "../../context/AuthContext";
 import { esAdmin } from "../../lib/roles";
 import { empleadosService } from "../../services/empleadosService";
 import { configService } from "../../services/configService";
-import { categoriasService } from "../../services/catalogosService";
-import type { Catalogo } from "../../types/catalogo";
+import { CategoriaField } from "./CategoriaField";
 import { useTickets } from "../../context/TicketsContext";
 import { calcularCarga, estaOcupado } from "../../lib/carga";
 import { transicionEstadoValida } from "../../lib/ticketStatus";
@@ -51,7 +50,6 @@ export const TicketForm: React.FC<TicketFormProps> = ({ initialData, onSubmit, l
   const isNew = !initialData?.id;
   const mostrarCamposAdmin = isAdmin && !isNew;
   const [empleados, setEmpleados] = useState<Empleado[]>([]);
-  const [categorias, setCategorias] = useState<Catalogo[]>([]);
   // Tickets viene de TicketsProvider (App.tsx) — un solo listener compartido
   // por sesión, en vez de que este form pida la colección entera cada vez
   // que se abre para crear/editar un ticket.
@@ -68,13 +66,6 @@ export const TicketForm: React.FC<TicketFormProps> = ({ initialData, onSubmit, l
   // agrupar las imágenes en Storage; no necesita corresponder a un doc real.
   const [tempTicketId] = useState(() => crypto.randomUUID());
   const storageTicketId = initialData?.id || tempTicketId;
-
-  useEffect(() => {
-    categoriasService
-      .getAll()
-      .then((lista) => setCategorias(lista.filter((c) => c.activo || c.nombre === initialData?.categoria)))
-      .catch(() => {});
-  }, [initialData?.categoria]);
 
   useEffect(() => {
     if (!mostrarCamposAdmin) return;
@@ -212,38 +203,7 @@ export const TicketForm: React.FC<TicketFormProps> = ({ initialData, onSubmit, l
           <FieldError errors={[errors.description]} />
         </Field>
 
-        {/* Categoría (opcional, catálogo administrado en Administración) */}
-        <Field>
-          <FieldLabel htmlFor="categoria">Categoría</FieldLabel>
-          <Controller
-            name="categoria"
-            control={control}
-            render={({ field }) => (
-              <Select
-                items={[
-                  { value: "__none__", label: "Sin categoría" },
-                  ...categorias.map((c) => ({ value: c.nombre, label: c.nombre })),
-                ]}
-                value={field.value || "__none__"}
-                onValueChange={(v) => field.onChange(v === "__none__" || v == null ? "" : v)}
-              >
-                <SelectTrigger id="categoria" className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    <SelectItem value="__none__">Sin categoría</SelectItem>
-                    {categorias.map((c) => (
-                      <SelectItem key={c.id} value={c.nombre}>
-                        {c.nombre}
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-            )}
-          />
-        </Field>
+        <CategoriaField control={control} categoriaActual={initialData?.categoria} />
 
         {/* Fila 4 — Imágenes del problema */}
         <Field>
