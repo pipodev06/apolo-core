@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   IconPlus as Plus, IconEye as Eye, IconPencil as Pencil, IconTrash as Trash2, IconSearch as Search, IconTicket as TicketIcon,
-  IconUser as User, IconRestore as RotateCcw, IconFilterOff as FilterX, IconDownload as Download,
+  IconUser as User, IconFilterOff as FilterX, IconDownload as Download,
 } from "@tabler/icons-react";
 import { ticketsService } from "../../services/ticketsService";
 import { empleadosService } from "../../services/empleadosService";
@@ -23,6 +23,7 @@ import { useAuth } from "../../context/AuthContext";
 import { esAdmin } from "../../lib/roles";
 import { estaVencido, fechaMs, fmtDuracion, tiempoResolucionMs } from "../../lib/sla";
 import { descargarCsv } from "../../lib/csv";
+import { AccionesFila } from "../../components/ui/acciones-fila";
 import { useAlturaScrollViewport } from "../../lib/useAlturaScrollViewport";
 
 const statusLabels: Record<TicketStatus, string> = {
@@ -215,22 +216,7 @@ export const TicketsList: React.FC<Props> = ({ soloPapelera = false }) => {
 
   const acciones = (ticket: Ticket) =>
     soloPapelera ? (
-      <>
-        <button
-          onClick={() => restaurar(ticket)}
-          className="cursor-pointer rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-green-500/10 hover:text-green-600"
-          title="Restaurar"
-        >
-          <RotateCcw className="h-5 w-5" />
-        </button>
-        <button
-          onClick={() => purgar(ticket)}
-          className="cursor-pointer rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
-          title="Eliminar definitivo"
-        >
-          <Trash2 className="h-5 w-5" />
-        </button>
-      </>
+      <AccionesFila soloPapelera onRestaurar={() => restaurar(ticket)} onPurgar={() => purgar(ticket)} />
     ) : (
       <>
         <Link

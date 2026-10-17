@@ -8,7 +8,7 @@ import { Input } from "../../../components/ui/input";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "../../../components/ui/select";
 import { SimplePagination } from "../../../components/ui/pagination";
 import { PageSpinner } from "../../../components/ui/spinner";
-import { IconPower as Power, IconTrash as Trash2, IconShield as Shield, IconUser as UserIcon, IconPlus as Plus, IconPencil as Pencil, IconRestore as RotateCcw, IconSearch as Search, IconFilterOff as FilterX } from "@tabler/icons-react";
+import { IconShield as Shield, IconUser as UserIcon, IconPlus as Plus, IconSearch as Search, IconFilterOff as FilterX } from "@tabler/icons-react";
 import { confirmar, notificarExito, notificarError } from "../../../lib/alertas";
 import { esAdmin, esSuperAdmin, roleLabel } from "../../../lib/roles";
 import { cn } from "../../../lib/cn";
@@ -16,6 +16,7 @@ import { useAuth } from "../../../context/AuthContext";
 import { NuevoUsuarioModal } from "../../../components/admin/NuevoUsuarioModal";
 import { EditarPasswordModal } from "../../../components/admin/EditarPasswordModal";
 import { EditarUsuarioModal } from "../../../components/admin/EditarUsuarioModal";
+import { AccionesFila } from "../../../components/ui/acciones-fila";
 
 const PAGE_SIZE = 10;
 
@@ -285,55 +286,16 @@ export const UsuariosTab: React.FC<Props> = ({ soloPapelera = false }) => {
                   )}
                 </TableCell>
                 <TableCell>
-                  <div className="flex items-center gap-1">
-                    {soloPapelera ? (
-                      <>
-                        <button
-                          onClick={() => restaurar(user)}
-                          className="cursor-pointer rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-green-500/10 hover:text-green-600"
-                          title="Restaurar"
-                        >
-                          <RotateCcw className="h-5 w-5" />
-                        </button>
-                        <button
-                          onClick={() => purgar(user)}
-                          disabled={esSuperAdmin(user.role)}
-                          className="cursor-pointer rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
-                          title="Eliminar definitivo"
-                        >
-                          <Trash2 className="h-5 w-5" />
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        <button
-                          onClick={() => handleToggleActive(user.id, user.active, user.role)}
-                          className={cn(
-                            "cursor-pointer rounded-md p-1.5 text-muted-foreground transition-colors",
-                            user.active ? "hover:bg-muted hover:text-foreground" : "hover:bg-green-500/10 hover:text-green-600"
-                          )}
-                          title={user.active ? "Desactivar" : "Activar"}
-                        >
-                          <Power className="h-5 w-5" />
-                        </button>
-                        <button
-                          onClick={() => setEditandoUsuario(user)}
-                          className="cursor-pointer rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-primary"
-                          title="Editar"
-                        >
-                          <Pencil className="h-5 w-5" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(user)}
-                          disabled={esSuperAdmin(user.role)}
-                          className="cursor-pointer rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
-                          title="Eliminar"
-                        >
-                          <Trash2 className="h-5 w-5" />
-                        </button>
-                      </>
-                    )}
-                  </div>
+                  <AccionesFila
+                    soloPapelera={soloPapelera}
+                    onRestaurar={() => restaurar(user)}
+                    onPurgar={() => purgar(user)}
+                    activo={user.active}
+                    onToggle={() => handleToggleActive(user.id, user.active, user.role)}
+                    onEditar={() => setEditandoUsuario(user)}
+                    onEliminar={() => handleDelete(user)}
+                    bloquearBorrado={esSuperAdmin(user.role)}
+                  />
                 </TableCell>
               </TableRow>
             ))}
