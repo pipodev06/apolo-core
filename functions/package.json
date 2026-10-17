@@ -1,6 +1,6 @@
 {
   "name": "functions",
-  "description": "Cloud Functions - asignación automática de tickets por IA (SambaNova)",
+  "description": "Cloud Functions de apolo-core: login, usuarios, notificaciones y asignación de tickets por IA (Groq)",
   "scripts": {
     "build": "tsc",
     "build:watch": "tsc --watch",
