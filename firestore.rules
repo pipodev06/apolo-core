@@ -9,8 +9,8 @@ rules_version = '2';
 // claims; el cliente hace signInWithCustomToken con eso. `request.auth.token`
 // es verificable de forma real acá (no falseable desde el cliente).
 //
-// Toda LECTURA exige sesión, salvo `config` (el SetupGuard necesita saber si
-// la app ya fue inicializada antes de que exista nadie logueado).
+// Toda LECTURA exige sesión, salvo `publico/estado` ({inicializado}: lo
+// leen Login y SetupGuard antes de que exista nadie logueado).
 //
 // Lo que hacen estas reglas en general:
 //   • Validar forma/tipos de los datos en cada escritura (evita basura).
@@ -277,9 +277,7 @@ service cloud.firestore {
 
     // ── config (singleton 'app') ─────────────────────────────────────────────
     match /config/{docId} {
-      // Lectura abierta: SetupGuard chequea si ya existe config/app sin que
-      // nadie esté logueado. No guarda nada sensible.
-      allow read: if true;
+      allow read: if logueado();
       // create: solo la Cloud Function setupInicial (Admin SDK).
       allow create: if false;
       // update exige rol admin/super_admin (config global). Excepción: el
@@ -304,6 +302,13 @@ service cloud.firestore {
                              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['ticketCounter', 'updatedAt']))
                        );
       allow delete: if false;
+    }
+
+    // ── publico/estado: única lectura sin sesión ─────────────────────────────
+    // Solo {inicializado}; lo escriben las Functions setupInicial y estadoSistema.
+    match /publico/{docId} {
+      allow read: if docId == 'estado';
+      allow write: if false;
     }
 
     // Todo lo demás (credenciales, loginIntentos, mail, ...): denegado.

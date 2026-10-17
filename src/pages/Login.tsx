@@ -30,7 +30,7 @@ export const Login: React.FC = () => {
     resolver: zodResolver(loginSchema),
   });
 
-  // Instalación fresca (config/app todavía no existe): manda directo a
+  // Instalación fresca (todavía sin setup): manda directo a
   // /setup en vez de mostrar un login que nadie puede usar. Espejo de
   // SetupGuard, que hace lo inverso. Si la lectura falla (offline, etc.) se
   // asume inicializada y se muestra el login igual — la app ya está en uso

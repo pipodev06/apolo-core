@@ -8,7 +8,7 @@ import { analizarYAsignar } from "./analizar";
 
 import { requireAdmin } from "./auth";
 
-export { login, setupInicial, crearUsuario, cambiarPassword, revocarSesionesUsuario } from "./auth";
+export { login, setupInicial, estadoSistema, crearUsuario, cambiarPassword, revocarSesionesUsuario } from "./auth";
 export { registrarCambiosTicket, notificarEvento, notificarTicketNuevo, expirarNotificacionLeida } from "./historial";
 
 initializeApp();

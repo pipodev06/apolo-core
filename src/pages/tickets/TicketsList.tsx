@@ -87,7 +87,7 @@ export const TicketsList: React.FC<Props> = ({ soloPapelera = false }) => {
       true,
       () => setLoadingPapelera(false)
     );
-    return unsubscribe;
+    return () => unsubscribe();
   }, [soloPapelera, user]);
 
   useEffect(() => {

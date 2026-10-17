@@ -67,7 +67,8 @@ export const TicketDetail: React.FC = () => {
 
   useEffect(() => {
     if (!id) return;
-    return eventosService.watch(id, setEventos);
+    const unsubscribe = eventosService.watch(id, setEventos);
+    return () => unsubscribe();
   }, [id]);
 
   const ejecutarAnalisis = async () => {
