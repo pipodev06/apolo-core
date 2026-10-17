@@ -129,9 +129,6 @@ export const Historico: React.FC = () => {
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Histórico</h1>
-          <p className="text-sm text-muted-foreground">
-            Cantidad de tickets asignados y terminados por empleado, de toda la historia.
-          </p>
         </div>
         <Button variant="outline" onClick={exportar} disabled={cargando || filtered.length === 0}>
           <Download className="h-4 w-4" />
