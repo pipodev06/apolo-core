@@ -28,7 +28,8 @@ export const NotificationBell: React.FC = () => {
 
   useEffect(() => {
     if (!puedeVerNotificaciones || !user) return;
-    return notificacionesService.watch(user.userId, setNotificaciones);
+    const unsubscribe = notificacionesService.watch(user.userId, setNotificaciones);
+    return () => unsubscribe();
   }, [puedeVerNotificaciones, user]);
 
   useEffect(() => {

@@ -221,6 +221,7 @@ export const setupInicial = onCall(async (request) => {
 
   try {
     await crearCuenta({ username, password, email, role: "super_admin" });
+    await db.collection("publico").doc("estado").set({ inicializado: true });
   } catch (err) {
     // Sin el super_admin, config/app no debe quedar creado: dejaría la app
     // "inicializada" y sin nadie que pueda entrar.
@@ -228,6 +229,16 @@ export const setupInicial = onCall(async (request) => {
     throw err;
   }
   return { ok: true };
+});
+
+// Fallback de `publico/estado` (la marca pública de "app inicializada" que
+// leen Login y SetupGuard sin sesión): si falta — instalaciones previas a
+// esta marca —, se deduce de config/app y se crea, así solo pasa una vez.
+export const estadoSistema = onCall(async () => {
+  const db = getFirestore();
+  const inicializado = (await db.collection("config").doc("app").get()).exists;
+  if (inicializado) await db.collection("publico").doc("estado").set({ inicializado: true });
+  return { inicializado };
 });
 
 export const crearUsuario = onCall(async (request) => {
