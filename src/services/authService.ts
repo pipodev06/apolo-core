@@ -73,14 +73,15 @@ export const authService = {
     await fn(data);
   },
 
-  // Existencia de
-  // config/app (lectura abierta siempre, a diferencia de `users`, que exige
-  // sesión real una vez pasado el bootstrap) — no usar hasUsers()/leer
-  // `users` acá, un cliente sin loguear no tiene permiso para eso después
-  // del setup y la lectura falla con PERMISSION_DENIED.
+  // ¿Ya se corrió el setup? Se lee `publico/estado`, la única lectura sin
+  // sesión que permiten las reglas (config/app y users exigen sesión).
   appEstaInicializada: async () => {
-    const configRef = doc(db, "config", "app");
-    const snap = await getDoc(configRef);
-    return snap.exists();
+    const snap = await getDoc(doc(db, "publico", "estado"));
+    if (snap.exists()) return snap.data().inicializado === true;
+    // Sin la marca (instalación nueva, o previa a esta marca): la Function
+    // lo deduce de config/app y crea la marca si corresponde.
+    const fn = httpsCallable<void, { inicializado: boolean }>(functions, "estadoSistema");
+    const { data } = await fn();
+    return data.inicializado;
   }
 };

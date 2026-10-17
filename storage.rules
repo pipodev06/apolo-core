@@ -8,21 +8,32 @@ rules_version = '2';
 // solo la necesita quien subió el archivo, o un admin.
 service firebase.storage {
   match /b/{bucket}/o {
+    function esAdmin() {
+      return request.auth != null && request.auth.token.get('role', '') in ['admin', 'super_admin'];
+    }
+
+    // Quien subió el archivo (customMetadata.uploadedBy) o un admin.
+    function esDuenoOAdmin() {
+      return request.auth != null
+             && (resource.metadata.get('uploadedBy', '') == request.auth.uid || esAdmin());
+    }
+
+    // Imagen nueva de hasta 5MB, firmada por quien la sube.
+    function esSubidaValida() {
+      return request.auth != null
+             && request.resource.size < 5 * 1024 * 1024
+             && request.resource.contentType.matches('image/.*')
+             && request.resource.metadata.uploadedBy == request.auth.uid;
+    }
+
     match /tickets/{ticketId}/{allPaths=**} {
-      allow read: if request.auth != null
-                  && (resource.metadata.get('uploadedBy', '') == request.auth.uid
-                      || request.auth.token.get('role', '') in ['admin', 'super_admin']);
+      allow read: if esDuenoOAdmin();
       // Solo subir archivos nuevos (no sobrescribir los de otro), imagen de
       // hasta 5MB, marcados con quién los subió (customMetadata.uploadedBy).
-      allow create: if request.auth != null
-                    && request.resource.size < 5 * 1024 * 1024
-                    && request.resource.contentType.matches('image/.*')
-                    && request.resource.metadata.uploadedBy == request.auth.uid;
+      allow create: if esSubidaValida();
       allow update: if false;
       // Borrar: quien la subió o un admin.
-      allow delete: if request.auth != null
-                    && (resource.metadata.get('uploadedBy', '') == request.auth.uid
-                        || request.auth.token.get('role', '') in ['admin', 'super_admin']);
+      allow delete: if esDuenoOAdmin();
     }
   }
 }
