@@ -2,7 +2,7 @@
 
 Sistema de gestión de tickets de incidencias para equipos de TI. SPA en **React 19 + Vite + TypeScript + Tailwind v4** con **Firebase** (Auth, Firestore, Storage, Cloud Functions). El frontend se despliega en **Vercel**.
 
-Incluye roles (super admin / admin / usuario), matriz de accesos por sección, personal con cargos y áreas, categorías de ticket, SLA por urgencia, notificaciones in-app y por correo (opcional), dashboard de métricas, histórico por empleado, export CSV, papelera con restauración y asignación automática de tickets por IA (Groq).
+Incluye roles (super admin / admin / usuario), matriz de accesos por sección, personal con cargos y áreas, categorías de ticket, SLA por urgencia, notificaciones in-app, dashboard de métricas, histórico por empleado, export CSV, papelera con restauración y asignación automática de tickets por IA (Groq).
 
 Es una app **single-tenant**: cada empresa usa su propio proyecto de Firebase.
 
@@ -52,21 +52,12 @@ El sistema no trae usuarios precargados. **Haz este paso apenas despliegues**, p
 2. Completa usuario, contraseña y (opcional) email. La Cloud Function `setupInicial` crea el super_admin y la configuración inicial.
 3. Desde ese momento `/setup` redirige a `/login` y la función rechaza cualquier otro intento.
 
-### Correo (opcional)
-
-Las notificaciones salen siempre in-app. Para enviarlas también por correo:
-
-1. Instala la extensión oficial **"Trigger Email from Firestore"** (`firebase/firestore-send-email`) en tu proyecto, con la colección **`mail`** y los datos de tu servidor SMTP.
-2. En la app: Administración → Configuración → marca "Enviar también las notificaciones por correo".
-
-Solo reciben correo los usuarios con email registrado.
-
 ## Gestión desde la app
 
 Todo el día a día se gestiona logueado como `admin`/`super_admin`:
 
 - **Usuarios y roles** → `/administracion/usuarios` (crear, desactivar, cambiar rol o contraseña; solo `super_admin` toca otro `super_admin`). Desactivar, eliminar o cambiar el rol de alguien cierra sus sesiones abiertas.
-- **Configuración** → `/administracion/modo`: asignación manual o por IA, máximo de tickets abiertos por empleado, horas de SLA por urgencia y correo.
+- **Configuración** → `/administracion/modo`: asignación manual o por IA, máximo de tickets abiertos por empleado y horas de SLA por urgencia.
 - **Categorías de ticket** → `/administracion/categorias`.
 - **Permisos por sección** → `/administracion/accesos`.
 - **Personal, cargos y áreas** → `/personal`.
@@ -78,10 +69,6 @@ Cada usuario cambia su propia contraseña con el ícono de llave del encabezado.
 
 - **Admin / super_admin**: ven todos los tickets.
 - **Usuario**: ve los que creó y, si su cuenta está vinculada a un técnico de Personal, los que tiene asignados (y puede cerrarlos).
-
-### Modo IA y privacidad
-
-En modo IA, el título y la descripción de cada ticket se envían a Groq (proveedor externo) para clasificarlo. Si la información no puede salir de la empresa, usa el modo manual.
 
 ## Seguridad (resumen)
 

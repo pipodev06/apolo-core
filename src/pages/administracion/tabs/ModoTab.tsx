@@ -3,7 +3,6 @@ import { configService } from "../../../services/configService";
 import { Button } from "../../../components/ui/button";
 import { Field, FieldLabel } from "../../../components/ui/field";
 import { Input } from "../../../components/ui/input";
-import { Checkbox } from "../../../components/ui/checkbox";
 import { PageSpinner } from "../../../components/ui/spinner";
 import { notificarExito, notificarError } from "../../../lib/alertas";
 import { IconRobot as Bot, IconUser as User } from "@tabler/icons-react";
@@ -24,7 +23,6 @@ export const ModoTab: React.FC = () => {
   const [mode, setMode] = useState<"ia" | "manual">("manual");
   const [maxTicketsAbiertos, setMaxTicketsAbiertos] = useState(MAX_DEFAULT);
   const [sla, setSla] = useState<SlaHoras>(SLA_DEFAULT);
-  const [emailHabilitado, setEmailHabilitado] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -34,7 +32,6 @@ export const ModoTab: React.FC = () => {
         setMode(config.assignmentMode);
         setMaxTicketsAbiertos(config.maxTicketsAbiertos ?? MAX_DEFAULT);
         setSla({ ...SLA_DEFAULT, ...config.slaHoras });
-        setEmailHabilitado(config.emailHabilitado === true);
       })
       .catch(() => notificarError("Error al cargar la configuración"))
       .finally(() => setLoading(false));
@@ -51,7 +48,7 @@ export const ModoTab: React.FC = () => {
     }
     setSaving(true);
     try {
-      await configService.update({ assignmentMode: mode, maxTicketsAbiertos, slaHoras: sla, emailHabilitado });
+      await configService.update({ assignmentMode: mode, maxTicketsAbiertos, slaHoras: sla });
       notificarExito("Configuración actualizada");
     } catch {
       notificarError("Error al actualizar");
@@ -108,13 +105,6 @@ export const ModoTab: React.FC = () => {
         </div>
       </div>
 
-      {mode === "ia" && (
-        <p className="mx-auto max-w-xl text-center text-sm text-muted-foreground">
-          En modo IA, el título y la descripción de cada ticket se envían a Groq (proveedor externo) para
-          clasificarlo. Si la información de tus tickets no puede salir de la empresa, usa el modo manual.
-        </p>
-      )}
-
       <Field className="mx-auto max-w-xs">
         <FieldLabel htmlFor="maxTicketsAbiertos">Máximo de tickets abiertos por empleado</FieldLabel>
         <Input
@@ -144,21 +134,6 @@ export const ModoTab: React.FC = () => {
         </div>
         <p className="text-center text-xs text-muted-foreground">
           Se cuenta desde que se registra el ticket. Pasado ese plazo sin terminar, el ticket se marca como vencido.
-        </p>
-      </div>
-
-      <div className="space-y-2 border-t pt-6">
-        <Field orientation="horizontal" className="mx-auto max-w-xl">
-          <Checkbox
-            id="emailHabilitado"
-            checked={emailHabilitado}
-            onCheckedChange={(v) => setEmailHabilitado(v === true)}
-          />
-          <FieldLabel htmlFor="emailHabilitado">Enviar también las notificaciones por correo</FieldLabel>
-        </Field>
-        <p className="mx-auto max-w-xl text-xs text-muted-foreground">
-          Requiere instalar la extensión "Trigger Email from Firestore" en el proyecto de Firebase (colección
-          <code> mail</code>) con los datos SMTP. Solo reciben correo los usuarios que tienen email registrado.
         </p>
       </div>
 

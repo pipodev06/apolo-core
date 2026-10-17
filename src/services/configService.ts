@@ -11,8 +11,6 @@ export interface AppConfig {
   maxTicketsAbiertos?: number;
   // Horas de SLA por urgencia (ausente = SLA_DEFAULT de lib/sla.ts).
   slaHoras?: SlaHoras;
-  // Encola correos en `mail` (extensión Trigger Email) al notificar.
-  emailHabilitado?: boolean;
 }
 
 export const configService = {
@@ -24,7 +22,7 @@ export const configService = {
   },
 
   update: async (
-    data: Pick<AppConfig, "assignmentMode" | "maxTicketsAbiertos" | "slaHoras" | "emailHabilitado">
+    data: Pick<AppConfig, "assignmentMode" | "maxTicketsAbiertos" | "slaHoras">
   ) => {
     const configRef = doc(db, "config", "app");
     await updateDoc(configRef, { ...data, updatedAt: serverTimestamp() });
