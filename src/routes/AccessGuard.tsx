@@ -2,7 +2,7 @@ import React from "react";
 import { Navigate } from "react-router-dom";
 import { useAccess } from "../context/AccessContext";
 import type { AccessSections } from "../types/access";
-import { PageSpinner } from "../components/ui/spinner";
+import { FullScreenSpinner } from "../components/ui/spinner";
 
 interface AccessGuardProps {
   section: keyof AccessSections;
@@ -15,7 +15,7 @@ interface AccessGuardProps {
 export const AccessGuard: React.FC<AccessGuardProps> = ({ section, children }) => {
   const { hasAccess, isLoading } = useAccess();
 
-  if (isLoading) return <PageSpinner />;
+  if (isLoading) return <FullScreenSpinner />;
 
   if (!hasAccess(section)) {
     return <Navigate to="/" replace />;

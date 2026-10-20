@@ -12,7 +12,7 @@ import {
   type UpdateData
 } from "firebase/firestore";
 import { httpsCallable } from "firebase/functions";
-import { db, functions } from "../firebase";
+import { auth, db, functions } from "../firebase";
 import type { Ticket } from "../types/ticket";
 import { generateTicketCode } from "../lib/ticketNumber";
 import { esAdmin } from "../lib/roles";
@@ -113,8 +113,15 @@ export const ticketsService = {
 
   update: async (id: string, data: Partial<Ticket>) => {
     const ticketRef = doc(db, "tickets", id);
+    // Firma del cambio, para que el historial muestre quién lo hizo
+    // (las reglas exigen que id/nombre sean los de la sesión).
+    const sesion = JSON.parse(localStorage.getItem("session") || "null") as { username?: string } | null;
+    const uid = auth.currentUser?.uid;
     const updateData: UpdateData<Ticket> = {
       ...data,
+      ...(uid && sesion?.username
+        ? { modificadoPor: { tipo: "usuario", id: uid, nombre: sesion.username, en: serverTimestamp() } }
+        : {}),
       updatedAt: serverTimestamp(),
     };
 

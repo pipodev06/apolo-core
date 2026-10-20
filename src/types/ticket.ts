@@ -28,4 +28,6 @@ export interface Ticket {
   solutionDescription?: string;
   problemImages?: string[];   // URLs de Storage — adjuntadas al crear/editar el ticket
   solutionImages?: string[];  // URLs de Storage — adjuntadas al cerrar el ticket
+  // Quién hizo el último cambio (usuario o IA) — lo usa el historial de actividad.
+  modificadoPor?: { tipo: "usuario" | "ia"; id?: string; nombre: string; en?: FirestoreTimestamp };
 }
