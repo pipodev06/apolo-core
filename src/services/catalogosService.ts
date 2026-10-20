@@ -116,3 +116,10 @@ export const areasService = crearCatalogoService("areas", [
   { coleccion: "tickets", campo: "area" },
 ]);
 export const categoriasService = crearCatalogoService("categorias", [{ coleccion: "tickets", campo: "categoria" }]);
+
+// Crea las categorías sugeridas que falten (Cloud Function, solo admins).
+export async function cargarCategoriasBase(): Promise<number> {
+  const fn = httpsCallable<void, { creadas: number }>(functions, "cargarCategoriasBase");
+  const { data } = await fn();
+  return data.creadas;
+}

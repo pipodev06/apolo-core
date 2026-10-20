@@ -5,6 +5,7 @@ import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { onDocumentUpdated } from "firebase-functions/v2/firestore";
 import { getAuth } from "firebase-admin/auth";
 import { FieldValue, Timestamp, getFirestore } from "firebase-admin/firestore";
+import { sembrarCategoriasBase } from "./categorias";
 
 // Debe producir el mismo hash que src/lib/hash.ts (hashUsername), para
 // poder buscar por usernameHash sin repetir un lookup por username en texto plano.
@@ -57,30 +58,6 @@ function validarUsername(username: unknown): string {
   return username.trim();
 }
 
-// Migración única: docs creados antes de `credenciales` guardaban el
-// passwordHash dentro de `users`. Se mueve todo de una vez en el primer
-// login posterior al deploy (marca `config/app.credencialesMigradas`).
-async function migrarCredencialesSiHaceFalta() {
-  const db = getFirestore();
-  const configRef = db.collection("config").doc("app");
-  const config = await configRef.get();
-  if (!config.exists || config.data()?.credencialesMigradas === true) return;
-
-  const usersSnap = await db.collection("users").get();
-  const batch = db.batch();
-  let movidos = 0;
-  for (const u of usersSnap.docs) {
-    const hash = u.data().passwordHash;
-    if (typeof hash !== "string") continue;
-    batch.set(credencialRef(u.id), { passwordHash: hash, updatedAt: FieldValue.serverTimestamp() });
-    batch.update(u.ref, { passwordHash: FieldValue.delete() });
-    movidos++;
-  }
-  batch.update(configRef, { credencialesMigradas: true });
-  await batch.commit();
-  logger.info(`Credenciales migradas fuera de users: ${movidos}`);
-}
-
 interface LoginResult {
   customToken: string;
   userId: string;
@@ -91,14 +68,15 @@ interface LoginResult {
 
 // Verifica usuario/contraseña server-side y emite un Firebase Custom Token
 // con el rol como claim. El cliente hace signInWithCustomToken con esto.
-export const login = onCall(async (request) => {
+// minInstances: 1 deja una instancia siempre encendida, así el login no
+// paga el "cold start" (2-6 s) tras un rato sin uso. Tiene un costo fijo
+// pequeño al mes; para quitarlo, poner 0.
+export const login = onCall({ minInstances: 1 }, async (request) => {
   const username = request.data?.username;
   const password = request.data?.password;
   if (typeof username !== "string" || typeof password !== "string" || !username || !password) {
     throw new HttpsError("invalid-argument", "Usuario y contraseña son requeridos.");
   }
-
-  await migrarCredencialesSiHaceFalta();
 
   const db = getFirestore();
   const usernameHash = hashUsername(username);
@@ -182,12 +160,15 @@ async function crearCuenta(datos: {
     tx.set(db.collection("access").doc(userRef.id), {
       userId: userRef.id,
       sections: {
-        dashboard: true,
+        // Un "usuario" arranca solo con lo que puede usar: Tickets y
+        // Notificaciones. Dashboard ("Mi resumen") y Papelera se pueden
+        // habilitar después desde la Matriz de Accesos.
+        dashboard: esAdmin,
         tickets: true,
         personal: esAdmin,
         administracion: esAdmin,
         notificaciones: true,
-        papelera: true,
+        papelera: esAdmin,
         historico: esAdmin,
       },
       updatedAt: FieldValue.serverTimestamp(),
@@ -212,7 +193,6 @@ export const setupInicial = onCall(async (request) => {
       series: "TK01",
       assignmentMode: "manual",
       maxTicketsAbiertos: 5,
-      credencialesMigradas: true,
       updatedAt: FieldValue.serverTimestamp(),
     });
   } catch {
@@ -222,6 +202,7 @@ export const setupInicial = onCall(async (request) => {
   try {
     await crearCuenta({ username, password, email, role: "super_admin" });
     await db.collection("publico").doc("estado").set({ inicializado: true });
+    await sembrarCategoriasBase();
   } catch (err) {
     // Sin el super_admin, config/app no debe quedar creado: dejaría la app
     // "inicializada" y sin nadie que pueda entrar.
@@ -270,6 +251,9 @@ export const cambiarPassword = onCall(async (request) => {
   const db = getFirestore();
   const userDoc = await db.collection("users").doc(objetivo).get();
   if (!userDoc.exists) throw new HttpsError("not-found", "Usuario no encontrado.");
+  if (userDoc.data()?.protegida === true && rolDe(request) !== "super_admin") {
+    throw new HttpsError("permission-denied", "Esta cuenta está protegida: solo un super admin puede cambiar su contraseña.");
+  }
 
   if (propio) {
     const actual = request.data?.passwordActual;

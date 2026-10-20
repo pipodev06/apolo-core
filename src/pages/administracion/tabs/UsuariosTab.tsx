@@ -26,7 +26,19 @@ interface Props {
 
 export const UsuariosTab: React.FC<Props> = ({ soloPapelera = false }) => {
   const { user: currentUser } = useAuth();
-  const puedeEditarUsername = esSuperAdmin(currentUser?.role);
+  const soySuperAdmin = esSuperAdmin(currentUser?.role);
+  const puedeEditarUsername = soySuperAdmin;
+  // Lo mismo que exigen firestore.rules y las Functions: un admin no puede
+  // tocar a un super_admin ni a una cuenta protegida. Se deshabilita en la UI
+  // para no ofrecer acciones que después fallan al guardar.
+  const motivoBloqueo = (u: User) =>
+    soySuperAdmin
+      ? undefined
+      : esSuperAdmin(u.role)
+        ? "Solo un super admin puede modificar esta cuenta"
+        : u.protegida
+          ? "Cuenta protegida: solo un super admin puede modificarla"
+          : undefined;
 
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
@@ -272,6 +284,11 @@ export const UsuariosTab: React.FC<Props> = ({ soloPapelera = false }) => {
                       <UserIcon className="mr-1 h-4 w-4 text-muted-foreground" />
                     )}
                     <span>{roleLabel(user.role)}</span>
+                    {user.protegida && (
+                      <Badge variant="gray" className="ml-2">
+                        Protegida
+                      </Badge>
+                    )}
                   </div>
                 </TableCell>
                 <TableCell>
@@ -295,6 +312,7 @@ export const UsuariosTab: React.FC<Props> = ({ soloPapelera = false }) => {
                     onEditar={() => setEditandoUsuario(user)}
                     onEliminar={() => handleDelete(user)}
                     bloquearBorrado={esSuperAdmin(user.role)}
+                    bloqueadoMotivo={motivoBloqueo(user)}
                   />
                 </TableCell>
               </TableRow>
@@ -326,6 +344,7 @@ export const UsuariosTab: React.FC<Props> = ({ soloPapelera = false }) => {
             onCambiarContrasena={() => editandoUsuario && setEditandoPassword(editandoUsuario)}
             user={editandoUsuario}
             puedeEditarUsername={puedeEditarUsername}
+            esSuperAdminActual={soySuperAdmin}
           />
         </>
       )}
