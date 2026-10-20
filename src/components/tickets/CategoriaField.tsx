@@ -1,9 +1,8 @@
-import React, { useEffect, useState } from "react";
+import React, { useMemo } from "react";
 import { Controller, type Control } from "react-hook-form";
 import { Field, FieldLabel } from "../ui/field";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
-import { categoriasService } from "../../services/catalogosService";
-import type { Catalogo } from "../../types/catalogo";
+import { useCatalogos } from "../../context/CatalogosContext";
 import type { TicketFormData } from "./TicketForm";
 
 interface Props {
@@ -14,20 +13,11 @@ interface Props {
 
 // Categoría del ticket (opcional, catálogo administrado en Administración).
 export const CategoriaField: React.FC<Props> = ({ control, categoriaActual }) => {
-  const [categorias, setCategorias] = useState<Catalogo[]>([]);
-
-  useEffect(() => {
-    let activo = true;
-    categoriasService
-      .getAll()
-      .then((lista) => {
-        if (activo) setCategorias(lista.filter((c) => c.activo || c.nombre === categoriaActual));
-      })
-      .catch(() => {});
-    return () => {
-      activo = false;
-    };
-  }, [categoriaActual]);
+  const { categorias: todas } = useCatalogos();
+  const categorias = useMemo(
+    () => todas.filter((c) => c.activo || c.nombre === categoriaActual),
+    [todas, categoriaActual]
+  );
 
   return (
     <Field>

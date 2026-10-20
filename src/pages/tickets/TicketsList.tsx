@@ -5,10 +5,9 @@ import {
   IconFilterOff as FilterX, IconDownload as Download,
 } from "@tabler/icons-react";
 import { ticketsService } from "../../services/ticketsService";
-import { empleadosService } from "../../services/empleadosService";
 import { useTickets } from "../../context/TicketsContext";
+import { useCatalogos } from "../../context/CatalogosContext";
 import type { Ticket, Urgency, TicketStatus } from "../../types/ticket";
-import type { Empleado } from "../../types/empleado";
 import { PageSpinner } from "../../components/ui/spinner";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
@@ -37,6 +36,8 @@ const urgencyLabels: Record<Urgency, string> = {
   BAJO: "Bajo",
 };
 
+const SIN_CATEGORIA = "__sin_categoria__";
+
 interface Props {
   soloPapelera?: boolean;
 }
@@ -54,18 +55,15 @@ export const TicketsList: React.FC<Props> = ({ soloPapelera = false }) => {
   const tickets = soloPapelera ? ticketsPapelera : ticketsActivos;
   const loading = soloPapelera ? loadingPapelera : loadingActivos;
 
-  const [empleados, setEmpleados] = useState<Empleado[]>([]);
-  // Empleados se carga aparte de tickets (fetch normal, no listener) y tarda
-  // mas — sin esto la lista se pinta con "Sin asignar" en cada card hasta
-  // que resuelve, aunque el ticket si tenga assignedTo. Mismo bug que en
-  // TicketDetail.tsx.
-  const [empleadosListos, setEmpleadosListos] = useState(false);
+  // Personal y categorías: un listener compartido por sesión (CatalogosProvider).
+  const { empleados, empleadosListos, categorias } = useCatalogos();
 
   // Borrador: lo que el usuario va eligiendo antes de aplicar.
   // dEstado/dUrgencia: "" = todos.
   const [dQuery, setDQuery] = useState("");
   const [dEstado, setDEstado] = useState<TicketStatus | "">("");
   const [dUrgencia, setDUrgencia] = useState<Urgency | "">("");
+  const [dCategoria, setDCategoria] = useState("");
   const [dDesde, setDDesde] = useState("");
   const [dHasta, setDHasta] = useState("");
 
@@ -73,6 +71,8 @@ export const TicketsList: React.FC<Props> = ({ soloPapelera = false }) => {
   const [query, setQuery] = useState("");
   const [fEstado, setFEstado] = useState<TicketStatus | "">("");
   const [fUrgencia, setFUrgencia] = useState<Urgency | "">("");
+  // "" = todas; SIN_CATEGORIA = tickets sin categoría.
+  const [fCategoria, setFCategoria] = useState("");
   const [fDesde, setFDesde] = useState("");
   const [fHasta, setFHasta] = useState("");
 
@@ -89,10 +89,6 @@ export const TicketsList: React.FC<Props> = ({ soloPapelera = false }) => {
     );
     return () => unsubscribe();
   }, [soloPapelera, user]);
-
-  useEffect(() => {
-    empleadosService.getAll().then(setEmpleados).catch(() => {}).finally(() => setEmpleadosListos(true));
-  }, []);
 
   const empleadoNombre = (id?: string) => empleados.find((e) => e.id === id)?.nombre;
 
@@ -111,6 +107,7 @@ export const TicketsList: React.FC<Props> = ({ soloPapelera = false }) => {
     return ordenados.filter((t) => {
       if (fEstado && t.status !== fEstado) return false;
       if (fUrgencia && t.urgency !== fUrgencia) return false;
+      if (fCategoria === SIN_CATEGORIA ? !!t.categoria : fCategoria && t.categoria !== fCategoria) return false;
       if (q) {
         const nombre = t.assignedTo ? empleados.find((e) => e.id === t.assignedTo)?.nombre || "" : "";
         const coincide =
@@ -124,14 +121,23 @@ export const TicketsList: React.FC<Props> = ({ soloPapelera = false }) => {
       if (ms < desde || ms > hasta) return false;
       return true;
     });
-  }, [ordenados, query, fEstado, fUrgencia, fDesde, fHasta, empleados]);
+  }, [ordenados, query, fEstado, fUrgencia, fCategoria, fDesde, fHasta, empleados]);
 
-  const hayFiltrosActivos = !!(query || fEstado || fUrgencia || fDesde || fHasta);
+  // Opciones del filtro: categorías del catálogo + las que aparezcan en los
+  // tickets (una categoría desactivada o borrada igual debe poder filtrarse).
+  const opcionesCategoria = useMemo(() => {
+    const nombres = new Set(categorias.map((c) => c.nombre));
+    for (const t of tickets) if (t.categoria) nombres.add(t.categoria);
+    return [...nombres].sort((a, b) => a.localeCompare(b));
+  }, [categorias, tickets]);
+
+  const hayFiltrosActivos = !!(query || fEstado || fUrgencia || fCategoria || fDesde || fHasta);
 
   const aplicarFiltros = () => {
     setQuery(dQuery);
     setFEstado(dEstado);
     setFUrgencia(dUrgencia);
+    setFCategoria(dCategoria);
     setFDesde(dDesde);
     setFHasta(dHasta);
   };
@@ -140,11 +146,13 @@ export const TicketsList: React.FC<Props> = ({ soloPapelera = false }) => {
     setDQuery("");
     setDEstado("");
     setDUrgencia("");
+    setDCategoria("");
     setDDesde("");
     setDHasta("");
     setQuery("");
     setFEstado("");
     setFUrgencia("");
+    setFCategoria("");
     setFDesde("");
     setFHasta("");
   };
@@ -313,6 +321,33 @@ export const TicketsList: React.FC<Props> = ({ soloPapelera = false }) => {
             </SelectContent>
           </Select>
         </div>
+        <div className="flex items-center gap-1.5">
+          <span className="text-xs text-muted-foreground">Categoría:</span>
+          <Select
+            items={[
+              { value: "__all__", label: "Todas" },
+              { value: SIN_CATEGORIA, label: "Sin categoría" },
+              ...opcionesCategoria.map((c) => ({ value: c, label: c })),
+            ]}
+            value={dCategoria || "__all__"}
+            onValueChange={(v) => setDCategoria(v === "__all__" || v == null ? "" : v)}
+          >
+            <SelectTrigger className="w-full sm:w-44">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                <SelectItem value="__all__">Todas</SelectItem>
+                <SelectItem value={SIN_CATEGORIA}>Sin categoría</SelectItem>
+                {opcionesCategoria.map((c) => (
+                  <SelectItem key={c} value={c}>
+                    {c}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </div>
         <div className="min-w-55 flex-1">
           <div className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -382,7 +417,7 @@ export const TicketsList: React.FC<Props> = ({ soloPapelera = false }) => {
                 numero={i + 1}
                 soloPapelera={soloPapelera}
                 vencido={!soloPapelera && ticket.status !== "terminado" && estaVencido(ticket, sla)}
-                // empleadosService.getAll() incluye inactivos (solo excluye
+                // La lista de personal incluye inactivos (solo excluye
                 // eliminados): assignedTo seteado que no aparece = empleado
                 // eliminado, no "sin asignar".
                 asignado={ticket.assignedTo ? empleadoNombre(ticket.assignedTo) || "Empleado eliminado" : "Sin asignar"}

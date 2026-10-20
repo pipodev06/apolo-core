@@ -21,77 +21,93 @@ const ACCESO_TOTAL: AccessSections = {
   historico: true,
 };
 
+// Sin documento de accesos o si falla la lectura: lo mínimo para usar la app.
+const ACCESO_BASICO: AccessSections = {
+  dashboard: false,
+  tickets: true,
+  personal: false,
+  administracion: false,
+  notificaciones: true,
+  papelera: false,
+  historico: false,
+};
+
 const AccessContext = createContext<AccessContextType | undefined>(undefined);
+
+// Última matriz conocida de cada usuario, en localStorage: al recargar o
+// volver a entrar, las pantallas protegidas se pintan al instante con ella
+// en vez de quedar en blanco hasta que responde Firestore. El listener de
+// abajo la corrige enseguida si un admin la cambió. Solo es para pintar la
+// UI: lo que cada uno puede leer o escribir lo deciden las reglas.
+const claveCache = (userId: string) => `access:${userId}`;
+
+function leerCache(userId: string): AccessSections | null {
+  try {
+    const raw = localStorage.getItem(claveCache(userId));
+    return raw ? { ...ACCESO_BASICO, ...(JSON.parse(raw) as Partial<AccessSections>) } : null;
+  } catch {
+    return null;
+  }
+}
+
+function guardarCache(userId: string, access: AccessSections) {
+  try {
+    localStorage.setItem(claveCache(userId), JSON.stringify(access));
+  } catch {
+    // Sin localStorage (modo privado, cuota): solo se pierde la caché.
+  }
+}
 
 export const AccessProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user } = useAuth();
-  const [access, setAccess] = useState<AccessSections | null>(null);
-  // Id del usuario para el que `access` ya quedó resuelto. Justo después de un
-  // login, `user` cambia en el render pero el efecto de abajo (que recalcula
-  // `access`) todavía no corrió — si `isLoading` fuera un state aparte, quedaría
-  // en `false` (heredado del usuario anterior/deslogueado) por un ciclo de render,
-  // y AccessGuard denegaría con `access` todavía en null. Derivar `isLoading`
-  // comparando ids evita esa ventana: cambia en el MISMO render que `user`.
-  const [loadedForUserId, setLoadedForUserId] = useState<string | null>(null);
+  // Matriz etiquetada con el usuario al que pertenece: tras un logout/login
+  // con otra cuenta no se usa (ni un render) la del anterior.
+  const [cargado, setCargado] = useState<{ userId: string; access: AccessSections } | null>(null);
 
   // Roles elevados (admin / super_admin): acceso total siempre, derivado en
   // el render (sin efecto ni lectura de Firestore).
   const userEsAdmin = esAdmin(user?.role);
-  const isLoading = !!user && !userEsAdmin && loadedForUserId !== user.userId;
 
   useEffect(() => {
     if (!user || esAdmin(user.role)) return;
+    const userId = user.userId;
 
     const unsubscribe = onSnapshot(
-      doc(db, "access", user.userId),
-      (doc) => {
-        if (doc.exists()) {
-          const sections = doc.data().sections || {};
-          setAccess({
+      doc(db, "access", userId),
+      (snap) => {
+        let access = ACCESO_BASICO;
+        if (snap.exists()) {
+          const sections = snap.data().sections || {};
+          access = {
             dashboard: !!sections.dashboard,
             tickets: !!sections.tickets,
             personal: !!sections.personal,
             administracion: !!sections.administracion,
-            // Campos nuevos: los documentos de acceso existentes todavía no
-            // los tienen — por defecto siguen activos (como ya estaba antes
-            // de que existiera el permiso) salvo que se desactiven explícito.
+            // Docs viejos sin el campo: notificaciones sigue activo por
+            // defecto (como antes de que existiera el permiso).
             notificaciones: sections.notificaciones !== false,
-            papelera: sections.papelera !== false,
-            // historico es opt-in (como personal/administracion): docs
-            // viejos sin el campo quedan sin acceso hasta que un admin lo
-            // habilite explícito en la Matriz de Accesos.
+            papelera: !!sections.papelera,
             historico: !!sections.historico,
-          });
-        } else {
-          setAccess({
-            dashboard: false,
-            tickets: true, // Default access
-            personal: false,
-            administracion: false,
-            notificaciones: true, // Default access
-            papelera: true, // Default access
-            historico: false,
-          });
+          };
         }
-        setLoadedForUserId(user.userId);
+        guardarCache(userId, access);
+        setCargado({ userId, access });
       },
-      () => {
-        // Si falla la lectura, no dejamos la app colgada en "cargando".
-        setAccess({
-          dashboard: false,
-          tickets: true,
-          personal: false,
-          administracion: false,
-          notificaciones: true,
-          papelera: true,
-          historico: false,
-        });
-        setLoadedForUserId(user.userId);
-      }
+      // Si falla la lectura, no dejamos la app colgada en "cargando".
+      () => setCargado((prev) => (prev?.userId === userId ? prev : { userId, access: ACCESO_BASICO }))
     );
 
     return () => unsubscribe();
   }, [user]);
+
+  // Mientras no llega la lectura de Firestore se usa la caché; solo si no
+  // hay ninguna (primer ingreso en este navegador) se espera.
+  const userId = user?.userId;
+  const cache = useMemo(() => (userId && !userEsAdmin ? leerCache(userId) : null), [userId, userEsAdmin]);
+  const accessUsuario =
+    !userId || userEsAdmin ? null : cargado?.userId === userId ? cargado.access : cache;
+  const isLoading = !!user && !userEsAdmin && !accessUsuario;
+  const access = accessUsuario;
 
   const value = useMemo(() => {
     const accesoActual = !user ? null : userEsAdmin ? ACCESO_TOTAL : access;

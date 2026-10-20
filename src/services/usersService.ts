@@ -1,5 +1,6 @@
 import {
   collection,
+  getDoc,
   getDocs,
   doc,
   updateDoc,
@@ -24,6 +25,13 @@ export const usersService = {
     return querySnapshot.docs
       .map((doc) => ({ id: doc.id, ...doc.data() } as User))
       .filter((u) => !u.deletedAt);
+  },
+
+  // Un solo usuario (null si no existe). Para mostrar un nombre no hace
+  // falta descargar la colección entera.
+  getById: async (id: string) => {
+    const snap = await getDoc(doc(db, "users", id));
+    return snap.exists() ? ({ id: snap.id, ...snap.data() } as User) : null;
   },
 
   // Vía Cloud Function: hashea la contraseña server-side y crea users +

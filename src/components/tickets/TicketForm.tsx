@@ -4,7 +4,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Timestamp } from "firebase/firestore";
 import type { Ticket, TicketStatus } from "../../types/ticket";
-import type { Empleado } from "../../types/empleado";
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
 import { Card } from "../ui/card";
@@ -15,7 +14,7 @@ import { Textarea } from "../ui/textarea";
 import { ImageUploader } from "../ui/image-uploader";
 import { useAuth } from "../../context/AuthContext";
 import { esAdmin } from "../../lib/roles";
-import { empleadosService } from "../../services/empleadosService";
+import { useCatalogos } from "../../context/CatalogosContext";
 import { configService } from "../../services/configService";
 import { CategoriaField } from "./CategoriaField";
 import { useTickets } from "../../context/TicketsContext";
@@ -49,17 +48,14 @@ export const TicketForm: React.FC<TicketFormProps> = ({ initialData, onSubmit, l
   // determina la IA automáticamente tras crearse (o el admin, editando después).
   const isNew = !initialData?.id;
   const mostrarCamposAdmin = isAdmin && !isNew;
-  const [empleados, setEmpleados] = useState<Empleado[]>([]);
+  const { empleados, empleadosListos: empleadosCargados } = useCatalogos();
   // Tickets viene de TicketsProvider (App.tsx) — un solo listener compartido
   // por sesión, en vez de que este form pida la colección entera cada vez
   // que se abre para crear/editar un ticket.
   const { tickets, loading: ticketsLoading } = useTickets();
   const [maxTicketsAbiertos, setMaxTicketsAbiertos] = useState<number | undefined>(undefined);
-  // Igual que en TicketDetail.tsx/TicketsList.tsx: empleados se carga aparte
-  // (fetch normal, no listener) y tarda mas que el mount del form — sin esto
-  // el Select de "Asignar a" se pinta antes de tener la opcion que matchea
-  // initialData.assignedTo, y SelectValue muestra el id crudo mientras tanto.
-  const [empleadosCargados, setEmpleadosCargados] = useState(false);
+  // Sin esto el Select de "Asignar a" se pinta antes de tener la opción que
+  // matchea initialData.assignedTo, y SelectValue muestra el id crudo.
   const empleadosListos = empleadosCargados && !ticketsLoading;
   // Un ticket nuevo todavía no tiene id (se genera recién al guardar, en la
   // transacción de ticketsService.create) — usamos uno temporal solo para
@@ -69,13 +65,14 @@ export const TicketForm: React.FC<TicketFormProps> = ({ initialData, onSubmit, l
 
   useEffect(() => {
     if (!mostrarCamposAdmin) return;
-    Promise.all([empleadosService.getAll(), configService.getAppConfig().catch(() => null)])
-      .then(([empleadosData, config]) => {
-        setEmpleados(empleadosData);
-        setMaxTicketsAbiertos(config?.maxTicketsAbiertos);
-      })
-      .catch(() => {})
-      .finally(() => setEmpleadosCargados(true));
+    let activo = true;
+    configService
+      .getAppConfig()
+      .then((config) => activo && setMaxTicketsAbiertos(config?.maxTicketsAbiertos))
+      .catch(() => {});
+    return () => {
+      activo = false;
+    };
   }, [mostrarCamposAdmin]);
 
   const { register, control, handleSubmit, setValue, formState: { errors } } = useForm<TicketFormData>({
