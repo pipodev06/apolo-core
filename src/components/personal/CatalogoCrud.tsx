@@ -17,6 +17,7 @@ const PAGE_SIZE = 10;
 
 export interface CatalogoCrudHandle {
   abrirNuevo: () => void;
+  recargar: () => void;
 }
 
 interface Props {
@@ -62,7 +63,7 @@ export const CatalogoCrud = forwardRef<CatalogoCrudHandle, Props>(
     setModalOpen(true);
   };
 
-  useImperativeHandle(ref, () => ({ abrirNuevo: openNuevo }));
+  useImperativeHandle(ref, () => ({ abrirNuevo: openNuevo, recargar: fetch }));
 
   const openEditar = (it: Catalogo) => {
     setEditing(it);

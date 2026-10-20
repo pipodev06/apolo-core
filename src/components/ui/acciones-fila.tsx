@@ -50,6 +50,9 @@ interface AccionesFilaProps {
   onEliminar?: () => void
   // Deshabilita eliminar / eliminar definitivo (ej. cuentas super_admin).
   bloquearBorrado?: boolean
+  // Deshabilita todas las acciones (ej. un admin mirando a un super_admin o a
+  // una cuenta protegida): mejor que dejar pulsar y que falle al guardar.
+  bloqueadoMotivo?: string
 }
 
 // Acciones de una fila de tabla — componente único para Personal, Usuarios,
@@ -63,27 +66,31 @@ export function AccionesFila({
   onEditar,
   onEliminar,
   bloquearBorrado,
+  bloqueadoMotivo,
 }: AccionesFilaProps) {
+  const bloqueado = !!bloqueadoMotivo
+  const titulo = (t: string) => (bloqueado ? bloqueadoMotivo : t)
   return (
     <div className="flex items-center gap-1">
       {soloPapelera ? (
         <>
-          <AccionIcono icon={RotateCcw} title="Restaurar" tono="success" onClick={onRestaurar} />
-          <AccionIcono icon={Trash2} title="Eliminar definitivo" tono="destructive" onClick={onPurgar} disabled={bloquearBorrado} />
+          <AccionIcono icon={RotateCcw} title={titulo("Restaurar")} tono="success" onClick={onRestaurar} disabled={bloqueado} />
+          <AccionIcono icon={Trash2} title={titulo("Eliminar definitivo")} tono="destructive" onClick={onPurgar} disabled={bloquearBorrado || bloqueado} />
         </>
       ) : (
         <>
           {onToggle && (
             <AccionIcono
               icon={Power}
-              title={activo ? "Desactivar" : "Activar"}
+              title={titulo(activo ? "Desactivar" : "Activar")}
               tono={activo ? "neutral" : "success"}
               onClick={onToggle}
+              disabled={bloqueado}
             />
           )}
-          {onEditar && <AccionIcono icon={Pencil} title="Editar" tono="primary" onClick={onEditar} />}
+          {onEditar && <AccionIcono icon={Pencil} title={titulo("Editar")} tono="primary" onClick={onEditar} disabled={bloqueado} />}
           {onEliminar && (
-            <AccionIcono icon={Trash2} title="Eliminar" tono="destructive" onClick={onEliminar} disabled={bloquearBorrado} />
+            <AccionIcono icon={Trash2} title={titulo("Eliminar")} tono="destructive" onClick={onEliminar} disabled={bloquearBorrado || bloqueado} />
           )}
         </>
       )}

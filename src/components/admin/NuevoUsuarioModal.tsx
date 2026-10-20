@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useMemo } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -8,9 +8,8 @@ import { Button } from "../ui/button";
 import { Field, FieldError, FieldGroup, FieldLabel } from "../ui/field";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { usersService } from "../../services/usersService";
-import { empleadosService } from "../../services/empleadosService";
+import { useCatalogos } from "../../context/CatalogosContext";
 import { notificarExito, notificarError } from "../../lib/alertas";
-import type { Empleado } from "../../types/empleado";
 import { PasswordInput } from "../ui/password-input";
 
 const SIN_VINCULO = "__none__";
@@ -32,7 +31,8 @@ interface Props {
 }
 
 export const NuevoUsuarioModal: React.FC<Props> = ({ open, onClose, onCreated }) => {
-  const [empleados, setEmpleados] = useState<Empleado[]>([]);
+  const { empleados: todosEmpleados } = useCatalogos();
+  const empleados = useMemo(() => todosEmpleados.filter((e) => e.activo), [todosEmpleados]);
   const {
     register,
     control,
@@ -45,11 +45,6 @@ export const NuevoUsuarioModal: React.FC<Props> = ({ open, onClose, onCreated })
     defaultValues: { role: "usuario", personalId: SIN_VINCULO },
   });
   const role = watch("role");
-
-  useEffect(() => {
-    if (!open) return;
-    empleadosService.getAll().then((lista) => setEmpleados(lista.filter((e) => e.activo)));
-  }, [open]);
 
   const close = () => {
     reset();

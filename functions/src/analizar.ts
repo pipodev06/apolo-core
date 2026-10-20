@@ -18,6 +18,9 @@ interface AnalizarYAsignarParams {
   // mismo técnico, el ticket conserva su estado (no retrocede en_proceso → asignado).
   statusActual?: string;
   assignedToActual?: string;
+  // Categoría elegida por quien creó el ticket: si ya tiene una, la IA no la
+  // pisa; si no tiene, la IA sugiere una de las categorías activas.
+  categoriaActual?: string;
 }
 
 export interface ResultadoAnalisis {
@@ -31,7 +34,7 @@ export interface ResultadoAnalisis {
  * Usado tanto por el trigger de creación como por la re-ejecución manual.
  */
 export async function analizarYAsignar(params: AnalizarYAsignarParams): Promise<ResultadoAnalisis> {
-  const { db, ticketId, ticketRef, title, description, apiKey, maxTicketsAbiertos, statusActual, assignedToActual } = params;
+  const { db, ticketId, ticketRef, title, description, apiKey, maxTicketsAbiertos, statusActual, assignedToActual, categoriaActual } = params;
 
   const areasSnap = await db.collection("areas").where("activo", "==", true).get();
   const areas = areasSnap.docs.flatMap((d) => {
@@ -43,9 +46,17 @@ export async function analizarYAsignar(params: AnalizarYAsignarParams): Promise<
     return { ok: false, motivo: "No hay áreas activas configuradas." };
   }
 
+  // Solo se pide categoría a la IA si el ticket todavía no tiene una.
+  const categorias = categoriaActual
+    ? []
+    : (await db.collection("categorias").where("activo", "==", true).get()).docs.flatMap((d) => {
+        const data = d.data();
+        return typeof data.nombre === "string" && !data.deletedAt ? [data.nombre] : [];
+      });
+
   let analisis;
   try {
-    analisis = await analizarTicket({ apiKey, titulo: title, descripcion: description, areas });
+    analisis = await analizarTicket({ apiKey, titulo: title, descripcion: description, areas, categorias });
   } catch (err) {
     logger.error(`Ticket ${ticketId}: fallo al llamar Groq`, err);
     return { ok: false, motivo: "Error al llamar a Groq." };
@@ -57,6 +68,7 @@ export async function analizarYAsignar(params: AnalizarYAsignarParams): Promise<
   } else {
     logger.warn(`Ticket ${ticketId}: Groq no devolvió una urgencia válida`);
   }
+  if (analisis.categoria) update.categoria = analisis.categoria;
 
   if (!analisis.area) {
     logger.warn(`Ticket ${ticketId}: Groq no devolvió un área válida`);

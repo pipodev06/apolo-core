@@ -9,6 +9,7 @@ import { analizarYAsignar } from "./analizar";
 import { requireAdmin } from "./auth";
 
 export { login, setupInicial, estadoSistema, crearUsuario, cambiarPassword, revocarSesionesUsuario } from "./auth";
+export { cargarCategoriasBase } from "./categorias";
 export { registrarCambiosTicket, notificarEvento, notificarTicketNuevo, expirarNotificacionLeida } from "./historial";
 
 initializeApp();
@@ -39,6 +40,7 @@ export const asignarTicketIA = onDocumentCreated(
       apiKey: GROQ_API_KEY.value(),
       maxTicketsAbiertos: typeof config.maxTicketsAbiertos === "number" ? config.maxTicketsAbiertos : undefined,
       statusActual: ticket.status,
+      categoriaActual: ticket.categoria,
     });
   }
 );
@@ -80,6 +82,7 @@ export const reanalizarTicketIA = onCall({ secrets: [GROQ_API_KEY] }, async (req
     maxTicketsAbiertos: typeof config?.maxTicketsAbiertos === "number" ? config.maxTicketsAbiertos : undefined,
     statusActual: ticket.status,
     assignedToActual: ticket.assignedTo,
+    categoriaActual: ticket.categoria,
   });
 });
 
@@ -117,6 +120,13 @@ export const eliminarDefinitivo = onCall(async (request) => {
       "failed-precondition",
       "Solo se puede eliminar definitivamente algo que ya está en la papelera."
     );
+  }
+
+  if (coleccion === "users") {
+    const data = snap.data();
+    if ((data?.role === "super_admin" || data?.protegida === true) && request.auth?.token?.role !== "super_admin") {
+      throw new HttpsError("permission-denied", "Solo un super admin puede eliminar esta cuenta.");
+    }
   }
 
   await ref.delete();

@@ -27,36 +27,138 @@ pnpm build
 
 > La configuración web de Firebase (`VITE_FIREBASE_*` en `.env`) no es un secreto: es el mismo `firebaseConfig` que viaja en el bundle de cualquier sitio Firebase. La seguridad real está en `firestore.rules`, `storage.rules` y las Cloud Functions.
 
+## Demo
+
+Hay una instancia pública en **[apolo-core.vercel.app](https://apolo-core.vercel.app)** con dos cuentas de prueba:
+
+| Usuario | Contraseña | Rol | Qué puede hacer |
+|---|---|---|---|
+| `demo.admin` | `DemoAdmin2026` | Admin | Ve todos los tickets; gestiona usuarios, personal, categorías, accesos y configuración |
+| `demo.usuario` | `DemoUsuario2026` | Usuario | Crea tickets y ve solo los suyos (y los asignados, si su cuenta está vinculada a un técnico) |
+
+> Es una demo compartida: los datos pueden cambiar o reiniciarse en cualquier momento. No cargues información real.
+
+Las dos cuentas están marcadas como **protegidas**: nadie salvo un super_admin puede cambiarles la contraseña, editarlas, desactivarlas, eliminarlas ni tocar sus accesos. Así un visitante con `demo.admin` no puede dejar la demo inutilizable para el siguiente. Para marcar una cuenta: entra como super_admin → *Administración → Usuarios → Editar* → casilla **Cuenta protegida**.
+
 ## Puesta en marcha con Firebase (desde cero)
 
-1. **Crea un proyecto Firebase** ([console.firebase.google.com](https://console.firebase.google.com)) y habilita Authentication, Firestore, Storage y Cloud Functions (plan Blaze).
-2. **Apunta el frontend a tu proyecto**: copia `.env.example` a `.env` y completa las variables `VITE_FIREBASE_*` con los datos de tu app web (Project Settings → General).
-3. **Apunta la CLI a tu proyecto**: reemplaza el id en `.firebaserc` (`projects.default`) por el tuyo.
-4. **Consigue una API key de Groq**: crea una cuenta en [console.groq.com](https://console.groq.com) → API Keys. El free tier alcanza para el uso normal.
-5. **Configura el secreto de la IA**:
+Cada instalación usa **su propio proyecto Firebase**: no alcanza con clonar y completar el `.env`, también hay que desplegar reglas y Cloud Functions en tu proyecto.
+
+### Requisitos
+- Node 22 y pnpm
+- Firebase CLI (`npm i -g firebase-tools`, luego `firebase login`)
+- Un proyecto Firebase en plan **Blaze** (Cloud Functions lo exige; el uso normal entra en la capa gratuita)
+
+### Pasos
+
+1. **Crea el proyecto** en [console.firebase.google.com](https://console.firebase.google.com) y, dentro de él:
+   - **Firestore Database** → *Crear base de datos* (modo producción; las reglas se despliegan después).
+   - **Storage** → *Comenzar* (crea el bucket).
+   - **Authentication** → *Comenzar*. No hace falta habilitar ningún proveedor: el login usa *custom tokens* emitidos por la Function `login`.
+   - **Project Settings → General → Tus apps** → agrega una app **Web** para obtener el `firebaseConfig`.
+2. **Apunta el frontend a tu proyecto**: `cp .env.example .env` y completa las variables `VITE_FIREBASE_*` con ese `firebaseConfig`.
+3. **Apunta la CLI a tu proyecto**: `.firebaserc` trae el id del proyecto original. Reemplázalo por el tuyo o ejecuta `firebase use --add`.
+4. **Secreto de la IA** (Groq). Créalo aunque no vayas a usar la asignación por IA, porque el deploy de funciones lo pide:
    ```bash
    firebase functions:secrets:set GROQ_API_KEY
    ```
-6. **Despliega reglas, Storage y funciones** (siempre juntos, las reglas dependen de las funciones):
+   Consigue la key en [console.groq.com](https://console.groq.com) → API Keys (alcanza el free tier). Si no vas a usar IA, carga cualquier valor y deja la asignación en modo **manual**.
+5. **Permiso para emitir tokens de login** (si no, el login falla con `iam.serviceAccounts.signBlob denied`). En [Google Cloud Console](https://console.cloud.google.com) del mismo proyecto:
+   - **APIs y servicios** → habilita **IAM Service Account Credentials API**.
+   - **IAM** → a la cuenta de servicio de las Functions (`<PROJECT_NUMBER>-compute@developer.gserviceaccount.com`) agrégale el rol **Creador de tokens de cuenta de servicio** (*Service Account Token Creator*).
+6. **Despliega reglas, índices, Storage y funciones** (siempre juntos, las reglas dependen de las funciones):
    ```bash
-   firebase deploy --only firestore:rules,storage,functions
+   (cd functions && npm install)
+   firebase deploy --only firestore:rules,firestore:indexes,storage,functions
    ```
-
-7. **Despliega el frontend en Vercel**: importa el repo y carga las mismas variables `VITE_FIREBASE_*` en Project Settings → Environment Variables.
+7. **Frontend**:
+   - Local: `pnpm install && pnpm dev`
+   - Vercel: importa el repo y carga las mismas variables `VITE_FIREBASE_*` en *Project Settings → Environment Variables*.
+8. **Crea el primer usuario** (ver abajo).
 
 ### Primer usuario (super_admin)
 
 El sistema no trae usuarios precargados. **Haz este paso apenas despliegues**, porque hasta que se complete cualquiera que entre a `/setup` puede crear el primer super_admin:
 
-1. Entra a **`/setup`** (con `pnpm dev` o en la URL desplegada).
-2. Completa usuario, contraseña y (opcional) email. La Cloud Function `setupInicial` crea el super_admin y la configuración inicial.
+1. Abre la app. En una instalación nueva, `/login` redirige solo a **`/setup`**.
+2. Completa usuario (mín. 3 caracteres), contraseña (mín. 8) y email (opcional). La Cloud Function `setupInicial` crea en una sola operación:
+   - el usuario `super_admin` (`users/`, hash bcrypt en `credenciales/` y permisos en `access/`);
+   - la configuración inicial `config/app` (serie `TK01`, asignación manual, máx. 5 tickets abiertos por técnico);
+   - la marca pública `publico/estado` (`inicializado: true`);
+   - las [categorías sugeridas](#categorías-de-ticket).
 3. Desde ese momento `/setup` redirige a `/login` y la función rechaza cualquier otro intento.
+4. El resto de cuentas se crean desde **Administración → Usuarios**.
+
+### Cargar datos de ejemplo (para una demo)
+
+Con el super_admin, en este orden:
+
+1. **Personal → Áreas y Cargos**: por ejemplo áreas *Soporte*, *Redes*, *Sistemas*; cargos *Técnico de soporte*, *Administrador de redes*.
+2. **Personal → Empleados**: los técnicos a los que se asignan tickets, cada uno con su área.
+3. **Administración → Categorías**: ya vienen cargadas desde el setup; ajústalas si hace falta (ver abajo).
+4. **Administración → Usuarios**: las cuentas demo (`demo.admin` con rol Admin, `demo.usuario` con rol Usuario) y márcalas como **Cuenta protegida**. Si una cuenta *Usuario* se vincula a un técnico de Personal, también ve y puede cerrar los tickets asignados a ese técnico.
+5. **Administración → Accesos**: una cuenta *Usuario* nueva arranca solo con *Tickets* y *Notificaciones*. Si quieres que vea su resumen, activa *Dashboard* (admins y super_admins ven todo siempre).
+6. Crea algunos tickets con distintas urgencias y categorías para que el Dashboard tenga datos.
+
+### Problemas comunes
+
+| Síntoma | Causa / solución |
+|---|---|
+| El login responde `internal` | Falta el permiso del paso 5. Revisa `firebase functions:log`. |
+| `/setup` u otras acciones tardan unos segundos la primera vez | *Cold start* de Cloud Functions (arrancan en frío tras un rato sin uso). El `login` lo evita con una instancia siempre encendida (ver [Rendimiento](#rendimiento)). |
+| Una lista queda vacía o da error de índice | Faltó `firestore:indexes` en el deploy. |
+| El deploy de funciones pide `GROQ_API_KEY` | Falta el paso 4. |
+
+## Categorías de ticket
+
+Las categorías clasifican el tipo de incidencia. Son un catálogo que se administra en **Administración → Categorías** (crear, editar, activar/desactivar, mandar a la papelera).
+
+El proyecto trae esta lista sugerida (`functions/src/categorias.ts`). Se crea sola en el setup inicial; en una instalación anterior, usa el botón **Cargar categorías sugeridas** de *Administración → Categorías*, que agrega solo las que falten:
+
+| Categoría | Para qué |
+|---|---|
+| Hardware | PC, laptop, monitor o periféricos que fallan o no encienden |
+| Software | Instalación, actualización, licencias o errores de aplicaciones |
+| Red e Internet | Sin conexión, Wi-Fi, VPN, lentitud de red |
+| Impresoras y escáneres | Atascos, drivers, impresión o escaneo en red |
+| Correo electrónico | Cuenta, buzón lleno, envío/recepción, firmas |
+| Accesos y contraseñas | Altas, bajas, contraseñas bloqueadas, permisos en sistemas |
+| Telefonía | Anexos, centralita, celulares corporativos |
+| Sistemas internos | ERP, sistemas propios de la empresa, reportes |
+| Seguridad informática | Virus, correos sospechosos, accesos no autorizados |
+| Solicitud de equipo | Pedidos de equipos o accesorios nuevos |
+| Otros | Lo que no encaje en las anteriores |
+
+Dónde se usan:
+- Al **crear o editar un ticket** aparece el campo *Categoría* con las categorías **activas** (opcional: "Sin categoría").
+- Con la asignación por **IA**, si el ticket llega sin categoría, la IA elige una de las activas junto con el área y la urgencia. Si quien lo creó ya eligió una, no la cambia.
+- **Listado de tickets**: filtro por categoría; también entra en la búsqueda y en el export CSV.
+- **Dashboard**: gráfico *Tickets por Categoría*.
+- Si una categoría se desactiva, deja de ofrecerse en tickets nuevos pero los que ya la tienen la conservan. Si se renombra, el cambio se aplica también a los tickets.
+
+## Rendimiento
+
+- **Login sin espera**: la Function `login` tiene `minInstances: 1`, una instancia siempre encendida. Tiene un costo fijo pequeño al mes en el plan Blaze. Para quitarla, cambia `minInstances` a `0` en `functions/src/auth.ts` (el primer login tras un rato sin uso tardará unos segundos más).
+- **Caché local de Firestore** (IndexedDB): al recargar, las listas se pintan al instante con lo que ya estaba guardado y luego se sincronizan. Al cerrar sesión la caché se borra.
+- **Un solo listener por colección** para tickets, personal y categorías, compartido por todas las pantallas.
+- Los permisos de cada usuario quedan en caché en el navegador, así las pantallas no esperan a Firestore para pintarse.
+
+## Cambiar de proyecto Firebase
+
+Si borras el proyecto Firebase y creas otro, **no hay que definir tablas ni esquemas** (Firestore es NoSQL: las colecciones se crean solas con el primer documento). Pero sí hay que repetir los pasos de [Puesta en marcha](#puesta-en-marcha-con-firebase-desde-cero), porque reglas, índices, funciones y secretos viven en el proyecto Firebase, no en el repo desplegado:
+
+1. Nuevo proyecto en plan Blaze, con Firestore, Storage y Authentication activados.
+2. `.env` (local) **y** las variables de Vercel con el nuevo `firebaseConfig`.
+3. `.firebaserc` con el nuevo id.
+4. `GROQ_API_KEY` y el permiso *Service Account Token Creator*.
+5. `firebase deploy --only firestore:rules,firestore:indexes,storage,functions`.
+6. `/setup` para el primer super_admin. Los datos del proyecto anterior (usuarios, tickets, imágenes) **no se migran**: se pierden con él.
 
 ## Gestión desde la app
 
 Todo el día a día se gestiona logueado como `admin`/`super_admin`:
 
-- **Usuarios y roles** → `/administracion/usuarios` (crear, desactivar, cambiar rol o contraseña; solo `super_admin` toca otro `super_admin`). Desactivar, eliminar o cambiar el rol de alguien cierra sus sesiones abiertas.
+- **Usuarios y roles** → `/administracion/usuarios` (crear, desactivar, cambiar rol o contraseña). Solo un `super_admin` toca a otro `super_admin` o a una cuenta protegida: para un admin esas acciones aparecen deshabilitadas. Desactivar, eliminar o cambiar el rol de alguien cierra sus sesiones abiertas.
 - **Configuración** → `/administracion/modo`: asignación manual o por IA, máximo de tickets abiertos por empleado y horas de SLA por urgencia.
 - **Categorías de ticket** → `/administracion/categorias`.
 - **Permisos por sección** → `/administracion/accesos`.

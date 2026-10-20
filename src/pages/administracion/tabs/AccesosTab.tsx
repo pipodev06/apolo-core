@@ -8,9 +8,15 @@ import { Button } from "../../../components/ui/button";
 import { Checkbox } from "../../../components/ui/checkbox";
 import { PageSpinner } from "../../../components/ui/spinner";
 import { notificarExito, notificarError } from "../../../lib/alertas";
-import { esAdmin, roleLabel } from "../../../lib/roles";
+import { esAdmin, esSuperAdmin, roleLabel } from "../../../lib/roles";
+import { useAuth } from "../../../context/AuthContext";
 
 export const AccesosTab: React.FC = () => {
+  const { user: currentUser } = useAuth();
+  const soySuperAdmin = esSuperAdmin(currentUser?.role);
+  // Los accesos de una cuenta protegida solo los cambia un super_admin
+  // (firestore.rules): para un admin se muestran pero no se pueden tocar.
+  const bloqueadaParaMi = (u?: User) => !!u?.protegida && !soySuperAdmin;
   const [users, setUsers] = useState<User[]>([]);
   const [accessList, setAccessList] = useState<UserAccess[]>([]);
   const [loading, setLoading] = useState(true);
@@ -31,7 +37,7 @@ export const AccesosTab: React.FC = () => {
         sections: {
           ...acc.sections,
           notificaciones: acc.sections.notificaciones ?? true,
-          papelera: acc.sections.papelera ?? true,
+          papelera: acc.sections.papelera ?? false,
         },
       })));
     } catch {
@@ -49,6 +55,10 @@ export const AccesosTab: React.FC = () => {
     const user = users.find(u => u.id === userId);
     if (esAdmin(user?.role)) {
       notificarError("Los roles admin y super admin siempre tienen todos los accesos.");
+      return;
+    }
+    if (bloqueadaParaMi(user)) {
+      notificarError("Cuenta protegida: solo un super admin puede cambiar sus accesos.");
       return;
     }
 
@@ -71,7 +81,7 @@ export const AccesosTab: React.FC = () => {
     try {
       const promises = accessList.map(acc => {
         const user = users.find(u => u.id === acc.userId);
-        if (esAdmin(user?.role)) return Promise.resolve();
+        if (esAdmin(user?.role) || bloqueadaParaMi(user)) return Promise.resolve();
         const sections = {
           dashboard: !!acc.sections?.dashboard,
           tickets: !!acc.sections?.tickets,
@@ -119,6 +129,7 @@ export const AccesosTab: React.FC = () => {
         {users.map((user, i) => {
           const access = accessList.find(acc => acc.userId === user.id);
           const elevado = esAdmin(user.role);
+          const bloqueado = elevado || bloqueadaParaMi(user);
 
           return (
             <TableRow key={user.id}>
@@ -131,7 +142,7 @@ export const AccesosTab: React.FC = () => {
                 <Checkbox
                   className="mx-auto"
                   checked={elevado || access?.sections.dashboard || false}
-                  disabled={elevado}
+                  disabled={bloqueado}
                   onCheckedChange={() => handleToggle(user.id, "dashboard")}
                 />
               </TableCell>
@@ -139,7 +150,7 @@ export const AccesosTab: React.FC = () => {
                 <Checkbox
                   className="mx-auto"
                   checked={elevado || access?.sections.tickets || false}
-                  disabled={elevado}
+                  disabled={bloqueado}
                   onCheckedChange={() => handleToggle(user.id, "tickets")}
                 />
               </TableCell>
@@ -147,7 +158,7 @@ export const AccesosTab: React.FC = () => {
                 <Checkbox
                   className="mx-auto"
                   checked={elevado || access?.sections.personal || false}
-                  disabled={elevado}
+                  disabled={bloqueado}
                   onCheckedChange={() => handleToggle(user.id, "personal")}
                 />
               </TableCell>
@@ -155,7 +166,7 @@ export const AccesosTab: React.FC = () => {
                 <Checkbox
                   className="mx-auto"
                   checked={elevado || access?.sections.administracion || false}
-                  disabled={elevado}
+                  disabled={bloqueado}
                   onCheckedChange={() => handleToggle(user.id, "administracion")}
                 />
               </TableCell>
@@ -163,7 +174,7 @@ export const AccesosTab: React.FC = () => {
                 <Checkbox
                   className="mx-auto"
                   checked={elevado || access?.sections.notificaciones || false}
-                  disabled={elevado}
+                  disabled={bloqueado}
                   onCheckedChange={() => handleToggle(user.id, "notificaciones")}
                 />
               </TableCell>
@@ -171,7 +182,7 @@ export const AccesosTab: React.FC = () => {
                 <Checkbox
                   className="mx-auto"
                   checked={elevado || access?.sections.papelera || false}
-                  disabled={elevado}
+                  disabled={bloqueado}
                   onCheckedChange={() => handleToggle(user.id, "papelera")}
                 />
               </TableCell>
@@ -179,7 +190,7 @@ export const AccesosTab: React.FC = () => {
                 <Checkbox
                   className="mx-auto"
                   checked={elevado || access?.sections.historico || false}
-                  disabled={elevado}
+                  disabled={bloqueado}
                   onCheckedChange={() => handleToggle(user.id, "historico")}
                 />
               </TableCell>

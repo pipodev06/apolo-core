@@ -1,11 +1,10 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import { ticketsService } from "../../services/ticketsService";
-import { empleadosService } from "../../services/empleadosService";
 import { usersService } from "../../services/usersService";
 import type { Ticket } from "../../types/ticket";
-import type { Empleado } from "../../types/empleado";
 import type { User } from "../../types/user";
+import { useCatalogos } from "../../context/CatalogosContext";
 import { UrgencyBadge } from "../../components/tickets/UrgencyBadge";
 import { StatusBadge } from "../../components/tickets/StatusBadge";
 import { ComentariosPanel } from "../../components/tickets/ComentariosPanel";
@@ -35,16 +34,12 @@ export const TicketDetail: React.FC = () => {
   const isAdmin = esAdmin(user?.role);
   const { sla } = useTickets();
   const [ticket, setTicket] = useState<Ticket | null>(null);
-  const [empleados, setEmpleados] = useState<Empleado[]>([]);
-  const [usuarios, setUsuarios] = useState<User[]>([]);
+  const { empleados, empleadosListos } = useCatalogos();
   const [eventos, setEventos] = useState<TicketEvento[]>([]);
   const [loading, setLoading] = useState(true);
-  // empleados/usuarios se cargan aparte del ticket (fetch normal, no listener) y
-  // tardan mas — sin esto la pagina se pinta apenas llega el ticket, con esas
-  // listas todavia vacias, y muestra el id crudo de assignedTo y "Creado por"
-  // en rojo (como cuenta eliminada) durante ese lapso hasta que resuelven.
-  const [empleadosListos, setEmpleadosListos] = useState(false);
-  const [usuariosListos, setUsuariosListos] = useState(false);
+  // Cuenta que creó el ticket (null = ya no existe). `undefined` mientras
+  // carga, para no pintar "cuenta eliminada" en rojo durante ese lapso.
+  const [creadorCuenta, setCreadorCuenta] = useState<{ ticketId: string; user: User | null } | undefined>(undefined);
   const [analizando, setAnalizando] = useState(false);
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -60,10 +55,21 @@ export const TicketDetail: React.FC = () => {
       setTicket(data);
       setLoading(false);
     });
-    empleadosService.getAll().then(setEmpleados).catch(() => {}).finally(() => setEmpleadosListos(true));
-    usersService.getAll().then(setUsuarios).catch(() => {}).finally(() => setUsuariosListos(true));
     return unsubscribe;
   }, [id, navigate]);
+
+  const createdBy = ticket?.createdBy;
+  useEffect(() => {
+    if (!id || !createdBy) return;
+    let activo = true;
+    const fijar = (u: User | null) => activo && setCreadorCuenta({ ticketId: id, user: u && !u.deletedAt ? u : null });
+    if (createdBy === IA_CREATED_BY) fijar(null);
+    else usersService.getById(createdBy).then(fijar).catch(() => fijar(null));
+    return () => {
+      activo = false;
+    };
+  }, [id, createdBy]);
+  const usuariosListos = creadorCuenta?.ticketId === id;
 
   useEffect(() => {
     if (!id) return;
@@ -115,7 +121,7 @@ export const TicketDetail: React.FC = () => {
   // definitivo) — ahí se usa el snapshot `createdByUsername` guardado al crear
   // el ticket (tickets viejos sin ese campo caen al id crudo) y se marca en
   // rojo para que se note que esa cuenta ya no está activa.
-  const creadorActivo = usuarios.find((u) => u.id === ticket.createdBy);
+  const creadorActivo = creadorCuenta?.user;
   const creador = esIA ? "Asistente IA" : creadorActivo?.username || ticket.createdByUsername || ticket.createdBy;
   const creadorEliminado = !esIA && !creadorActivo;
 
