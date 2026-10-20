@@ -62,7 +62,11 @@ export async function analizarYAsignar(params: AnalizarYAsignarParams): Promise<
     return { ok: false, motivo: "Error al llamar a Groq." };
   }
 
-  const update: Record<string, unknown> = { updatedAt: FieldValue.serverTimestamp() };
+  const update: Record<string, unknown> = {
+    updatedAt: FieldValue.serverTimestamp(),
+    // Firma para el historial de actividad (ver registrarCambiosTicket).
+    modificadoPor: { tipo: "ia", nombre: "Asistente IA", en: FieldValue.serverTimestamp() },
+  };
   if (analisis.urgencia) {
     update.urgency = analisis.urgencia;
   } else {

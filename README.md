@@ -136,6 +136,18 @@ Dónde se usan:
 - **Dashboard**: gráfico *Tickets por Categoría*.
 - Si una categoría se desactiva, deja de ofrecerse en tickets nuevos pero los que ya la tienen la conservan. Si se renombra, el cambio se aplica también a los tickets.
 
+## Historial de actividad
+
+Cada ticket guarda automáticamente sus cambios (Function `registrarCambiosTicket`), con **quién** los hizo: un usuario o el *Asistente IA*.
+
+- Asignaciones: *Asignado a X*, *Reasignado de X a Y*, *Asignación removida*.
+- Estado y urgencia con el valor anterior y el nuevo: *Estado: Pendiente → Asignado*.
+- Categoría y solución agregada.
+
+Al reasignar, el estado solo genera un evento si cambia. Por ejemplo, un ticket *Asignado* que la IA pasa a otro técnico sigue *Asignado*: se registra la reasignación, no un cambio de estado. *Asignado el* muestra la hora de la última asignación.
+
+Desactivar a un técnico **no** reasigna sus tickets: la app avisa si tiene tickets abiertos y el detalle del ticket lo marca como *Inactivo*. Para pasarlos a otro, usa *Editar* o *Reanalizar con IA* (la IA solo elige técnicos activos).
+
 ## Rendimiento
 
 - **Costo cero**: ninguna Function reserva instancias siempre encendidas (`minInstances`), porque eso cobra un monto fijo al mes aunque nadie use la app. El precio es que el primer login tras un rato sin uso tarda unos segundos (*cold start*); los siguientes son rápidos. Con el uso normal de una demo o un equipo chico, todo entra en la capa gratuita del plan Blaze.
