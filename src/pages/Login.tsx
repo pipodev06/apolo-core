@@ -30,22 +30,25 @@ export const Login: React.FC = () => {
     resolver: zodResolver(loginSchema),
   });
 
-  // Instalación fresca (todavía sin setup): manda directo a
-  // /setup en vez de mostrar un login que nadie puede usar. Espejo de
-  // SetupGuard, que hace lo inverso. Si la lectura falla (offline, etc.) se
-  // asume inicializada y se muestra el login igual — la app ya está en uso
-  // real, más vale eso que dejar a todos sin poder entrar por un error.
-  const [needsSetup, setNeedsSetup] = useState<boolean | null>(null);
+  // Instalación fresca (todavía sin setup): manda a /setup en vez de dejar
+  // un login que nadie puede usar. Espejo de SetupGuard, que hace lo
+  // inverso. La revisión corre en segundo plano: el formulario se muestra
+  // de inmediato (antes la pantalla quedaba en blanco hasta que respondía).
+  // Si la lectura falla (offline, etc.) se asume inicializada.
+  const [needsSetup, setNeedsSetup] = useState(false);
   useEffect(() => {
+    let activo = true;
     authService
       .appEstaInicializada()
-      .then((inicializada) => setNeedsSetup(!inicializada))
-      .catch(() => setNeedsSetup(false));
+      .then((inicializada) => activo && setNeedsSetup(!inicializada))
+      .catch(() => {});
+    return () => {
+      activo = false;
+    };
   }, []);
 
   const from = location.state?.from?.pathname || "/";
 
-  if (needsSetup === null) return null;
   if (needsSetup) return <Navigate to="/setup" replace />;
 
   const onSubmit = async (data: LoginForm) => {
