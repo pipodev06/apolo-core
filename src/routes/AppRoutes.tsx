@@ -6,7 +6,7 @@ import { SetupGuard } from "./SetupGuard";
 import { ProtectedRoute } from "./ProtectedRoute";
 import { AccessGuard } from "./AccessGuard";
 import { AppLayout } from "../components/layout/AppLayout";
-import { PageSpinner } from "../components/ui/spinner";
+import { FullScreenSpinner } from "../components/ui/spinner";
 
 // Cada pantalla queda en su propio chunk, cargado recién al navegar a esa
 // ruta -- antes todo (Dashboard con Recharts, Tickets, Personal,
@@ -37,7 +37,7 @@ const CatalogoCrud = lazy(() => import("../components/personal/CatalogoCrud").th
 
 export const AppRoutes: React.FC = () => {
   return (
-    <Suspense fallback={<PageSpinner />}>
+    <Suspense fallback={<FullScreenSpinner />}>
       <Routes>
       <Route
         path="/setup"

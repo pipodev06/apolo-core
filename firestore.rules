@@ -61,6 +61,16 @@ service cloud.firestore {
     // directo) — hay que pasar por "asignado"/"en_proceso" en el camino.
     // Hacia atrás (incluido reabrir un terminado) no tiene restricción:
     // decisión explícita del usuario, para no trabar correcciones de admin.
+    // `modificadoPor` = quién hizo el último cambio de un ticket, para que el
+    // historial lo muestre. Desde el cliente solo se puede firmar como uno
+    // mismo; la IA (Admin SDK) firma como {tipo: 'ia'} sin pasar por acá.
+    function firmaValida() {
+      return !('modificadoPor' in request.resource.data.diff(resource.data).affectedKeys())
+             || (request.resource.data.modificadoPor.tipo == 'usuario'
+                 && request.resource.data.modificadoPor.id == request.auth.uid
+                 && request.resource.data.modificadoPor.nombre == usernameDe(request.auth.uid));
+    }
+
     function transicionDeEstadoValida(actual, nuevo) {
       return actual == nuevo
              || !(
@@ -157,6 +167,7 @@ service cloud.firestore {
       // 'terminado' exige dejar la descripción de la solución (mismo criterio
       // que el update de técnico de abajo).
       allow update: if esAdmin()
+                    && firmaValida()
                     && nonEmptyStr(request.resource.data.title, 200)
                     && request.resource.data.description is string
                     && request.resource.data.description.size() <= 5000
@@ -178,7 +189,8 @@ service cloud.firestore {
                     && request.auth.token.get('personalId', '') != ''
                     && resource.data.get('assignedTo', '') == request.auth.token.personalId
                     && request.resource.data.diff(resource.data).affectedKeys()
-                         .hasOnly(['status', 'solutionDescription', 'solutionImages', 'finishedAt', 'updatedAt'])
+                         .hasOnly(['status', 'solutionDescription', 'solutionImages', 'finishedAt', 'updatedAt', 'modificadoPor'])
+                    && firmaValida()
                     && request.resource.data.status in ['pendiente', 'asignado', 'en_proceso', 'terminado']
                     && transicionDeEstadoValida(resource.data.status, request.resource.data.status)
                     && (request.resource.data.status != 'terminado'

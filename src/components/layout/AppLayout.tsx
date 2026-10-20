@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { Suspense, useState } from "react";
+import { PageSpinner } from "../ui/spinner";
 import { Sidebar } from "./Sidebar";
 import { Header } from "./Header";
 
@@ -27,7 +28,12 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
         <Header onMenuClick={() => setIsSidebarOpen(true)} />
 
         <main className="flex-1 overflow-y-auto px-3 py-2 sm:px-[30px] sm:py-[10px]">
-          <div className="w-full">{children}</div>
+          {/* Suspense propio: al navegar a una pantalla que todavía no se
+              descargó, el sidebar y el header quedan y solo el contenido
+              muestra el spinner (antes desaparecía todo el layout). */}
+          <div className="w-full">
+            <Suspense fallback={<PageSpinner />}>{children}</Suspense>
+          </div>
         </main>
       </div>
     </div>

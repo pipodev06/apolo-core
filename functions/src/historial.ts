@@ -25,9 +25,35 @@ function truncar(texto: string, max: number): string {
   return texto.length > max ? `${texto.slice(0, max)}…` : texto;
 }
 
+// Quién hizo ESTE cambio: la firma `modificadoPor` que escriben el cliente
+// (usuario) y la IA. Solo cuenta si cambió en esta misma escritura (su `en`
+// es un serverTimestamp nuevo en cada update); si no, sería la firma de un
+// cambio anterior y se atribuiría mal.
+function actorDelCambio(
+  before: FirebaseFirestore.DocumentData,
+  after: FirebaseFirestore.DocumentData
+): { actorNombre: string; actorTipo: string; actorId?: string } | null {
+  const firma = after.modificadoPor as { tipo?: string; id?: string; nombre?: string; en?: Timestamp } | undefined;
+  if (!firma?.nombre || !firma.en) return null;
+  const previa = before.modificadoPor as { en?: Timestamp } | undefined;
+  if (previa?.en && previa.en.isEqual(firma.en)) return null;
+  return {
+    actorNombre: firma.nombre,
+    actorTipo: firma.tipo === "ia" ? "ia" : "usuario",
+    ...(firma.id ? { actorId: firma.id } : {}),
+  };
+}
+
+async function nombreEmpleado(db: FirebaseFirestore.Firestore, id: unknown): Promise<string> {
+  if (typeof id !== "string" || !id) return "un empleado";
+  const doc = await db.collection("personal").doc(id).get();
+  return (doc.data()?.nombre as string | undefined) ?? "un empleado eliminado";
+}
+
 // Escribe en tickets/{id}/eventos un registro automático cada vez que cambia
-// el estado o la asignación de un ticket (por IA o manual). No notifica
-// directamente: eso lo centraliza `notificarEvento` sobre la subcolección.
+// el estado, la urgencia, la categoría o la asignación de un ticket (por IA
+// o manual), con quién lo hizo. No notifica directamente: eso lo centraliza
+// `notificarEvento` sobre la subcolección.
 export const registrarCambiosTicket = onDocumentUpdated("tickets/{ticketId}", async (event) => {
   const before = event.data?.before.data();
   const after = event.data?.after.data();
@@ -35,59 +61,54 @@ export const registrarCambiosTicket = onDocumentUpdated("tickets/{ticketId}", as
 
   const db = getFirestore();
   const eventosRef = db.collection("tickets").doc(event.params.ticketId).collection("eventos");
-  const escrituras: Promise<unknown>[] = [];
+  const actor = actorDelCambio(before, after) ?? {};
+  const registrar = (mensaje: string, extra: Record<string, unknown> = {}) =>
+    eventosRef.add({ tipo: "sistema", mensaje, ...actor, ...extra, createdAt: FieldValue.serverTimestamp() });
+  // Mensajes en el orden en que se escriben (ver el final de la función).
+  const mensajes: [string, Record<string, unknown>?][] = [];
+
+  // Asignación primero: al reasignar, el cambio de estado que la acompaña
+  // (p. ej. en_proceso → asignado) se lee como consecuencia de ella.
+  if (before.assignedTo !== after.assignedTo) {
+    let mensaje: string;
+    if (!after.assignedTo) {
+      mensaje = `Asignación removida (estaba asignado a ${await nombreEmpleado(db, before.assignedTo)})`;
+    } else if (before.assignedTo) {
+      const [anterior, nuevo] = await Promise.all([
+        nombreEmpleado(db, before.assignedTo),
+        nombreEmpleado(db, after.assignedTo),
+      ]);
+      mensaje = `Reasignado de ${anterior} a ${nuevo}`;
+    } else {
+      mensaje = `Asignado a ${await nombreEmpleado(db, after.assignedTo)}`;
+    }
+    // clave: permite a notificarEvento avisar al técnico solo de su asignación.
+    mensajes.push([mensaje, { clave: "asignacion" }]);
+  }
 
   if (before.status !== after.status) {
-    const label = STATUS_LABELS[after.status as string] ?? after.status;
-    escrituras.push(
-      eventosRef.add({
-        tipo: "sistema",
-        mensaje: `Estado cambiado a ${label}`,
-        createdAt: FieldValue.serverTimestamp(),
-      })
-    );
+    const de = STATUS_LABELS[before.status as string] ?? before.status;
+    const a = STATUS_LABELS[after.status as string] ?? after.status;
+    mensajes.push([`Estado: ${de} → ${a}`]);
   }
 
   if (before.urgency !== after.urgency) {
-    const label = URGENCY_LABELS[after.urgency as string] ?? after.urgency;
-    escrituras.push(
-      eventosRef.add({
-        tipo: "sistema",
-        mensaje: `Urgencia cambiada a ${label}`,
-        createdAt: FieldValue.serverTimestamp(),
-      })
-    );
+    const de = URGENCY_LABELS[before.urgency as string] ?? before.urgency;
+    const a = URGENCY_LABELS[after.urgency as string] ?? after.urgency;
+    mensajes.push([`Urgencia: ${de} → ${a}`]);
+  }
+
+  if ((before.categoria ?? "") !== (after.categoria ?? "")) {
+    mensajes.push([after.categoria ? `Categoría: ${after.categoria}` : "Categoría quitada"]);
   }
 
   if (before.solutionDescription !== after.solutionDescription && after.solutionDescription) {
-    escrituras.push(
-      eventosRef.add({
-        tipo: "sistema",
-        mensaje: "Solución agregada",
-        createdAt: FieldValue.serverTimestamp(),
-      })
-    );
+    mensajes.push(["Solución agregada"]);
   }
 
-  if (before.assignedTo !== after.assignedTo) {
-    let mensaje = "Asignación removida";
-    if (after.assignedTo) {
-      const empleadoDoc = await db.collection("personal").doc(after.assignedTo as string).get();
-      const nombre = (empleadoDoc.data()?.nombre as string | undefined) ?? "un empleado";
-      mensaje = `Asignado a ${nombre}`;
-    }
-    escrituras.push(
-      eventosRef.add({
-        tipo: "sistema",
-        // clave: permite a notificarEvento avisar al técnico solo de su asignación.
-        clave: "asignacion",
-        mensaje,
-        createdAt: FieldValue.serverTimestamp(),
-      })
-    );
-  }
-
-  await Promise.all(escrituras);
+  // Secuencial: así el orden en el historial es el de arriba (los
+  // serverTimestamp de escrituras en paralelo pueden quedar invertidos).
+  for (const [mensaje, extra] of mensajes) await registrar(mensaje, extra);
 });
 
 type Db = FirebaseFirestore.Firestore;
@@ -153,11 +174,14 @@ export const notificarEvento = onDocumentCreated(
     const mensaje =
       evento.tipo === "comentario"
         ? `${evento.actorNombre || "Alguien"} comentó: "${truncar(evento.texto ?? "", 120)}"`
-        : (evento.mensaje as string);
+        : evento.actorNombre
+          ? `${evento.mensaje as string} (por ${evento.actorNombre})`
+          : (evento.mensaje as string);
 
     await notificar(
       db,
-      destinatarios.filter((id) => !(evento.tipo === "comentario" && id === evento.actorId)),
+      // Nadie se notifica a sí mismo por su propio comentario o cambio.
+      destinatarios.filter((id) => id !== evento.actorId),
       ticketId,
       ticket.code as string,
       mensaje
