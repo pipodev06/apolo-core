@@ -7,15 +7,25 @@ function Spinner({ className, ...props }: React.ComponentProps<"svg">) {
   )
 }
 
-// Patrón único del proyecto para estados de carga de página/lista completa
-// (tabla, tab, etc): spinner grande centrado con padding. Usar este en vez de
-// repetir el div centrador a mano en cada vista.
+// Patrón único del proyecto para estados de carga de una página o lista
+// dentro del layout: spinner grande centrado en el área de contenido. Usar
+// este en vez de repetir el div centrador a mano en cada vista.
 function PageSpinner({ className }: { className?: string }) {
   return (
-    <div className="flex justify-center py-12">
+    <div className="flex min-h-[60vh] items-center justify-center">
       <Spinner className={cn("size-12 text-primary", className)} />
     </div>
   )
 }
 
-export { Spinner, PageSpinner }
+// Carga a pantalla completa (fuera del layout: primera carga de la app,
+// verificación de permisos): cubre toda la ventana con el fondo del tema.
+function FullScreenSpinner() {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background">
+      <Spinner className="size-12 text-primary" />
+    </div>
+  )
+}
+
+export { Spinner, PageSpinner, FullScreenSpinner }

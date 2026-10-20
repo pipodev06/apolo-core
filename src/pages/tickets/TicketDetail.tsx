@@ -252,6 +252,11 @@ export const TicketDetail: React.FC = () => {
                     <UserIcon className="mr-3 h-4 w-4 text-primary" />
                     <span className="mr-2 font-medium">Asignado a:</span>
                     {asignado ? asignado.nombre : ticket.assignedTo ? "Empleado eliminado" : "No asignado"}
+                    {asignado && !asignado.activo && (
+                      <Badge variant="red" className="ml-2" title="Este técnico está desactivado: conviene reasignar el ticket">
+                        Inactivo
+                      </Badge>
+                    )}
                   </div>
                   {ticket.assignedTo && ticket.assignedAt && (
                     <div className="flex items-center text-sm">

@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import { IconHistory as History } from "@tabler/icons-react";
+import { IconHistory as History, IconRobot as Robot, IconUser as UserIcon } from "@tabler/icons-react";
 import type { TicketEvento } from "../../types/evento";
 import { Card } from "../ui/card";
 import { fmtFechaHora } from "../../lib/fecha";
@@ -21,17 +21,25 @@ export const ActividadPanel: React.FC<{ eventos: TicketEvento[]; className?: str
         {actividad.length === 0 && (
           <p className="text-sm text-muted-foreground">Todavía no hay actividad registrada.</p>
         )}
-        {actividad.map((evento) => (
-          <div key={evento.id} className="flex gap-3">
-            <div className="mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-muted">
-              <History className="h-4 w-4 text-muted-foreground" />
+        {actividad.map((evento) => {
+          // Eventos viejos (antes de registrar el autor) no traen actor.
+          const esIA = evento.actorTipo === "ia";
+          const Icono = esIA ? Robot : evento.actorNombre ? UserIcon : History;
+          return (
+            <div key={evento.id} className="flex gap-3">
+              <div className="mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-muted">
+                <Icono className={cn("h-4 w-4", esIA ? "text-primary" : "text-muted-foreground")} />
+              </div>
+              <div className="flex-1 pt-1">
+                <p className="text-sm">{evento.mensaje}</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  {fmtFechaHora(evento.createdAt)}
+                  {evento.actorNombre && <> · por {evento.actorNombre}</>}
+                </p>
+              </div>
             </div>
-            <div className="flex-1 pt-1">
-              <p className="text-sm">{evento.mensaje}</p>
-              <p className="mt-0.5 text-xs text-muted-foreground">{fmtFechaHora(evento.createdAt)}</p>
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </Card>
   );
