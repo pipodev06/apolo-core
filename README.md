@@ -105,7 +105,7 @@ Con el super_admin, en este orden:
 | Síntoma | Causa / solución |
 |---|---|
 | El login responde `internal` | Falta el permiso del paso 5. Revisa `firebase functions:log`. |
-| `/setup` u otras acciones tardan unos segundos la primera vez | *Cold start* de Cloud Functions (arrancan en frío tras un rato sin uso). El `login` lo evita con una instancia siempre encendida (ver [Rendimiento](#rendimiento)). |
+| El login u otras acciones tardan unos segundos la primera vez | *Cold start* de Cloud Functions: arrancan en frío tras un rato sin uso. Las siguientes llamadas son rápidas (ver [Rendimiento](#rendimiento)). |
 | Una lista queda vacía o da error de índice | Faltó `firestore:indexes` en el deploy. |
 | El deploy de funciones pide `GROQ_API_KEY` | Falta el paso 4. |
 
@@ -138,7 +138,7 @@ Dónde se usan:
 
 ## Rendimiento
 
-- **Login sin espera**: la Function `login` tiene `minInstances: 1`, una instancia siempre encendida. Tiene un costo fijo pequeño al mes en el plan Blaze. Para quitarla, cambia `minInstances` a `0` en `functions/src/auth.ts` (el primer login tras un rato sin uso tardará unos segundos más).
+- **Costo cero**: ninguna Function reserva instancias siempre encendidas (`minInstances`), porque eso cobra un monto fijo al mes aunque nadie use la app. El precio es que el primer login tras un rato sin uso tarda unos segundos (*cold start*); los siguientes son rápidos. Con el uso normal de una demo o un equipo chico, todo entra en la capa gratuita del plan Blaze.
 - **Caché local de Firestore** (IndexedDB): al recargar, las listas se pintan al instante con lo que ya estaba guardado y luego se sincronizan. Al cerrar sesión la caché se borra.
 - **Un solo listener por colección** para tickets, personal y categorías, compartido por todas las pantallas.
 - Los permisos de cada usuario quedan en caché en el navegador, así las pantallas no esperan a Firestore para pintarse.
