@@ -1,9 +1,8 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { IconArrowLeft as ArrowLeft, IconEye as Eye } from "@tabler/icons-react";
-import { empleadosService } from "../services/empleadosService";
+import { useCatalogos } from "../context/CatalogosContext";
 import { useTickets } from "../context/TicketsContext";
-import type { Empleado } from "../types/empleado";
 import type { TicketStatus } from "../types/ticket";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "../components/ui/table";
 import { Button } from "../components/ui/button";
@@ -19,25 +18,15 @@ export const HistoricoDetalle: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { tickets, loading: ticketsLoading } = useTickets();
-  const [empleado, setEmpleado] = useState<Empleado | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { empleados, empleadosListos } = useCatalogos();
+  const empleado = empleadosListos ? (empleados.find((e) => e.id === id) ?? null) : null;
+  const noEncontrado = empleadosListos && !empleado;
 
   useEffect(() => {
-    if (!id) return;
-    empleadosService
-      .getAll()
-      .then((lista) => {
-        const encontrado = lista.find((e) => e.id === id) ?? null;
-        if (!encontrado) {
-          notificarError("Empleado no encontrado");
-          navigate("/historico");
-          return;
-        }
-        setEmpleado(encontrado);
-      })
-      .catch(() => notificarError("Error al cargar el empleado"))
-      .finally(() => setLoading(false));
-  }, [id, navigate]);
+    if (!noEncontrado) return;
+    notificarError("Empleado no encontrado");
+    navigate("/historico");
+  }, [noEncontrado, navigate]);
 
   const ticketsEmpleado = tickets.filter((t) => t.assignedTo === id);
 
@@ -49,7 +38,7 @@ export const HistoricoDetalle: React.FC = () => {
     {} as Record<TicketStatus, number>
   );
 
-  const cargando = loading || ticketsLoading;
+  const cargando = !empleadosListos || ticketsLoading;
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">

@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Timestamp } from "firebase/firestore";
-import type { Empleado } from "../types/empleado";
-import { empleadosService } from "../services/empleadosService";
 import { useTickets } from "../context/TicketsContext";
+import { useCatalogos } from "../context/CatalogosContext";
+import { useAuth } from "../context/AuthContext";
+import { esAdmin } from "../lib/roles";
 import {
   PieChart, Pie, Cell,
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
@@ -25,8 +26,12 @@ export const Dashboard: React.FC = () => {
   // por sesión, en vez de que Dashboard abra el suyo propio: al volver acá
   // después de haber visitado Tickets o Personal, los datos ya están.
   const { tickets, loading: ticketsLoading, sla } = useTickets();
-  const [empleados, setEmpleados] = useState<Empleado[]>([]);
-  const [empleadosListos, setEmpleadosListos] = useState(false);
+  const { empleados, empleadosListos } = useCatalogos();
+  const { user } = useAuth();
+  // Un "usuario" solo recibe sus propios tickets (reglas de Firestore): para
+  // él el Dashboard es "Mi resumen", sin las tablas por área y por técnico
+  // que solo tienen sentido mirando a todo el equipo.
+  const vistaEquipo = esAdmin(user?.role);
   const [revelado, setRevelado] = useState(false);
 
   // Los gráficos de Recharts se pintan en SVG con props/estilos inline, no
@@ -40,10 +45,6 @@ export const Dashboard: React.FC = () => {
     color: theme === "dark" ? "#f1f5f9" : "#0f172a",
     fontSize: "0.8125rem",
   };
-
-  useEffect(() => {
-    empleadosService.getAll().then(setEmpleados).catch(() => {}).finally(() => setEmpleadosListos(true));
-  }, []);
 
   // Igual que TicketsList: mientras no está "revelado" se muestra el
   // PageSpinner de más abajo, no el contenido real. La diferencia con
@@ -149,12 +150,27 @@ export const Dashboard: React.FC = () => {
 
   const promedioGeneral = useMemo(() => promedioResolucionMs(tickets), [tickets]);
 
+  const porCategoria = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const t of tickets) {
+      const categoria = t.categoria || "Sin categoría";
+      map.set(categoria, (map.get(categoria) ?? 0) + 1);
+    }
+    return [...map.entries()]
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 8);
+  }, [tickets]);
+
   if (!revelado) return <PageSpinner />;
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Dashboard de Métricas</h1>
+        <h1 className="text-2xl font-bold tracking-tight">{vistaEquipo ? "Dashboard de Métricas" : "Mi resumen"}</h1>
+        {!vistaEquipo && (
+          <p className="text-sm text-muted-foreground">Métricas de los tickets que creaste o que tienes asignados.</p>
+        )}
       </div>
 
       {/* Stat cards */}
@@ -239,6 +255,38 @@ export const Dashboard: React.FC = () => {
           </CardContent>
         </Card>
 
+        {/* Barras horizontales por categoría */}
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle>Tickets por Categoría</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-72">
+              {porCategoria.length === 0 ? (
+                <p className="py-12 text-center text-muted-foreground">Sin datos.</p>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={porCategoria} layout="vertical" margin={{ left: 24 }}>
+                    <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke={gridColor} />
+                    <XAxis type="number" tick={{ fill: axisColor, fontSize: 12 }} stroke={gridColor} allowDecimals={false} />
+                    <YAxis
+                      type="category"
+                      dataKey="name"
+                      tick={{ fill: axisColor, fontSize: 12 }}
+                      stroke={gridColor}
+                      width={150}
+                    />
+                    <Tooltip contentStyle={tooltipStyle} cursor={{ fill: gridColor, opacity: 0.3 }} />
+                    <Bar dataKey="value" fill="#0ea5e9" radius={[0, 6, 6, 0]} barSize={22} />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {vistaEquipo && (
+        <>
         {/* Resolución y SLA por área */}
         <Card className="lg:col-span-2">
           <CardHeader>
@@ -308,6 +356,8 @@ export const Dashboard: React.FC = () => {
             </div>
           </CardContent>
         </Card>
+        </>
+        )}
       </div>
     </div>
   );

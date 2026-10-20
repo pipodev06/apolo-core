@@ -4,6 +4,7 @@ import { IconHome as Home, IconLayoutDashboard as LayoutDashboard, IconTicket as
 import { useAuth } from "../../context/AuthContext";
 import { useAccess } from "../../context/AccessContext";
 import { cn } from "../../lib/cn";
+import { tabsPapelera } from "../../lib/papelera";
 import type { AccessSections } from "../../types/access";
 
 const navItems: { icon: LucideIcon; label: string; path: string; section?: keyof AccessSections }[] = [
@@ -22,10 +23,10 @@ interface SidebarProps {
 
 export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   const location = useLocation();
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
   const { hasAccess } = useAccess();
 
-  const papeleraVisible = hasAccess("papelera");
+  const papeleraVisible = tabsPapelera(hasAccess, user?.role).length > 0;
   const papeleraActiva = location.pathname.startsWith("/papelera");
 
   return (

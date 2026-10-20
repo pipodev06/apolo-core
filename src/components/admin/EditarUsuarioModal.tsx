@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -7,12 +7,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
 import { Field, FieldError, FieldGroup, FieldLabel } from "../ui/field";
+import { Checkbox } from "../ui/checkbox";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { usersService } from "../../services/usersService";
-import { empleadosService } from "../../services/empleadosService";
+import { useCatalogos } from "../../context/CatalogosContext";
 import { notificarExito, notificarError } from "../../lib/alertas";
 import type { User } from "../../types/user";
-import type { Empleado } from "../../types/empleado";
 
 const SIN_VINCULO = "__none__";
 
@@ -21,6 +21,7 @@ const schema = z.object({
   email: z.string().email("Email inválido").optional().or(z.literal("")),
   role: z.enum(["usuario", "admin", "super_admin"]),
   personalId: z.string(),
+  protegida: z.boolean(),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -32,6 +33,9 @@ interface Props {
   onCambiarContrasena: () => void;
   user: User | null;
   puedeEditarUsername: boolean;
+  // Solo un super_admin ve la opción "Super Admin" del rol y la marca de
+  // cuenta protegida (las reglas rechazan esos cambios a cualquier otro).
+  esSuperAdminActual: boolean;
 }
 
 export const EditarUsuarioModal: React.FC<Props> = ({
@@ -41,8 +45,10 @@ export const EditarUsuarioModal: React.FC<Props> = ({
   onCambiarContrasena,
   user,
   puedeEditarUsername,
+  esSuperAdminActual,
 }) => {
-  const [empleados, setEmpleados] = useState<Empleado[]>([]);
+  const { empleados: todosEmpleados } = useCatalogos();
+  const empleados = useMemo(() => todosEmpleados.filter((e) => e.activo), [todosEmpleados]);
   const {
     register,
     control,
@@ -55,12 +61,12 @@ export const EditarUsuarioModal: React.FC<Props> = ({
 
   useEffect(() => {
     if (!open) return;
-    empleadosService.getAll().then((lista) => setEmpleados(lista.filter((e) => e.activo)));
     reset({
       username: user?.username || "",
       email: user?.email || "",
       role: user?.role === "admin" || user?.role === "super_admin" ? user.role : "usuario",
       personalId: user?.personalId || SIN_VINCULO,
+      protegida: !!user?.protegida,
     });
   }, [open, user, reset]);
 
@@ -79,6 +85,9 @@ export const EditarUsuarioModal: React.FC<Props> = ({
         email: data.email || "",
         role: data.role,
         personalId: data.personalId !== SIN_VINCULO ? data.personalId : undefined,
+        // Solo un super_admin manda la marca: para un admin la regla exige
+        // que no cambie, y no enviarla la deja como está.
+        ...(esSuperAdminActual ? { protegida: data.protegida } : {}),
       });
       notificarExito("Usuario actualizado");
       onUpdated();
@@ -140,7 +149,7 @@ export const EditarUsuarioModal: React.FC<Props> = ({
                     items={[
                       { value: "usuario", label: "Usuario" },
                       { value: "admin", label: "Administrador" },
-                      { value: "super_admin", label: "Super Admin" },
+                      ...(esSuperAdminActual ? [{ value: "super_admin", label: "Super Admin" }] : []),
                     ]}
                     value={field.value}
                     onValueChange={(v) => v && field.onChange(v)}
@@ -152,7 +161,7 @@ export const EditarUsuarioModal: React.FC<Props> = ({
                       <SelectGroup>
                         <SelectItem value="usuario">Usuario</SelectItem>
                         <SelectItem value="admin">Administrador</SelectItem>
-                        <SelectItem value="super_admin">Super Admin</SelectItem>
+                        {esSuperAdminActual && <SelectItem value="super_admin">Super Admin</SelectItem>}
                       </SelectGroup>
                     </SelectContent>
                   </Select>
@@ -189,6 +198,30 @@ export const EditarUsuarioModal: React.FC<Props> = ({
                         </SelectGroup>
                       </SelectContent>
                     </Select>
+                  )}
+                />
+              </Field>
+            )}
+
+            {esSuperAdminActual && (
+              <Field>
+                <Controller
+                  name="protegida"
+                  control={control}
+                  render={({ field }) => (
+                    <label className="flex cursor-pointer items-start gap-2 text-sm">
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={(v) => field.onChange(!!v)}
+                        className="mt-0.5"
+                      />
+                      <span>
+                        Cuenta protegida
+                        <span className="block text-xs text-muted-foreground">
+                          Solo un super admin podrá editarla, cambiar su contraseña, desactivarla o eliminarla. Útil para cuentas de demo.
+                        </span>
+                      </span>
+                    </label>
                   )}
                 />
               </Field>

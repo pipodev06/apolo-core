@@ -9,16 +9,20 @@ interface AnalizarTicketParams {
   titulo: string;
   descripcion: string;
   areas: string[];
+  // Categorías activas entre las que elegir. Vacío = no pedir categoría.
+  categorias?: string[];
 }
 
 export interface AnalisisTicket {
   area: string | null;
   urgencia: Urgencia | null;
+  categoria: string | null;
 }
 
 
 export async function analizarTicket(params: AnalizarTicketParams): Promise<AnalisisTicket> {
-  const { apiKey, titulo, descripcion, areas } = params;
+  const { apiKey, titulo, descripcion, areas, categorias = [] } = params;
+  const pedirCategoria = categorias.length > 0;
 
   const prompt = `Eres un clasificador de tickets de soporte técnico. Analiza el siguiente ticket y determina:
 
@@ -29,15 +33,15 @@ export async function analizarTicket(params: AnalizarTicketParams): Promise<Anal
    - MEDIO: afecta a un usuario o a una función secundaria.
    - BAJO: consulta, mejora o algo sin impacto operativo.
    Si la descripción no da información suficiente para decidir con certeza, usa MEDIO por defecto — no asumas el peor ni el mejor caso sin evidencia en el texto.
-
+${pedirCategoria ? "3. La CATEGORÍA del incidente (elige EXACTAMENTE una de la lista de categorías, copiando el texto tal cual).\n" : ""}
 Áreas disponibles:
 ${areas.map((a) => `- ${a}`).join("\n")}
-
+${pedirCategoria ? `\nCategorías disponibles:\n${categorias.map((c) => `- ${c}`).join("\n")}\n` : ""}
 Ticket:
 Título: ${titulo}
 Descripción: ${descripcion}
 
-Responde ÚNICAMENTE con un JSON de la forma {"area": "<una de las áreas de la lista>", "urgencia": "CRITICO|ALTO|MEDIO|BAJO"}. Sin texto adicional.`;
+Responde ÚNICAMENTE con un JSON de la forma {"area": "<una de las áreas de la lista>", "urgencia": "CRITICO|ALTO|MEDIO|BAJO"${pedirCategoria ? ', "categoria": "<una de las categorías de la lista>"' : ""}}. Sin texto adicional.`;
 
   const res = await fetch(GROQ_URL, {
     method: "POST",
@@ -52,7 +56,7 @@ Responde ÚNICAMENTE con un JSON de la forma {"area": "<una de las áreas de la 
       // gpt-oss-120b es modelo de razonamiento: consume tokens pensando antes
       // de responder (fuera de nuestro control), así que max_tokens debe cubrir
       // razonamiento + el JSON de salida. reasoning_effort "low" acota ese gasto.
-      max_tokens: 400,
+      max_tokens: 500,
       reasoning_effort: "low",
       // Fuerza JSON válido a nivel de API (Groq es compatible con el
       // response_format de OpenAI) — capa extra sobre la instrucción del
@@ -73,17 +77,20 @@ Responde ÚNICAMENTE con un JSON de la forma {"area": "<una de las áreas de la 
   const content = data.choices?.[0]?.message?.content?.trim() ?? "";
 
   const match = content.match(/\{[\s\S]*\}/);
-  if (!match) return { area: null, urgencia: null };
+  if (!match) return { area: null, urgencia: null, categoria: null };
 
   try {
-    const parsed = JSON.parse(match[0]) as { area?: string; urgencia?: string };
+    const parsed = JSON.parse(match[0]) as { area?: string; urgencia?: string; categoria?: string };
 
     const area = areas.find((a) => a.toLowerCase() === parsed.area?.trim().toLowerCase()) ?? null;
     const urgencia =
       URGENCIAS.find((u) => u === parsed.urgencia?.trim().toUpperCase()) ?? null;
 
-    return { area, urgencia };
+    const categoria =
+      categorias.find((c) => c.toLowerCase() === parsed.categoria?.trim().toLowerCase()) ?? null;
+
+    return { area, urgencia, categoria };
   } catch {
-    return { area: null, urgencia: null };
+    return { area: null, urgencia: null, categoria: null };
   }
 }

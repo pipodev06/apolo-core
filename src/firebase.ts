@@ -1,6 +1,6 @@
 // Import the functions you need from the SDKs you need
 import { initializeApp } from "firebase/app";
-import { getFirestore } from "firebase/firestore";
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from "firebase/firestore";
 import { getFunctions } from "firebase/functions";
 import { getAuth } from "firebase/auth";
 import { getStorage } from "firebase/storage";
@@ -18,7 +18,12 @@ const firebaseConfig = {
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+// Caché local (IndexedDB): al recargar, los listeners pintan primero lo que
+// ya estaba guardado y después sincronizan con el servidor, en vez de
+// esperar a descargar todo de nuevo. Compartida entre pestañas.
+const db = initializeFirestore(app, {
+  localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
+});
 const functions = getFunctions(app);
 const auth = getAuth(app);
 const storage = getStorage(app);
