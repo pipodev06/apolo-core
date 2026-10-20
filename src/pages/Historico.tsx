@@ -1,7 +1,7 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { IconSearch as Search, IconFilterOff as FilterX, IconHistory as History, IconEye as Eye, IconDownload as Download } from "@tabler/icons-react";
-import { empleadosService } from "../services/empleadosService";
+import { useCatalogos } from "../context/CatalogosContext";
 import { useTickets } from "../context/TicketsContext";
 import type { Empleado } from "../types/empleado";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "../components/ui/table";
@@ -11,7 +11,6 @@ import { Input } from "../components/ui/input";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { SimplePagination } from "../components/ui/pagination";
 import { PageSpinner } from "../components/ui/spinner";
-import { notificarError } from "../lib/alertas";
 import { fmtDuracion, promedioResolucionMs } from "../lib/sla";
 import { descargarCsv } from "../lib/csv";
 
@@ -26,8 +25,7 @@ interface FilaHistorico {
 
 export const Historico: React.FC = () => {
   const navigate = useNavigate();
-  const [empleados, setEmpleados] = useState<Empleado[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { empleados, empleadosListos } = useCatalogos();
   const { tickets, loading: ticketsLoading } = useTickets();
   const [page, setPage] = useState(1);
 
@@ -36,14 +34,6 @@ export const Historico: React.FC = () => {
   const [dCampo, setDCampo] = useState("");
   const [query, setQuery] = useState("");
   const [fCampo, setFCampo] = useState("");
-
-  useEffect(() => {
-    empleadosService
-      .getAll()
-      .then(setEmpleados)
-      .catch(() => notificarError("Error al cargar el personal"))
-      .finally(() => setLoading(false));
-  }, []);
 
   // Historial es por empleado (a quién se le asignó el ticket), no por quien
   // lo creó -- "createdBy" apunta a la cuenta de usuario que reportó, no
@@ -108,7 +98,7 @@ export const Historico: React.FC = () => {
     [filtered, pageSafe]
   );
 
-  const cargando = loading || ticketsLoading;
+  const cargando = !empleadosListos || ticketsLoading;
 
   const exportar = () =>
     descargarCsv(

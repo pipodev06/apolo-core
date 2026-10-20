@@ -1,4 +1,4 @@
-import { getDoc, doc } from "firebase/firestore";
+import { getDoc, doc, terminate, clearIndexedDbPersistence } from "firebase/firestore";
 import { httpsCallable } from "firebase/functions";
 import { signInWithCustomToken, signOut } from "firebase/auth";
 import { auth, db, functions } from "../firebase";
@@ -41,9 +41,23 @@ export const authService = {
     return session;
   },
 
-  logout: () => {
+  // Además de cerrar la sesión, borra la caché local de Firestore (en una PC
+  // compartida no deben quedar datos del usuario anterior) y recarga en
+  // /login: tras terminate() la instancia de Firestore ya no se puede usar.
+  logout: async () => {
     localStorage.removeItem("session");
-    signOut(auth).catch(() => {});
+    for (const key of Object.keys(localStorage)) {
+      if (key.startsWith("access:")) localStorage.removeItem(key);
+    }
+    await signOut(auth).catch(() => {});
+    try {
+      await terminate(db);
+      await clearIndexedDbPersistence(db);
+    } catch {
+      // Si otra pestaña sigue usando la caché no se puede borrar; no es
+      // motivo para dejar al usuario sin poder salir.
+    }
+    window.location.assign("/login");
   },
 
   getSession: () => {

@@ -84,7 +84,13 @@ service cloud.firestore {
       // conservar o editar el rol super_admin (evita autopromoverse).
       // passwordHash no se puede escribir (solo se tolera conservar el valor
       // viejo en docs todavía no migrados a `credenciales`).
+      // Cuentas protegidas (ej. las cuentas de la demo pública): solo un
+      // super_admin las modifica, y solo un super_admin pone o quita la marca.
       allow update: if esAdmin()
+                    && (resource.data.get('protegida', false) != true || request.auth.token.role == 'super_admin')
+                    && (request.resource.data.get('protegida', false) == resource.data.get('protegida', false)
+                        || request.auth.token.role == 'super_admin')
+                    && request.resource.data.get('protegida', false) is bool
                     && (request.resource.data.username == resource.data.username
                         || request.auth.token.role == 'super_admin')
                     && (request.resource.data.role != 'super_admin' || request.auth.token.role == 'super_admin')
@@ -271,7 +277,16 @@ service cloud.firestore {
       }
       // El setup inicial y crearUsuario lo crean vía Cloud Function; desde el
       // cliente solo un admin (ej. reparar un access faltante).
-      allow create, update: if esAdmin() && seccionesValidas();
+      // Los accesos de un super_admin o de una cuenta protegida solo los
+      // cambia un super_admin.
+      function cuentaIntocable() {
+        let u = /databases/$(database)/documents/users/$(userId);
+        return exists(u)
+               && (get(u).data.get('protegida', false) == true || get(u).data.role == 'super_admin');
+      }
+      allow create, update: if esAdmin()
+                            && seccionesValidas()
+                            && (!cuentaIntocable() || request.auth.token.role == 'super_admin');
       allow delete: if false;
     }
 
