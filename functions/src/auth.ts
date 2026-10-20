@@ -68,10 +68,10 @@ interface LoginResult {
 
 // Verifica usuario/contraseña server-side y emite un Firebase Custom Token
 // con el rol como claim. El cliente hace signInWithCustomToken con esto.
-// minInstances: 1 deja una instancia siempre encendida, así el login no
-// paga el "cold start" (2-6 s) tras un rato sin uso. Tiene un costo fijo
-// pequeño al mes; para quitarlo, poner 0.
-export const login = onCall({ minInstances: 1 }, async (request) => {
+// Sin minInstances a propósito: una instancia siempre encendida evita el
+// "cold start" (2-6 s tras un rato sin uso) pero cobra un monto fijo al mes,
+// y este proyecto debe poder correr gratis.
+export const login = onCall(async (request) => {
   const username = request.data?.username;
   const password = request.data?.password;
   if (typeof username !== "string" || typeof password !== "string" || !username || !password) {
