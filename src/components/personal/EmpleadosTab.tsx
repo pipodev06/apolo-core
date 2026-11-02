@@ -1,5 +1,5 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useState } from "react";
-import { IconUsers as Users, IconMail as Mail, IconPhone as Phone, IconSearch as Search, IconFilterOff as FilterX } from "@tabler/icons-react";
+import { IconUsers as Users, IconMail as Mail, IconPhone as Phone } from "@tabler/icons-react";
 import { empleadosService } from "../../services/empleadosService";
 import { configService } from "../../services/configService";
 import { useTickets } from "../../context/TicketsContext";
@@ -7,10 +7,9 @@ import type { Empleado } from "../../types/empleado";
 import { calcularCarga, estaOcupado } from "../../lib/carga";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "../ui/table";
 import { Badge } from "../ui/badge";
-import { Button } from "../ui/button";
-import { Input } from "../ui/input";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { SimplePagination } from "../ui/pagination";
+import { FiltroBuscarPor, type BusquedaPorCampo } from "../ui/filtro-buscar-por";
+import { usePaginacion } from "../../lib/usePaginacion";
 import { PageSpinner } from "../ui/spinner";
 import { EmpleadoModal } from "./EmpleadoModal";
 import { confirmar, notificarExito, notificarError } from "../../lib/alertas";
@@ -35,16 +34,10 @@ export const EmpleadosTab = forwardRef<EmpleadosTabHandle, Props>(({ soloPapeler
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Empleado | null>(null);
-  const [page, setPage] = useState(1);
 
-  // Borrador: lo que el usuario va eligiendo antes de aplicar.
-  // dCampo: "" = todos los campos, o "cargo" | "area" | "estado" para acotar la búsqueda a ese campo.
-  const [dQuery, setDQuery] = useState("");
-  const [dCampo, setDCampo] = useState("");
-
-  // Aplicado: lo que realmente filtra la lista, se actualiza con "Filtrar".
-  const [query, setQuery] = useState("");
-  const [fCampo, setFCampo] = useState("");
+  // Búsqueda aplicada (el borrador vive en FiltroBuscarPor). campo: "" = todos, o "cargo" | "area" | "estado".
+  const [busqueda, setBusqueda] = useState<BusquedaPorCampo>({ query: "", campo: "" });
+  const { query, campo: fCampo } = busqueda;
 
   const fetch = useCallback(async () => {
     setLoading(true);
@@ -170,88 +163,19 @@ export const EmpleadosTab = forwardRef<EmpleadosTabHandle, Props>(({ soloPapeler
   }, [empleados, query, fCampo]);
 
   const hayFiltrosActivos = !!query;
-
-  const aplicarFiltros = () => {
-    setQuery(dQuery);
-    setFCampo(dCampo);
-  };
-
-  const limpiarFiltros = () => {
-    setDQuery("");
-    setDCampo("");
-    setQuery("");
-    setFCampo("");
-  };
-
-  // Reinicia a la página 1 cuando cambian los filtros aplicados. Se ajusta
-  // durante el render (patrón de React para "resetear estado cuando cambia
-  // una dependencia"), no en un efecto: evita un render extra innecesario.
-  const filtrosKey = `${query}|${fCampo}`;
-  const [prevFiltrosKey, setPrevFiltrosKey] = useState(filtrosKey);
-  if (filtrosKey !== prevFiltrosKey) {
-    setPrevFiltrosKey(filtrosKey);
-    setPage(1);
-  }
-
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const pageSafe = Math.min(page, totalPages);
-  const paginados = useMemo(
-    () => filtered.slice((pageSafe - 1) * PAGE_SIZE, pageSafe * PAGE_SIZE),
-    [filtered, pageSafe]
-  );
+  const { pagina, totalPages, paginados, numero, setPage } = usePaginacion(filtered, PAGE_SIZE, `${query}|${fCampo}`);
 
   return (
     <div className="space-y-2">
-      {/* Filtros */}
-      <div className="flex flex-wrap items-end gap-3 rounded-lg border bg-card p-2 shadow-sm">
-        <div>
-          <Select
-            items={[
-              { value: "__all__", label: "Todos los campos" },
-              { value: "cargo", label: "Cargo" },
-              { value: "area", label: "Área" },
-              ...(!soloPapelera ? [{ value: "estado", label: "Estado" }] : []),
-            ]}
-            value={dCampo || "__all__"}
-            onValueChange={(v) => setDCampo(v === "__all__" || v == null ? "" : v)}
-          >
-            <SelectTrigger className="w-full sm:w-44">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                <SelectItem value="__all__">Todos los campos</SelectItem>
-                <SelectItem value="cargo">Cargo</SelectItem>
-                <SelectItem value="area">Área</SelectItem>
-                {!soloPapelera && <SelectItem value="estado">Estado</SelectItem>}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="min-w-[220px] flex-1">
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              type="text"
-              value={dQuery}
-              onChange={(e) => setDQuery(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && aplicarFiltros()}
-              placeholder="Buscar..."
-              className="pl-9"
-            />
-          </div>
-        </div>
-        <Button onClick={aplicarFiltros}>
-          <Search className="h-4 w-4" />
-          Buscar
-        </Button>
-        {hayFiltrosActivos && (
-          <Button variant="outline" onClick={limpiarFiltros} title="Limpiar filtros">
-            <FilterX className="h-4 w-4" />
-            Limpiar
-          </Button>
-        )}
-      </div>
+      <FiltroBuscarPor
+        campos={[
+          { value: "cargo", label: "Cargo" },
+          { value: "area", label: "Área" },
+          ...(!soloPapelera ? [{ value: "estado", label: "Estado" }] : []),
+        ]}
+        activo={hayFiltrosActivos}
+        onAplicar={setBusqueda}
+      />
 
       {loading ? (
         <PageSpinner />
@@ -289,7 +213,7 @@ export const EmpleadosTab = forwardRef<EmpleadosTabHandle, Props>(({ soloPapeler
             <TableBody>
             {paginados.map((e, i) => (
               <TableRow key={e.id}>
-                <TableCell>{(pageSafe - 1) * PAGE_SIZE + i + 1}</TableCell>
+                <TableCell>{numero(i)}</TableCell>
                 <TableCell>
                   <div className="flex items-center">
                     <div className="mr-3 flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary">
@@ -361,7 +285,7 @@ export const EmpleadosTab = forwardRef<EmpleadosTabHandle, Props>(({ soloPapeler
 
           {totalPages > 1 && (
             <div className="flex justify-end">
-              <SimplePagination page={pageSafe} totalPages={totalPages} onPageChange={setPage} />
+              <SimplePagination page={pagina} totalPages={totalPages} onPageChange={setPage} />
             </div>
           )}
         </>
