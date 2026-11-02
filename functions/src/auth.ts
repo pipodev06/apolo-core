@@ -50,7 +50,8 @@ async function resetearPassword(request: CallableRequest, datos: Datos) {
 
   const user = (await getFirestore().collection("users").doc(userId).get()).data();
   if (!user) throw new HttpsError("not-found", "Usuario no encontrado.");
-  if ((user.role === "super_admin" || user.protegida === true) && rol !== "super_admin") {
+  // Un admin solo gestiona cuentas "usuario" no protegidas (mismo criterio que firestore.rules).
+  if ((user.role !== "usuario" || user.protegida === true) && rol !== "super_admin") {
     throw new HttpsError("permission-denied", "Solo un super admin puede cambiar la contraseña de esta cuenta.");
   }
 
@@ -115,7 +116,7 @@ async function eliminarCuenta(request: CallableRequest, datos: Datos) {
       "Solo se puede eliminar definitivamente una cuenta que ya está en la papelera."
     );
   }
-  if ((data.role === "super_admin" || data.protegida === true) && rol !== "super_admin") {
+  if ((data.role !== "usuario" || data.protegida === true) && rol !== "super_admin") {
     throw new HttpsError("permission-denied", "Solo un super admin puede eliminar esta cuenta.");
   }
 

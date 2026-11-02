@@ -29,9 +29,11 @@ interface Props {
   open: boolean;
   onClose: () => void;
   onCreated: () => void;
+  // Solo un super_admin crea cuentas admin (firestore.rules).
+  esSuperAdminActual: boolean;
 }
 
-export const NuevoUsuarioModal: React.FC<Props> = ({ open, onClose, onCreated }) => {
+export const NuevoUsuarioModal: React.FC<Props> = ({ open, onClose, onCreated, esSuperAdminActual }) => {
   const { empleados: todosEmpleados } = useCatalogos();
   const empleados = useMemo(() => todosEmpleados.filter((e) => e.activo), [todosEmpleados]);
   const {
@@ -113,7 +115,7 @@ export const NuevoUsuarioModal: React.FC<Props> = ({ open, onClose, onCreated })
                   id="role"
                   opciones={[
                     { value: "usuario", label: "Usuario" },
-                    { value: "admin", label: "Administrador" },
+                    ...(esSuperAdminActual ? [{ value: "admin", label: "Administrador" }] : []),
                   ]}
                   value={field.value}
                   onChange={field.onChange}

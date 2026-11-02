@@ -3,7 +3,8 @@ import { onDocumentCreated } from "firebase-functions/v2/firestore";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { defineSecret } from "firebase-functions/params";
 import { initializeApp } from "firebase-admin/app";
-import { getFirestore } from "firebase-admin/firestore";
+import { Timestamp, getFirestore } from "firebase-admin/firestore";
+import * as logger from "firebase-functions/logger";
 import { analizarYAsignar } from "./analizar";
 
 import { requireAdmin } from "./auth";
@@ -13,6 +14,10 @@ export { adminCuentas } from "./auth";
 initializeApp();
 
 const GROQ_API_KEY = defineSecret("GROQ_API_KEY");
+
+// Máximo de tickets por usuario por hora que la IA analiza solos; los que
+// pasen quedan sin asignar (un admin puede asignarlos o usar "Analizar con IA").
+const MAX_TICKETS_IA_POR_HORA = 10;
 
 export const asignarTicketIA = onDocumentCreated(
   { document: "tickets/{ticketId}", secrets: [GROQ_API_KEY] },
@@ -27,7 +32,27 @@ export const asignarTicketIA = onDocumentCreated(
 
     const configDoc = await db.collection("config").doc("app").get();
     const config = configDoc.data();
-    if (config?.assignmentMode !== "ia") return;
+    if (config?.assignmentMode !== "ia") {
+      logger.info(`Ticket ${snap.id}: asignación en modo manual, no se analiza con IA`);
+      return;
+    }
+
+    // Tope anti-abuso: si quien lo creó ya hizo demasiados tickets en la
+    // última hora, no se gasta la IA (la cuota diaria de Groq es compartida).
+    // count() cuesta 1 lectura por cada 1,000 tickets, no lee los documentos.
+    const haceUnaHora = Timestamp.fromMillis(Date.now() - 60 * 60 * 1000);
+    const recientes = await db
+      .collection("tickets")
+      .where("createdBy", "==", ticket.createdBy)
+      .where("createdAt", ">=", haceUnaHora)
+      .count()
+      .get();
+    if (recientes.data().count > MAX_TICKETS_IA_POR_HORA) {
+      logger.warn(
+        `Ticket ${snap.id}: ${ticket.createdBy} creó más de ${MAX_TICKETS_IA_POR_HORA} tickets en la última hora, no se analiza con IA`
+      );
+      return;
+    }
 
     await analizarYAsignar({
       db,

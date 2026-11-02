@@ -29,17 +29,16 @@ export const UsuariosTab: React.FC<Props> = ({ soloPapelera = false }) => {
   const { user: currentUser } = useAuth();
   const soySuperAdmin = esSuperAdmin(currentUser?.role);
   const puedeEditarUsername = soySuperAdmin;
-  // Lo mismo que exigen firestore.rules y las Functions: un admin no puede
-  // tocar a un super_admin ni a una cuenta protegida. Se deshabilita en la UI
-  // para no ofrecer acciones que después fallan al guardar.
-  const motivoBloqueo = (u: User) =>
-    soySuperAdmin
-      ? undefined
-      : esSuperAdmin(u.role)
-        ? "Solo un super admin puede modificar esta cuenta"
-        : u.protegida
-          ? "Cuenta protegida: solo un super admin puede modificarla"
-          : undefined;
+  // Lo mismo que exigen firestore.rules y las Functions: un admin solo
+  // gestiona cuentas "usuario" no protegidas (las admin y super_admin, solo
+  // un super_admin; su propia cuenta la puede editar sin cambiarse el rol).
+  // Se deshabilita en la UI para no ofrecer acciones que después fallan.
+  const motivoBloqueo = (u: User) => {
+    if (soySuperAdmin || u.id === currentUser?.userId) return undefined;
+    if (esAdmin(u.role)) return "Solo un super admin puede modificar cuentas de administrador";
+    if (u.protegida) return "Cuenta protegida: solo un super admin puede modificarla";
+    return undefined;
+  };
 
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
@@ -253,7 +252,12 @@ export const UsuariosTab: React.FC<Props> = ({ soloPapelera = false }) => {
 
       {!soloPapelera && (
         <>
-          <NuevoUsuarioModal open={showNuevo} onClose={() => setShowNuevo(false)} onCreated={fetchUsers} />
+          <NuevoUsuarioModal
+            open={showNuevo}
+            onClose={() => setShowNuevo(false)}
+            onCreated={fetchUsers}
+            esSuperAdminActual={soySuperAdmin}
+          />
           <EditarPasswordModal
             open={!!editandoPassword}
             onClose={() => setEditandoPassword(null)}
