@@ -101,15 +101,27 @@ export async function analizarYAsignar(params: AnalizarYAsignarParams): Promise<
 
   const empleados = empleadosSnap.docs.map((d) => ({ id: d.id, nombre: d.data().nombre as string }));
 
-  const ticketsAbiertosSnap = await db.collection("tickets").where("status", "in", OPEN_STATUSES).get();
-  const cargaPorEmpleado = new Map<string, number>();
-  for (const t of ticketsAbiertosSnap.docs) {
-    if (t.id === ticketId) continue; // no contar la asignación previa del propio ticket al reanalizar
-    if (t.data().deletedAt) continue; // no contar tickets en la papelera como carga real
-    const asignado = t.data().assignedTo as string | undefined;
-    if (!asignado) continue;
-    cargaPorEmpleado.set(asignado, (cargaPorEmpleado.get(asignado) ?? 0) + 1);
-  }
+  // Carga = tickets abiertos (asignado/en_proceso, fuera de la papelera) de
+  // cada técnico del área, con count(): cuesta ~1 lectura por técnico en vez
+  // de leer todos los tickets abiertos (que crecía con el volumen). Necesita
+  // el índice tickets(assignedTo, deletedAt, status).
+  const conteos = await Promise.all(
+    empleados.map((e) =>
+      db
+        .collection("tickets")
+        .where("assignedTo", "==", e.id)
+        .where("deletedAt", "==", null)
+        .where("status", "in", OPEN_STATUSES)
+        .count()
+        .get()
+    )
+  );
+  // Al reanalizar, el propio ticket ya cuenta en la carga de su técnico
+  // actual: se descuenta para no penalizarlo por la asignación que se revisa.
+  const propioAbierto = !!assignedToActual && OPEN_STATUSES.includes(statusActual ?? "") && !ticket.deletedAt;
+  const cargaPorEmpleado = new Map(
+    empleados.map((e, i) => [e.id, conteos[i].data().count - (propioAbierto && e.id === assignedToActual ? 1 : 0)])
+  );
 
   const cargaDe = (id: string) => cargaPorEmpleado.get(id) ?? 0;
   empleados.sort((a, b) => {
