@@ -3,13 +3,13 @@ import {
   addDoc,
   getDocs,
   doc,
+  deleteDoc,
   updateDoc,
   query,
   orderBy,
   serverTimestamp,
 } from "firebase/firestore";
-import { httpsCallable } from "firebase/functions";
-import { db, functions } from "../firebase";
+import { db } from "../firebase";
 import type { Empleado } from "../types/empleado";
 
 type EmpleadoInput = Pick<Empleado, "nombre" | "cargo" | "area" | "email" | "telefono" | "activo">;
@@ -67,8 +67,8 @@ export const empleadosService = {
     await updateDoc(doc(db, "personal", id), { deletedAt: null, updatedAt: serverTimestamp() });
   },
 
+  // Las reglas solo lo permiten a un admin y sobre algo que ya está en la papelera.
   eliminarDefinitivo: async (id: string) => {
-    const fn = httpsCallable(functions, "eliminarDefinitivo");
-    await fn({ coleccion: "personal", id });
+    await deleteDoc(doc(db, "personal", id));
   },
 };

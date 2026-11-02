@@ -1,3 +1,4 @@
+import "./opciones";
 import { onDocumentCreated } from "firebase-functions/v2/firestore";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { getAuth } from "firebase-admin/auth";
@@ -8,9 +9,7 @@ import { analizarYAsignar } from "./analizar";
 
 import { requireAdmin } from "./auth";
 
-export { login, setupInicial, estadoSistema, crearUsuario, cambiarPassword, revocarSesionesUsuario } from "./auth";
-export { cargarCategoriasBase } from "./categorias";
-export { registrarCambiosTicket, notificarEvento, notificarTicketNuevo, expirarNotificacionLeida } from "./historial";
+export { resetearPassword, cambiarUsername } from "./auth";
 
 initializeApp();
 
@@ -35,12 +34,9 @@ export const asignarTicketIA = onDocumentCreated(
       db,
       ticketId: snap.id,
       ticketRef: snap.ref,
-      title: ticket.title ?? "",
-      description: ticket.description ?? "",
+      ticket,
       apiKey: GROQ_API_KEY.value(),
       maxTicketsAbiertos: typeof config.maxTicketsAbiertos === "number" ? config.maxTicketsAbiertos : undefined,
-      statusActual: ticket.status,
-      categoriaActual: ticket.categoria,
     });
   }
 );
@@ -50,7 +46,7 @@ export const asignarTicketIA = onDocumentCreated(
 // o por IA (reasigna, sobrescribiendo area/assignedTo/assignedAt). Se invoca a demanda
 // desde el detalle del ticket, sin depender del modo global.
 export const reanalizarTicketIA = onCall({ secrets: [GROQ_API_KEY] }, async (request) => {
-  requireAdmin(request);
+  await requireAdmin(request);
 
   const ticketId = request.data?.ticketId;
   if (!ticketId || typeof ticketId !== "string") {
@@ -76,68 +72,46 @@ export const reanalizarTicketIA = onCall({ secrets: [GROQ_API_KEY] }, async (req
     db,
     ticketId,
     ticketRef,
-    title: ticket.title ?? "",
-    description: ticket.description ?? "",
+    ticket,
     apiKey: GROQ_API_KEY.value(),
     maxTicketsAbiertos: typeof config?.maxTicketsAbiertos === "number" ? config.maxTicketsAbiertos : undefined,
-    statusActual: ticket.status,
-    assignedToActual: ticket.assignedTo,
-    categoriaActual: ticket.categoria,
   });
 });
 
-// Colecciones de Papelera con soft-delete (deletedAt): las reglas de Firestore
-// prohíben `delete` desde el cliente en todas ellas a propósito (allow delete: if
-// false), así que "eliminar definitivamente" solo puede hacerse aquí, vía Admin SDK.
-const COLECCIONES_PAPELERA = ["users", "tickets", "personal", "cargos", "areas", "categorias"] as const;
-type ColeccionPapelera = (typeof COLECCIONES_PAPELERA)[number];
+// Borrado definitivo de una cuenta que ya está en la papelera: además del
+// doc en users se lleva su matriz de accesos y su usuario de Firebase Auth
+// (así no queda ninguna sesión viva y el nombre de usuario se libera). Lo
+// demás de la papelera (tickets, personal, catálogos) se borra desde el
+// cliente: las reglas lo permiten a un admin si el doc tiene deletedAt.
+export const eliminarCuenta = onCall(async (request) => {
+  const rol = await requireAdmin(request);
 
-export const eliminarDefinitivo = onCall(async (request) => {
-  requireAdmin(request);
-
-  const coleccion = request.data?.coleccion;
   const id = request.data?.id;
-  if (
-    typeof coleccion !== "string" ||
-    !COLECCIONES_PAPELERA.includes(coleccion as ColeccionPapelera) ||
-    typeof id !== "string" ||
-    !id
-  ) {
-    throw new HttpsError("invalid-argument", "Faltan datos válidos (coleccion, id).");
+  if (typeof id !== "string" || !id) {
+    throw new HttpsError("invalid-argument", "Falta el id de la cuenta.");
   }
 
   const db = getFirestore();
-  const ref = db.collection(coleccion).doc(id);
+  const ref = db.collection("users").doc(id);
   const snap = await ref.get();
   if (!snap.exists) {
-    throw new HttpsError("not-found", "El documento no existe.");
+    throw new HttpsError("not-found", "La cuenta no existe.");
   }
-  // Solo se permite el borrado físico de algo que ya pasó por el soft-delete
-  // primero (papelera) — evita que "eliminar definitivo" se use como atajo
-  // para saltarse el flujo normal de papelera sobre un doc activo.
-  if (!snap.data()?.deletedAt) {
+  const data = snap.data();
+  if (!data?.deletedAt) {
     throw new HttpsError(
       "failed-precondition",
-      "Solo se puede eliminar definitivamente algo que ya está en la papelera."
+      "Solo se puede eliminar definitivamente una cuenta que ya está en la papelera."
     );
   }
-
-  if (coleccion === "users") {
-    const data = snap.data();
-    if ((data?.role === "super_admin" || data?.protegida === true) && request.auth?.token?.role !== "super_admin") {
-      throw new HttpsError("permission-denied", "Solo un super admin puede eliminar esta cuenta.");
-    }
+  if ((data.role === "super_admin" || data.protegida === true) && rol !== "super_admin") {
+    throw new HttpsError("permission-denied", "Solo un super admin puede eliminar esta cuenta.");
   }
 
   await ref.delete();
-  // Una cuenta borrada se lleva su credencial, su matriz de accesos y su
-  // usuario de Firebase Auth (así no queda ninguna sesión viva).
-  if (coleccion === "users") {
-    await Promise.all([
-      db.collection("credenciales").doc(id).delete(),
-      db.collection("access").doc(id).delete(),
-      getAuth().deleteUser(id).catch(() => {}),
-    ]);
-  }
+  await Promise.all([
+    db.collection("access").doc(id).delete(),
+    getAuth().deleteUser(id).catch(() => {}),
+  ]);
   return { ok: true };
 });

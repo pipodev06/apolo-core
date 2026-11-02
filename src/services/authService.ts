@@ -1,39 +1,43 @@
-import { getDoc, doc, terminate, clearIndexedDbPersistence } from "firebase/firestore";
+import { getDoc, doc, runTransaction, serverTimestamp, terminate, clearIndexedDbPersistence } from "firebase/firestore";
 import { httpsCallable } from "firebase/functions";
-import { signInWithCustomToken, signOut } from "firebase/auth";
+import {
+  EmailAuthProvider,
+  createUserWithEmailAndPassword,
+  reauthenticateWithCredential,
+  signInWithEmailAndPassword,
+  signOut,
+  updatePassword,
+} from "firebase/auth";
 import { auth, db, functions } from "../firebase";
-
-interface LoginResult {
-  customToken: string;
-  userId: string;
-  username: string;
-  role: string;
-  personalId?: string;
-}
+import { emailDeUsuario, mensajeErrorAuth, seccionesIniciales } from "../lib/cuentas";
+import { cargarCategoriasBase } from "./catalogosService";
 
 export const authService = {
-  // La verificación de usuario/contraseña ocurre en la Cloud Function "login"
-  // (server-side, contra `credenciales/{userId}`). signInWithCustomToken
-  // deja a Firebase Auth con un rol verificable en request.auth.token.role,
-  // que las Cloud Functions sensibles (p. ej. reanalizarTicketIA) usan para
-  // autorizar — a diferencia del "role" cacheado abajo en localStorage, que
-  // solo sirve para pintar la UI y no es una fuente de autorización confiable.
+  // Login nativo de Firebase Auth (email interno derivado del usuario). El
+  // rol y el vínculo a personal/ salen del doc users/{uid}, que también es
+  // lo que leen las reglas: una cuenta desactivada o en papelera no entra.
   login: async (username: string, password: string) => {
-    const fn = httpsCallable<{ username: string; password: string }, LoginResult>(functions, "login");
-    let data: LoginResult;
+    let uid: string;
     try {
-      ({ data } = await fn({ username, password }));
+      ({ user: { uid } } = await signInWithEmailAndPassword(auth, emailDeUsuario(username), password));
     } catch (error) {
-      throw new Error(error instanceof Error ? error.message : "Error al iniciar sesión", { cause: error });
+      throw new Error(mensajeErrorAuth(error), { cause: error });
     }
 
-    await signInWithCustomToken(auth, data.customToken);
+    // Una cuenta inactiva no puede leer ni su propio doc (reglas): cae al catch.
+    const data = await getDoc(doc(db, "users", uid))
+      .then((snap) => snap.data())
+      .catch(() => undefined);
+    if (!data || data.active !== true || data.deletedAt) {
+      await signOut(auth);
+      throw new Error("Tu cuenta está desactivada. Habla con un administrador.");
+    }
 
     const session = {
-      userId: data.userId,
-      username: data.username,
-      role: data.role,
-      personalId: data.personalId,
+      userId: uid,
+      username: data.username as string,
+      role: data.role as string,
+      personalId: data.personalId as string | undefined,
       expiresAt: Date.now() + 1000 * 60 * 60 * 12, // 12 hours
     };
 
@@ -63,39 +67,92 @@ export const authService = {
   getSession: () => {
     const sessionStr = localStorage.getItem("session");
     if (!sessionStr) return null;
-    
+
     const session = JSON.parse(sessionStr);
     if (Date.now() > session.expiresAt) {
       localStorage.removeItem("session");
       return null;
     }
-    
+
     return session;
   },
 
-  // El primer super_admin + config/app los crea la Cloud Function
-  // setupInicial (hashea la contraseña server-side; falla si ya hay setup).
+  // Crea el primer super_admin: la cuenta en Auth y, en una transacción,
+  // config/app + users + access + publico/estado. Las reglas solo lo
+  // permiten mientras config/app no exista; si otro setup ganó la carrera,
+  // se borra la cuenta recién creada.
   setupInitialAdmin: async (data: { username: string; password: string; email?: string }) => {
-    const fn = httpsCallable(functions, "setupInicial");
-    await fn(data);
+    let cred;
+    try {
+      cred = await createUserWithEmailAndPassword(auth, emailDeUsuario(data.username), data.password);
+    } catch (error) {
+      throw new Error(mensajeErrorAuth(error), { cause: error });
+    }
+    const uid = cred.user.uid;
+
+    try {
+      await runTransaction(db, async (tx) => {
+        const estadoRef = doc(db, "publico", "estado");
+        if ((await tx.get(estadoRef)).exists()) throw new Error("El sistema ya fue inicializado.");
+        tx.set(doc(db, "config", "app"), {
+          ticketCounter: 0,
+          series: "TK01",
+          assignmentMode: "manual",
+          maxTicketsAbiertos: 5,
+          updatedAt: serverTimestamp(),
+        });
+        tx.set(doc(db, "users", uid), {
+          username: data.username.trim(),
+          email: data.email ?? "",
+          role: "super_admin",
+          active: true,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
+        tx.set(doc(db, "access", uid), {
+          userId: uid,
+          sections: seccionesIniciales("super_admin"),
+          updatedAt: serverTimestamp(),
+        });
+        tx.set(estadoRef, { inicializado: true });
+      });
+    } catch (error) {
+      await cred.user.delete().catch(() => {});
+      throw error;
+    }
+
+    // Ya es super_admin: siembra las categorías base. Si falla, quedan
+    // disponibles con el botón de Administración → Categorías.
+    await cargarCategoriasBase().catch(() => {});
+    await signOut(auth);
   },
 
   // Sin userId: cambia la contraseña propia (exige la actual). Con userId:
-  // reset por admin.
+  // reset por admin, que necesita la Admin SDK (Cloud Function).
   cambiarPassword: async (data: { passwordNueva: string; passwordActual?: string; userId?: string }) => {
-    const fn = httpsCallable(functions, "cambiarPassword");
-    await fn(data);
+    if (data.userId) {
+      const fn = httpsCallable(functions, "resetearPassword");
+      await fn({ userId: data.userId, passwordNueva: data.passwordNueva });
+      return;
+    }
+    const user = auth.currentUser;
+    if (!user?.email) throw new Error("Sesión requerida.");
+    try {
+      await reauthenticateWithCredential(user, EmailAuthProvider.credential(user.email, data.passwordActual ?? ""));
+    } catch {
+      throw new Error("La contraseña actual no es correcta.");
+    }
+    try {
+      await updatePassword(user, data.passwordNueva);
+    } catch (error) {
+      throw new Error(mensajeErrorAuth(error), { cause: error });
+    }
   },
 
   // ¿Ya se corrió el setup? Se lee `publico/estado`, la única lectura sin
-  // sesión que permiten las reglas (config/app y users exigen sesión).
+  // sesión que permiten las reglas.
   appEstaInicializada: async () => {
     const snap = await getDoc(doc(db, "publico", "estado"));
-    if (snap.exists()) return snap.data().inicializado === true;
-    // Sin la marca (instalación nueva, o previa a esta marca): la Function
-    // lo deduce de config/app y crea la marca si corresponde.
-    const fn = httpsCallable<void, { inicializado: boolean }>(functions, "estadoSistema");
-    const { data } = await fn();
-    return data.inicializado;
-  }
+    return snap.exists() && snap.data().inicializado === true;
+  },
 };

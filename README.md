@@ -8,10 +8,10 @@ Es una app **single-tenant**: cada empresa usa su propio proyecto de Firebase.
 
 ## Stack
 - Frontend: React 19, Vite 8, TypeScript, TailwindCSS v4, shadcn/ui, Recharts
-- Backend (BaaS): Firebase — Firestore, Auth (custom tokens), Storage, Cloud Functions v2
+- Backend (BaaS): Firebase — Firestore, Auth (email/contraseña), Storage, Cloud Functions v2
 - Hosting del frontend: Vercel (`vercel.json`, build `pnpm run build` → `dist`)
 - IA de asignación: Groq, modelo `openai/gpt-oss-120b` (Cloud Functions `asignarTicketIA` / `reanalizarTicketIA`)
-- Contraseñas: bcrypt **server-side** en Cloud Functions; los hashes viven en `credenciales/`, sin acceso desde el cliente
+- Contraseñas: las guarda Firebase Auth. El login es por usuario; internamente cada cuenta usa el email `usuario@apolo.local`
 
 ## Desarrollo
 ```bash
@@ -54,7 +54,7 @@ Cada instalación usa **su propio proyecto Firebase**: no alcanza con clonar y c
 1. **Crea el proyecto** en [console.firebase.google.com](https://console.firebase.google.com) y, dentro de él:
    - **Firestore Database** → *Crear base de datos* (modo producción; las reglas se despliegan después).
    - **Storage** → *Comenzar* (crea el bucket).
-   - **Authentication** → *Comenzar*. No hace falta habilitar ningún proveedor: el login usa *custom tokens* emitidos por la Function `login`.
+   - **Authentication** → *Comenzar* → *Sign-in method* → habilita **Correo electrónico/contraseña**.
    - **Project Settings → General → Tus apps** → agrega una app **Web** para obtener el `firebaseConfig`.
 2. **Apunta el frontend a tu proyecto**: `cp .env.example .env` y completa las variables `VITE_FIREBASE_*` con ese `firebaseConfig`.
 3. **Apunta la CLI a tu proyecto**: `.firebaserc` trae el id del proyecto original. Reemplázalo por el tuyo o ejecuta `firebase use --add`.
@@ -63,30 +63,27 @@ Cada instalación usa **su propio proyecto Firebase**: no alcanza con clonar y c
    firebase functions:secrets:set GROQ_API_KEY
    ```
    Consigue la key en [console.groq.com](https://console.groq.com) → API Keys (alcanza el free tier). Si no vas a usar IA, carga cualquier valor y deja la asignación en modo **manual**.
-5. **Permiso para emitir tokens de login** (si no, el login falla con `iam.serviceAccounts.signBlob denied`). En [Google Cloud Console](https://console.cloud.google.com) del mismo proyecto:
-   - **APIs y servicios** → habilita **IAM Service Account Credentials API**.
-   - **IAM** → a la cuenta de servicio de las Functions (`<PROJECT_NUMBER>-compute@developer.gserviceaccount.com`) agrégale el rol **Creador de tokens de cuenta de servicio** (*Service Account Token Creator*).
-6. **Despliega reglas, índices, Storage y funciones** (siempre juntos, las reglas dependen de las funciones):
+5. **Despliega reglas, índices, Storage y funciones** (siempre juntos, las reglas dependen de las funciones):
    ```bash
    (cd functions && npm install)
    firebase deploy --only firestore:rules,firestore:indexes,storage,functions
    ```
-7. **Frontend**:
+6. **Frontend**:
    - Local: `pnpm install && pnpm dev`
    - Vercel: importa el repo y carga las mismas variables `VITE_FIREBASE_*` en *Project Settings → Environment Variables*.
-8. **Crea el primer usuario** (ver abajo).
+7. **Crea el primer usuario** (ver abajo).
 
 ### Primer usuario (super_admin)
 
 El sistema no trae usuarios precargados. **Haz este paso apenas despliegues**, porque hasta que se complete cualquiera que entre a `/setup` puede crear el primer super_admin:
 
 1. Abre la app. En una instalación nueva, `/login` redirige solo a **`/setup`**.
-2. Completa usuario (mín. 3 caracteres), contraseña (mín. 8) y email (opcional). La Cloud Function `setupInicial` crea en una sola operación:
-   - el usuario `super_admin` (`users/`, hash bcrypt en `credenciales/` y permisos en `access/`);
+2. Completa usuario (3 a 60 caracteres: letras, números, punto, guion o guion bajo), contraseña (mín. 8) y email (opcional). La app crea la cuenta en Firebase Auth y, en una sola transacción:
+   - el usuario `super_admin` (`users/` y permisos en `access/`);
    - la configuración inicial `config/app` (serie `TK01`, asignación manual, máx. 5 tickets abiertos por técnico);
    - la marca pública `publico/estado` (`inicializado: true`);
    - las [categorías sugeridas](#categorías-de-ticket).
-3. Desde ese momento `/setup` redirige a `/login` y la función rechaza cualquier otro intento.
+3. Desde ese momento `/setup` redirige a `/login` y las reglas de Firestore rechazan cualquier otro intento.
 4. El resto de cuentas se crean desde **Administración → Usuarios**.
 
 ### Cargar datos de ejemplo (para una demo)
@@ -104,8 +101,8 @@ Con el super_admin, en este orden:
 
 | Síntoma | Causa / solución |
 |---|---|
-| El login responde `internal` | Falta el permiso del paso 5. Revisa `firebase functions:log`. |
-| El login u otras acciones tardan unos segundos la primera vez | *Cold start* de Cloud Functions: arrancan en frío tras un rato sin uso. Las siguientes llamadas son rápidas (ver [Rendimiento](#rendimiento)). |
+| El login dice "Usuario o contraseña incorrectos" con datos correctos | Falta habilitar *Correo electrónico/contraseña* en Authentication (paso 1). |
+| Algunas acciones de admin (reanalizar con IA, eliminar definitivo, resetear contraseña) tardan unos segundos la primera vez | *Cold start* de Cloud Functions: arrancan en frío tras un rato sin uso. Las siguientes llamadas son rápidas (ver [Rendimiento](#rendimiento)). |
 | Una lista queda vacía o da error de índice | Faltó `firestore:indexes` en el deploy. |
 | El deploy de funciones pide `GROQ_API_KEY` | Falta el paso 4. |
 
@@ -138,7 +135,7 @@ Dónde se usan:
 
 ## Historial de actividad
 
-Cada ticket guarda automáticamente sus cambios (Function `registrarCambiosTicket`), con **quién** los hizo: un usuario o el *Asistente IA*.
+Cada ticket guarda automáticamente sus cambios (en la misma escritura que el cambio; los de la IA los registra su Function), con **quién** los hizo: un usuario o el *Asistente IA*.
 
 - Asignaciones: *Asignado a X*, *Reasignado de X a Y*, *Asignación removida*.
 - Estado y urgencia con el valor anterior y el nuevo: *Estado: Pendiente → Asignado*.

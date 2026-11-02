@@ -4,6 +4,7 @@ import {
   getDoc,
   getDocs,
   doc,
+  deleteDoc,
   updateDoc,
   query,
   where,
@@ -11,8 +12,7 @@ import {
   serverTimestamp,
   writeBatch,
 } from "firebase/firestore";
-import { httpsCallable } from "firebase/functions";
-import { db, functions } from "../firebase";
+import { db } from "../firebase";
 import type { Catalogo } from "../types/catalogo";
 
 // Firestore corta un WriteBatch a los 500 writes — se trocea por las dudas,
@@ -101,9 +101,9 @@ export function crearCatalogoService(coleccion: string, cascadas: Cascada[] = []
       await updateDoc(doc(db, coleccion, id), { deletedAt: null, updatedAt: serverTimestamp() });
     },
 
+    // Las reglas solo lo permiten a un admin y sobre algo que ya está en la papelera.
     eliminarDefinitivo: async (id: string) => {
-      const fn = httpsCallable(functions, "eliminarDefinitivo");
-      await fn({ coleccion, id });
+      await deleteDoc(doc(db, coleccion, id));
     },
   };
 }
@@ -117,9 +117,42 @@ export const areasService = crearCatalogoService("areas", [
 ]);
 export const categoriasService = crearCatalogoService("categorias", [{ coleccion: "tickets", campo: "categoria" }]);
 
-// Crea las categorías sugeridas que falten (Cloud Function, solo admins).
+// Categorías de ticket con las que arranca una instalación nueva. Cubren los
+// casos típicos de una mesa de ayuda de TI; se pueden renombrar, desactivar
+// o borrar desde Administración → Categorías.
+const CATEGORIAS_BASE = [
+  "Hardware",
+  "Software",
+  "Red e Internet",
+  "Impresoras y escáneres",
+  "Correo electrónico",
+  "Accesos y contraseñas",
+  "Telefonía",
+  "Sistemas internos",
+  "Seguridad informática",
+  "Solicitud de equipo",
+  "Otros",
+];
+
+// Crea las categorías base que falten (compara por nombre, sin importar
+// mayúsculas). No toca las existentes ni las que estén en la papelera.
+// Solo admins (reglas de categorias).
 export async function cargarCategoriasBase(): Promise<number> {
-  const fn = httpsCallable<void, { creadas: number }>(functions, "cargarCategoriasBase");
-  const { data } = await fn();
-  return data.creadas;
+  const existentes = await getDocs(collection(db, "categorias"));
+  const nombres = new Set(existentes.docs.map((d) => String(d.data().nombre ?? "").trim().toLowerCase()));
+  const faltantes = CATEGORIAS_BASE.filter((n) => !nombres.has(n.toLowerCase()));
+  if (faltantes.length === 0) return 0;
+
+  const batch = writeBatch(db);
+  for (const nombre of faltantes) {
+    batch.set(doc(collection(db, "categorias")), {
+      nombre,
+      activo: true,
+      deletedAt: null,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+  }
+  await batch.commit();
+  return faltantes.length;
 }

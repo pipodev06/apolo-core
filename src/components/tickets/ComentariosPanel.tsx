@@ -11,6 +11,7 @@ import { ImageUploader, ImageThumbnails, ImagenesAdjuntas } from "../ui/image-up
 import { fmtFechaHora } from "../../lib/fecha";
 import { notificarError } from "../../lib/alertas";
 import { useAuth } from "../../context/AuthContext";
+import { useAccess } from "../../context/AccessContext";
 import { cn } from "../../lib/cn";
 
 const LARGO_PREVIEW = 120;
@@ -21,6 +22,7 @@ export const ComentariosPanel: React.FC<{ ticketId: string; eventos: TicketEvent
   className,
 }) => {
   const { user } = useAuth();
+  const puedeSubirImagenes = useAccess().hasAccess("subirImagenes");
   const [texto, setTexto] = useState("");
   const [imagenes, setImagenes] = useState<string[]>([]);
   const [enviando, setEnviando] = useState(false);
@@ -105,14 +107,16 @@ export const ComentariosPanel: React.FC<{ ticketId: string; eventos: TicketEvent
             rows={1}
             className="min-h-9 flex-1 resize-none"
           />
-          <ImageUploader
-            value={imagenes}
-            onChange={setImagenes}
-            pathPrefix={`tickets/${ticketId}/comentarios`}
-            maxFiles={5}
-            variant="icon"
-            hideThumbnails
-          />
+          {puedeSubirImagenes && (
+            <ImageUploader
+              value={imagenes}
+              onChange={setImagenes}
+              pathPrefix={`tickets/${ticketId}/comentarios`}
+              maxFiles={5}
+              variant="icon"
+              hideThumbnails
+            />
+          )}
           <Button onClick={handleComentar} disabled={enviando || !texto.trim()} size="icon" aria-label="Enviar comentario">
             <Send className="h-4 w-4" />
           </Button>

@@ -8,9 +8,18 @@ import {
   onSnapshot,
   updateDoc,
   writeBatch,
+  Timestamp,
 } from "firebase/firestore";
 import { db } from "../firebase";
 import type { Notificacion } from "../types/notificacion";
+
+// Días que se conserva una notificación leída antes de que la borre la TTL
+// policy de Firestore (campo "expiraEn", se configura en la consola).
+const DIAS_RETENCION_LEIDAS = 7;
+const leida = () => ({
+  leida: true,
+  expiraEn: Timestamp.fromMillis(Date.now() + DIAS_RETENCION_LEIDAS * 24 * 60 * 60 * 1000),
+});
 
 export const notificacionesService = {
   watch: (userId: string, cb: (notificaciones: Notificacion[]) => void) => {
@@ -31,13 +40,14 @@ export const notificacionesService = {
   },
 
   marcarLeida: async (id: string) => {
-    await updateDoc(doc(db, "notificaciones", id), { leida: true });
+    await updateDoc(doc(db, "notificaciones", id), leida());
   },
 
   marcarTodasLeidas: async (ids: string[]) => {
     if (ids.length === 0) return;
     const batch = writeBatch(db);
-    ids.forEach((id) => batch.update(doc(db, "notificaciones", id), { leida: true }));
+    const datos = leida();
+    ids.forEach((id) => batch.update(doc(db, "notificaciones", id), datos));
     await batch.commit();
   },
 };

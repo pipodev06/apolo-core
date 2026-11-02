@@ -21,20 +21,7 @@ import { descargarCsv } from "../../lib/csv";
 import { AccionesFila } from "../../components/ui/acciones-fila";
 import { useAlturaScrollViewport } from "../../lib/useAlturaScrollViewport";
 import { TicketCard } from "../../components/tickets/TicketCard";
-
-const statusLabels: Record<TicketStatus, string> = {
-  pendiente: "Pendiente",
-  asignado: "Asignado",
-  en_proceso: "En Proceso",
-  terminado: "Terminado",
-};
-
-const urgencyLabels: Record<Urgency, string> = {
-  CRITICO: "Crítico",
-  ALTO: "Alto",
-  MEDIO: "Medio",
-  BAJO: "Bajo",
-};
+import { STATUS_LABELS, URGENCY_LABELS } from "../../lib/ticketStatus";
 
 const SIN_CATEGORIA = "__sin_categoria__";
 
@@ -165,8 +152,8 @@ export const TicketsList: React.FC<Props> = ({ soloPapelera = false }) => {
       filtered.map((t) => [
         t.code,
         t.title,
-        statusLabels[t.status],
-        urgencyLabels[t.urgency],
+        STATUS_LABELS[t.status],
+        URGENCY_LABELS[t.urgency],
         t.categoria ?? "",
         t.area ?? "",
         t.assignedTo ? empleadoNombre(t.assignedTo) || "Empleado eliminado" : "Sin asignar",
@@ -280,7 +267,7 @@ export const TicketsList: React.FC<Props> = ({ soloPapelera = false }) => {
         <div className="flex items-center gap-1.5">
           <span className="text-xs text-muted-foreground">Estado:</span>
           <Select
-            items={[{ value: "__all__", label: "Todos" }, ...Object.entries(statusLabels).map(([value, label]) => ({ value, label }))]}
+            items={[{ value: "__all__", label: "Todos" }, ...Object.entries(STATUS_LABELS).map(([value, label]) => ({ value, label }))]}
             value={dEstado || "__all__"}
             onValueChange={(v) => setDEstado(v === "__all__" || v == null ? "" : (v as TicketStatus))}
           >
@@ -290,7 +277,7 @@ export const TicketsList: React.FC<Props> = ({ soloPapelera = false }) => {
             <SelectContent>
               <SelectGroup>
                 <SelectItem value="__all__">Todos</SelectItem>
-                {Object.entries(statusLabels).map(([value, label]) => (
+                {Object.entries(STATUS_LABELS).map(([value, label]) => (
                   <SelectItem key={value} value={value}>
                     {label}
                   </SelectItem>
@@ -302,7 +289,7 @@ export const TicketsList: React.FC<Props> = ({ soloPapelera = false }) => {
         <div className="flex items-center gap-1.5">
           <span className="text-xs text-muted-foreground">Urgencia:</span>
           <Select
-            items={[{ value: "__all__", label: "Todas" }, ...Object.entries(urgencyLabels).map(([value, label]) => ({ value, label }))]}
+            items={[{ value: "__all__", label: "Todas" }, ...Object.entries(URGENCY_LABELS).map(([value, label]) => ({ value, label }))]}
             value={dUrgencia || "__all__"}
             onValueChange={(v) => setDUrgencia(v === "__all__" || v == null ? "" : (v as Urgency))}
           >
@@ -312,7 +299,7 @@ export const TicketsList: React.FC<Props> = ({ soloPapelera = false }) => {
             <SelectContent>
               <SelectGroup>
                 <SelectItem value="__all__">Todas</SelectItem>
-                {Object.entries(urgencyLabels).map(([value, label]) => (
+                {Object.entries(URGENCY_LABELS).map(([value, label]) => (
                   <SelectItem key={value} value={value}>
                     {label}
                   </SelectItem>

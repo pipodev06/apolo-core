@@ -38,6 +38,7 @@ export const AccesosTab: React.FC = () => {
           ...acc.sections,
           notificaciones: acc.sections.notificaciones ?? true,
           papelera: acc.sections.papelera ?? false,
+          subirImagenes: acc.sections.subirImagenes ?? false,
         },
       })));
     } catch {
@@ -51,9 +52,19 @@ export const AccesosTab: React.FC = () => {
     Promise.resolve().then(fetchData);
   }, []);
 
+  // "Subir imágenes" es el único permiso que también aplica a un admin, y
+  // ese solo lo cambia un super_admin (firestore.rules). El super_admin
+  // siempre puede subir.
+  const editableParaMi = (u: User | undefined, section: keyof AccessSections) =>
+    section === "subirImagenes" && u?.role === "admin" ? soySuperAdmin : !esAdmin(u?.role) && !bloqueadaParaMi(u);
+
   const handleToggle = (userId: string, section: keyof AccessSections) => {
     const user = users.find(u => u.id === userId);
-    if (esAdmin(user?.role)) {
+    if (user?.role === "admin" && section === "subirImagenes" && !soySuperAdmin) {
+      notificarError("Solo un super admin puede cambiar este permiso a un admin.");
+      return;
+    }
+    if (esAdmin(user?.role) && !editableParaMi(user, section)) {
       notificarError("Los roles admin y super admin siempre tienen todos los accesos.");
       return;
     }
@@ -81,7 +92,9 @@ export const AccesosTab: React.FC = () => {
     try {
       const promises = accessList.map(acc => {
         const user = users.find(u => u.id === acc.userId);
-        if (esAdmin(user?.role) || bloqueadaParaMi(user)) return Promise.resolve();
+        // De un admin solo importa "subirImagenes", y solo lo guarda un super_admin.
+        const guardable = user?.role === "admin" ? soySuperAdmin : !esAdmin(user?.role) && !bloqueadaParaMi(user);
+        if (!guardable) return Promise.resolve();
         const sections = {
           dashboard: !!acc.sections?.dashboard,
           tickets: !!acc.sections?.tickets,
@@ -90,6 +103,7 @@ export const AccesosTab: React.FC = () => {
           notificaciones: !!acc.sections?.notificaciones,
           papelera: !!acc.sections?.papelera,
           historico: !!acc.sections?.historico,
+          subirImagenes: !!acc.sections?.subirImagenes,
         };
         return accessService.updateAccess(acc.userId, sections);
       });
@@ -123,6 +137,7 @@ export const AccesosTab: React.FC = () => {
             <TableHead className="text-center">Notificaciones</TableHead>
             <TableHead className="text-center">Papelera</TableHead>
             <TableHead className="text-center">Histórico</TableHead>
+            <TableHead className="text-center">Subir imágenes</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -192,6 +207,14 @@ export const AccesosTab: React.FC = () => {
                   checked={elevado || access?.sections.historico || false}
                   disabled={bloqueado}
                   onCheckedChange={() => handleToggle(user.id, "historico")}
+                />
+              </TableCell>
+              <TableCell className="text-center">
+                <Checkbox
+                  className="mx-auto"
+                  checked={esSuperAdmin(user.role) || access?.sections.subirImagenes || false}
+                  disabled={!editableParaMi(user, "subirImagenes")}
+                  onCheckedChange={() => handleToggle(user.id, "subirImagenes")}
                 />
               </TableCell>
             </TableRow>

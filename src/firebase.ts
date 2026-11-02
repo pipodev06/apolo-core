@@ -2,7 +2,7 @@
 import { initializeApp } from "firebase/app";
 import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from "firebase/firestore";
 import { getFunctions } from "firebase/functions";
-import { getAuth } from "firebase/auth";
+import { getAuth, initializeAuth, inMemoryPersistence, type Auth } from "firebase/auth";
 import { getStorage } from "firebase/storage";
 
 // Your web app's Firebase configuration
@@ -28,4 +28,13 @@ const functions = getFunctions(app);
 const auth = getAuth(app);
 const storage = getStorage(app);
 
-export { app, db, functions, auth, storage };
+// Segunda instancia de Auth, solo para que un admin cree cuentas: si se
+// creara con `auth`, Firebase cambiaría la sesión del admin a la cuenta
+// nueva. En memoria, sin persistir nada en el navegador.
+let authCuentas: Auth | null = null;
+const getAuthCuentas = () => {
+  authCuentas ??= initializeAuth(initializeApp(firebaseConfig, "cuentas"), { persistence: inMemoryPersistence });
+  return authCuentas;
+};
+
+export { app, db, functions, auth, storage, getAuthCuentas };

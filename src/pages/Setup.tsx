@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
+import { USERNAME_REGEX, USERNAME_MENSAJE } from "../lib/cuentas";
 import { useNavigate } from "react-router-dom";
 import { IconShieldCheck as ShieldCheck } from "@tabler/icons-react";
 import { authService } from "../services/authService";
@@ -12,7 +13,7 @@ import { notificarExito, notificarError } from "../lib/alertas";
 import { PasswordInput } from "../components/ui/password-input";
 
 const setupSchema = z.object({
-  username: z.string().min(3, "Mínimo 3 caracteres"),
+  username: z.string().trim().regex(USERNAME_REGEX, USERNAME_MENSAJE),
   password: z.string().min(8, "Mínimo 8 caracteres"),
   confirmPassword: z.string(),
   email: z.string().email("Email inválido").optional().or(z.literal("")),

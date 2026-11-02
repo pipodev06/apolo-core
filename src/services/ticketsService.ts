@@ -1,6 +1,7 @@
 import {
   collection,
   getDoc,
+  getDocs,
   doc,
   updateDoc,
   query,
@@ -9,16 +10,39 @@ import {
   serverTimestamp,
   runTransaction,
   onSnapshot,
+  writeBatch,
   type UpdateData
 } from "firebase/firestore";
 import { httpsCallable } from "firebase/functions";
-import { auth, db, functions } from "../firebase";
+import { ref, deleteObject } from "firebase/storage";
+import { auth, db, functions, storage } from "../firebase";
 import type { Ticket } from "../types/ticket";
 import { generateTicketCode } from "../lib/ticketNumber";
 import { esAdmin } from "../lib/roles";
+import { IA_CREATED_BY, cambiosDeTicket, mensajeTicketNuevo, truncar } from "../lib/historial";
+import {
+  adminsActivos,
+  agregarEvento,
+  agregarNotificaciones,
+  nombresDeEmpleados,
+  usuariosDeEmpleado,
+} from "./historialService";
+
+const MAX_ADMINS_AVISADOS = 10;
+
+// Quién está logueado, para firmar cambios y no notificarse a sí mismo.
+function actorActual() {
+  const sesion = JSON.parse(localStorage.getItem("session") || "null") as { username?: string } | null;
+  const uid = auth.currentUser?.uid;
+  return uid && sesion?.username ? { id: uid, nombre: sesion.username } : null;
+}
 
 export const ticketsService = {
+  // Crea el ticket y, en la misma transacción, avisa a los admins activos.
+  // Máximo MAX_ADMINS_AVISADOS: cada aviso cuesta una lectura en las reglas
+  // y una transacción tiene un tope de 20.
   create: async (data: Omit<Ticket, "id" | "order" | "code" | "createdAt" | "updatedAt">) => {
+    const admins = (await adminsActivos()).filter((a) => a !== data.createdBy).slice(0, MAX_ADMINS_AVISADOS);
     return await runTransaction(db, async (transaction) => {
       const configRef = doc(db, "config", "app");
       const configDoc = await transaction.get(configRef);
@@ -45,6 +69,11 @@ export const ticketsService = {
 
       transaction.set(ticketRef, newTicket);
       transaction.update(configRef, { ticketCounter: nextOrder });
+      agregarNotificaciones(transaction, admins, data.createdBy, {
+        ticketId: ticketRef.id,
+        ticketCode: code,
+        mensaje: mensajeTicketNuevo(data.title),
+      });
 
       return { id: ticketRef.id, ...newTicket };
     });
@@ -111,17 +140,18 @@ export const ticketsService = {
     });
   },
 
+  // Actualiza el ticket y, en el mismo batch, escribe su historial (estado,
+  // urgencia, categoría, asignación, solución) y notifica: al creador todo,
+  // al técnico asignado solo su asignación.
   update: async (id: string, data: Partial<Ticket>) => {
     const ticketRef = doc(db, "tickets", id);
     // Firma del cambio, para que el historial muestre quién lo hizo
     // (las reglas exigen que id/nombre sean los de la sesión).
-    const sesion = JSON.parse(localStorage.getItem("session") || "null") as { username?: string } | null;
-    const uid = auth.currentUser?.uid;
+    const actor = actorActual();
+    if (!actor) throw new Error("Sesión requerida. Vuelve a iniciar sesión.");
     const updateData: UpdateData<Ticket> = {
       ...data,
-      ...(uid && sesion?.username
-        ? { modificadoPor: { tipo: "usuario", id: uid, nombre: sesion.username, en: serverTimestamp() } }
-        : {}),
+      modificadoPor: { tipo: "usuario", id: actor.id, nombre: actor.nombre, en: serverTimestamp() },
       updatedAt: serverTimestamp(),
     };
 
@@ -134,7 +164,38 @@ export const ticketsService = {
       updateData.finishedAt = null;
     }
 
-    await updateDoc(ticketRef, updateData);
+    const antes = (await getDoc(ticketRef)).data() as Ticket | undefined;
+    if (!antes) throw new Error("Ticket no encontrado");
+    const despues = { ...antes, ...data };
+    const nombre = await nombresDeEmpleados([antes.assignedTo, despues.assignedTo]);
+    const cambios = cambiosDeTicket(antes, despues, nombre);
+    const asignacion = cambios.find((c) => c.clave === "asignacion");
+    const tecnicos = asignacion ? await usuariosDeEmpleado(despues.assignedTo) : [];
+    const creador = antes.createdBy !== IA_CREATED_BY ? antes.createdBy : null;
+    const firma = ` (por ${actor.nombre})`;
+
+    const batch = writeBatch(db);
+    batch.update(ticketRef, updateData);
+    cambios.forEach((cambio, orden) => {
+      agregarEvento(batch, id, { ...cambio, actorId: actor.id, actorNombre: actor.nombre, orden });
+    });
+    // Una sola notificación por destinatario (cada una cuesta lecturas en
+    // las reglas, con un tope por batch): el creador recibe todos los
+    // cambios juntos; el técnico, solo su asignación.
+    const datos = { ticketId: id, ticketCode: antes.code };
+    if (creador && cambios.length > 0) {
+      agregarNotificaciones(batch, [creador], actor.id, {
+        ...datos,
+        mensaje: truncar(cambios.map((c) => c.mensaje).join(" · "), 480) + firma,
+      });
+    }
+    if (asignacion) {
+      agregarNotificaciones(batch, tecnicos.filter((t) => t !== creador), actor.id, {
+        ...datos,
+        mensaje: asignacion.mensaje + firma,
+      });
+    }
+    await batch.commit();
   },
 
   delete: async (id: string) => {
@@ -150,9 +211,29 @@ export const ticketsService = {
     await updateDoc(ticketRef, { deletedAt: null, updatedAt: serverTimestamp() });
   },
 
+  // Borra el ticket, su historial (eventos) y sus imágenes de Storage
+  // (problema, solución y comentarios), que si no quedarían ocupando cuota
+  // para siempre. Las reglas solo lo permiten a un admin y sobre un ticket
+  // en la papelera. Lotes de 450 (tope de 500 por batch).
   eliminarDefinitivo: async (id: string) => {
-    const fn = httpsCallable(functions, "eliminarDefinitivo");
-    await fn({ coleccion: "tickets", id });
+    const ticket = (await getDoc(doc(db, "tickets", id))).data() as Ticket | undefined;
+    const eventos = (await getDocs(collection(db, "tickets", id, "eventos"))).docs;
+    const imagenes = [
+      ...(ticket?.problemImages ?? []),
+      ...(ticket?.solutionImages ?? []),
+      ...eventos.flatMap((e) => (e.data().imagenes as string[] | undefined) ?? []),
+    ];
+    // Una imagen que ya no existe no frena el borrado del ticket.
+    await Promise.all(imagenes.map((url) => deleteObject(ref(storage, url)).catch(() => {})));
+
+    for (let i = 0; i < eventos.length; i += 450) {
+      const batch = writeBatch(db);
+      eventos.slice(i, i + 450).forEach((e) => batch.delete(e.ref));
+      await batch.commit();
+    }
+    const batch = writeBatch(db);
+    batch.delete(doc(db, "tickets", id));
+    await batch.commit();
   },
 
   reanalizarIA: async (id: string) => {

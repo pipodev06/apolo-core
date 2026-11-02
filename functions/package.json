@@ -1,6 +1,6 @@
 {
   "name": "functions",
-  "description": "Cloud Functions de apolo-core: login, usuarios, notificaciones y asignación de tickets por IA (Groq)",
+  "description": "Cloud Functions de apolo-core: cuentas (Admin SDK), notificaciones y asignación de tickets por IA (Groq)",
   "scripts": {
     "build": "tsc",
     "build:watch": "tsc --watch",
@@ -14,12 +14,10 @@
   },
   "main": "lib/index.js",
   "dependencies": {
-    "bcryptjs": "^2.4.3",
     "firebase-admin": "^12.7.0",
     "firebase-functions": "^7.3.2"
   },
   "devDependencies": {
-    "@types/bcryptjs": "^2.4.6",
     "typescript": "^5.7.2"
   },
   "private": true

@@ -3,7 +3,7 @@ import { doc, onSnapshot } from "firebase/firestore";
 import { db } from "../firebase";
 import { useAuth } from "./AuthContext";
 import type { AccessSections } from "../types/access";
-import { esAdmin } from "../lib/roles";
+import { esAdmin, esSuperAdmin } from "../lib/roles";
 
 interface AccessContextType {
   access: AccessSections | null;
@@ -19,6 +19,7 @@ const ACCESO_TOTAL: AccessSections = {
   notificaciones: true,
   papelera: true,
   historico: true,
+  subirImagenes: true,
 };
 
 // Sin documento de accesos o si falla la lectura: lo mínimo para usar la app.
@@ -30,6 +31,7 @@ const ACCESO_BASICO: AccessSections = {
   notificaciones: true,
   papelera: false,
   historico: false,
+  subirImagenes: false,
 };
 
 const AccessContext = createContext<AccessContextType | undefined>(undefined);
@@ -64,12 +66,14 @@ export const AccessProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   // con otra cuenta no se usa (ni un render) la del anterior.
   const [cargado, setCargado] = useState<{ userId: string; access: AccessSections } | null>(null);
 
-  // Roles elevados (admin / super_admin): acceso total siempre, derivado en
-  // el render (sin efecto ni lectura de Firestore).
+  // Roles elevados (admin / super_admin): todas las secciones siempre. El
+  // super_admin además puede subir imágenes siempre (sin leer Firestore); al
+  // admin ese único permiso sí se le lee de su matriz.
   const userEsAdmin = esAdmin(user?.role);
+  const userEsSuperAdmin = esSuperAdmin(user?.role);
 
   useEffect(() => {
-    if (!user || esAdmin(user.role)) return;
+    if (!user || esSuperAdmin(user.role)) return;
     const userId = user.userId;
 
     const unsubscribe = onSnapshot(
@@ -88,6 +92,7 @@ export const AccessProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             notificaciones: sections.notificaciones !== false,
             papelera: !!sections.papelera,
             historico: !!sections.historico,
+            subirImagenes: !!sections.subirImagenes,
           };
         }
         guardarCache(userId, access);
@@ -101,22 +106,28 @@ export const AccessProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   }, [user]);
 
   // Mientras no llega la lectura de Firestore se usa la caché; solo si no
-  // hay ninguna (primer ingreso en este navegador) se espera.
+  // hay ninguna (primer ingreso en este navegador) se espera. Un admin no
+  // espera: mientras tanto, simplemente no puede subir imágenes.
   const userId = user?.userId;
-  const cache = useMemo(() => (userId && !userEsAdmin ? leerCache(userId) : null), [userId, userEsAdmin]);
-  const accessUsuario =
-    !userId || userEsAdmin ? null : cargado?.userId === userId ? cargado.access : cache;
-  const isLoading = !!user && !userEsAdmin && !accessUsuario;
-  const access = accessUsuario;
+  const cache = useMemo(() => (userId && !userEsSuperAdmin ? leerCache(userId) : null), [userId, userEsSuperAdmin]);
+  const access =
+    !userId || userEsSuperAdmin ? null : cargado?.userId === userId ? cargado.access : cache;
+  const isLoading = !!user && !userEsAdmin && !access;
 
   const value = useMemo(() => {
-    const accesoActual = !user ? null : userEsAdmin ? ACCESO_TOTAL : access;
+    const accesoActual = !user
+      ? null
+      : userEsSuperAdmin
+        ? ACCESO_TOTAL
+        : userEsAdmin
+          ? { ...ACCESO_TOTAL, subirImagenes: !!access?.subirImagenes }
+          : access;
     return {
       access: accesoActual,
       isLoading,
       hasAccess: (section: keyof AccessSections) => (accesoActual ? accesoActual[section] : false),
     };
-  }, [user, userEsAdmin, access, isLoading]);
+  }, [user, userEsAdmin, userEsSuperAdmin, access, isLoading]);
 
   return (
     <AccessContext.Provider value={value}>

@@ -5,6 +5,7 @@ import { Textarea } from "../ui/textarea";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { ImageUploader } from "../ui/image-uploader";
 import { ticketsService } from "../../services/ticketsService";
+import { useAccess } from "../../context/AccessContext";
 import { transicionEstadoValida } from "../../lib/ticketStatus";
 import { notificarExito, notificarError } from "../../lib/alertas";
 import type { Ticket, TicketStatus } from "../../types/ticket";
@@ -31,6 +32,7 @@ export const CierreTicketPanel: React.FC<{ ticket: Ticket }> = ({ ticket }) => {
   const [solutionDescription, setSolutionDescription] = useState(ticket.solutionDescription ?? "");
   const [solutionImages, setSolutionImages] = useState<string[]>(ticket.solutionImages ?? []);
   const [guardando, setGuardando] = useState(false);
+  const puedeSubirImagenes = useAccess().hasAccess("subirImagenes");
 
   const estadosDisponibles = TODOS_LOS_ESTADOS.filter((e) => transicionEstadoValida(ticket.status, e.value));
   const requiereSolucion = status === "terminado";
@@ -96,14 +98,16 @@ export const CierreTicketPanel: React.FC<{ ticket: Ticket }> = ({ ticket }) => {
         />
       </div>
 
-      <div className="space-y-1.5">
-        <p className="text-sm font-medium">Imágenes de la solución</p>
-        <ImageUploader
-          value={solutionImages}
-          onChange={setSolutionImages}
-          pathPrefix={`tickets/${ticket.id}/solucion`}
-        />
-      </div>
+      {puedeSubirImagenes && (
+        <div className="space-y-1.5">
+          <p className="text-sm font-medium">Imágenes de la solución</p>
+          <ImageUploader
+            value={solutionImages}
+            onChange={setSolutionImages}
+            pathPrefix={`tickets/${ticket.id}/solucion`}
+          />
+        </div>
+      )}
 
       <Button onClick={guardar} disabled={guardando} className="w-full">
         {guardando ? "Guardando..." : "Guardar"}
