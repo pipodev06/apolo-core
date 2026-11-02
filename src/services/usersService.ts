@@ -88,8 +88,8 @@ export const usersService = {
   // El usuario es también el email de login en Firebase Auth: cambiarlo
   // necesita la Admin SDK (Cloud Function, solo super_admin).
   updateUsername: async (id: string, newUsername: string) => {
-    const fn = httpsCallable(functions, "cambiarUsername");
-    await fn({ userId: id, username: newUsername });
+    const fn = httpsCallable(functions, "adminCuentas");
+    await fn({ accion: "cambiarUsername", userId: id, username: newUsername });
   },
 
   toggleActive: async (id: string, currentStatus: boolean) => {
@@ -120,7 +120,7 @@ export const usersService = {
 
   // Borra también su login de Firebase Auth: necesita la Admin SDK.
   eliminarDefinitivo: async (id: string) => {
-    const fn = httpsCallable(functions, "eliminarCuenta");
-    await fn({ id });
+    const fn = httpsCallable(functions, "adminCuentas");
+    await fn({ accion: "eliminarCuenta", id });
   },
 };
