@@ -1,29 +1,26 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import {
-  IconPlus as Plus, IconEye as Eye, IconPencil as Pencil, IconTrash as Trash2, IconSearch as Search, IconTicket as TicketIcon,
-  IconFilterOff as FilterX, IconDownload as Download,
-} from "@tabler/icons-react";
+import { IconPlus as Plus, IconTicket as TicketIcon, IconDownload as Download } from "@tabler/icons-react";
 import { ticketsService } from "../../services/ticketsService";
 import { useTickets } from "../../context/TicketsContext";
 import { useCatalogos } from "../../context/CatalogosContext";
-import type { Ticket, Urgency, TicketStatus } from "../../types/ticket";
+import type { Ticket } from "../../types/ticket";
 import { PageSpinner } from "../../components/ui/spinner";
 import { Button } from "../../components/ui/button";
-import { Input } from "../../components/ui/input";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
-import { confirmar, notificarExito, notificarError } from "../../lib/alertas";
-import { fmtFechaHora } from "../../lib/fecha";
 import { useAuth } from "../../context/AuthContext";
 import { esAdmin } from "../../lib/roles";
-import { estaVencido, fechaMs, fmtDuracion, tiempoResolucionMs } from "../../lib/sla";
-import { descargarCsv } from "../../lib/csv";
-import { AccionesFila } from "../../components/ui/acciones-fila";
+import { estaVencido, fechaMs } from "../../lib/sla";
 import { useAlturaScrollViewport } from "../../lib/useAlturaScrollViewport";
 import { TicketCard } from "../../components/tickets/TicketCard";
-import { STATUS_LABELS, URGENCY_LABELS } from "../../lib/ticketStatus";
-
-const SIN_CATEGORIA = "__sin_categoria__";
+import { FiltrosTickets } from "../../components/tickets/FiltrosTickets";
+import { AccionesTicket } from "../../components/tickets/AccionesTicket";
+import {
+  FILTROS_VACIOS,
+  exportarTicketsCsv,
+  filtrarTickets,
+  hayFiltrosActivos,
+  type FiltrosTicket,
+} from "../../lib/filtrosTickets";
 
 interface Props {
   soloPapelera?: boolean;
@@ -45,23 +42,9 @@ export const TicketsList: React.FC<Props> = ({ soloPapelera = false }) => {
   // Personal y categorías: un listener compartido por sesión (CatalogosProvider).
   const { empleados, empleadosListos, categorias } = useCatalogos();
 
-  // Borrador: lo que el usuario va eligiendo antes de aplicar.
-  // dEstado/dUrgencia: "" = todos.
-  const [dQuery, setDQuery] = useState("");
-  const [dEstado, setDEstado] = useState<TicketStatus | "">("");
-  const [dUrgencia, setDUrgencia] = useState<Urgency | "">("");
-  const [dCategoria, setDCategoria] = useState("");
-  const [dDesde, setDDesde] = useState("");
-  const [dHasta, setDHasta] = useState("");
-
-  // Aplicado: lo que realmente filtra la lista, se actualiza con "Filtrar".
-  const [query, setQuery] = useState("");
-  const [fEstado, setFEstado] = useState<TicketStatus | "">("");
-  const [fUrgencia, setFUrgencia] = useState<Urgency | "">("");
-  // "" = todas; SIN_CATEGORIA = tickets sin categoría.
-  const [fCategoria, setFCategoria] = useState("");
-  const [fDesde, setFDesde] = useState("");
-  const [fHasta, setFHasta] = useState("");
+  // Filtros aplicados (el borrador vive en FiltrosTickets).
+  const [filtros, setFiltros] = useState<FiltrosTicket>(FILTROS_VACIOS);
+  const filtrosActivos = hayFiltrosActivos(filtros);
 
   useEffect(() => {
     if (!soloPapelera || !user) return;
@@ -78,37 +61,18 @@ export const TicketsList: React.FC<Props> = ({ soloPapelera = false }) => {
   }, [soloPapelera, user]);
 
   const empleadoNombre = (id?: string) => empleados.find((e) => e.id === id)?.nombre;
+  // La lista de personal incluye inactivos (solo excluye eliminados):
+  // assignedTo seteado que no aparece = empleado eliminado, no "sin asignar".
+  const asignado = (t: Ticket) => (t.assignedTo ? empleadoNombre(t.assignedTo) || "Empleado eliminado" : "Sin asignar");
 
   // Cards: solo el contenedor scrollea (viewport estático), ~15px de margen inferior.
   const { ref: cardsRef, style: cardsStyle } = useAlturaScrollViewport(15, [loading, empleadosListos]);
 
   // Orden: última edición primero.
-  const ordenados = useMemo(() => {
-    return [...tickets].sort((a, b) => fechaMs(b.updatedAt) - fechaMs(a.updatedAt));
-  }, [tickets]);
-
   const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    const desde = fDesde ? new Date(fDesde + "T00:00:00").getTime() : -Infinity;
-    const hasta = fHasta ? new Date(fHasta + "T23:59:59").getTime() : Infinity;
-    return ordenados.filter((t) => {
-      if (fEstado && t.status !== fEstado) return false;
-      if (fUrgencia && t.urgency !== fUrgencia) return false;
-      if (fCategoria === SIN_CATEGORIA ? !!t.categoria : fCategoria && t.categoria !== fCategoria) return false;
-      if (q) {
-        const nombre = t.assignedTo ? empleados.find((e) => e.id === t.assignedTo)?.nombre || "" : "";
-        const coincide =
-          t.code.toLowerCase().includes(q) ||
-          t.title.toLowerCase().includes(q) ||
-          nombre.toLowerCase().includes(q) ||
-          (t.categoria ?? "").toLowerCase().includes(q);
-        if (!coincide) return false;
-      }
-      const ms = fechaMs(t.createdAt);
-      if (ms < desde || ms > hasta) return false;
-      return true;
-    });
-  }, [ordenados, query, fEstado, fUrgencia, fCategoria, fDesde, fHasta, empleados]);
+    const ordenados = [...tickets].sort((a, b) => fechaMs(b.updatedAt) - fechaMs(a.updatedAt));
+    return filtrarTickets(ordenados, filtros, (id) => empleados.find((e) => e.id === id)?.nombre);
+  }, [tickets, filtros, empleados]);
 
   // Opciones del filtro: categorías del catálogo + las que aparezcan en los
   // tickets (una categoría desactivada o borrada igual debe poder filtrarse).
@@ -118,128 +82,6 @@ export const TicketsList: React.FC<Props> = ({ soloPapelera = false }) => {
     return [...nombres].sort((a, b) => a.localeCompare(b));
   }, [categorias, tickets]);
 
-  const hayFiltrosActivos = !!(query || fEstado || fUrgencia || fCategoria || fDesde || fHasta);
-
-  const aplicarFiltros = () => {
-    setQuery(dQuery);
-    setFEstado(dEstado);
-    setFUrgencia(dUrgencia);
-    setFCategoria(dCategoria);
-    setFDesde(dDesde);
-    setFHasta(dHasta);
-  };
-
-  const limpiarFiltros = () => {
-    setDQuery("");
-    setDEstado("");
-    setDUrgencia("");
-    setDCategoria("");
-    setDDesde("");
-    setDHasta("");
-    setQuery("");
-    setFEstado("");
-    setFUrgencia("");
-    setFCategoria("");
-    setFDesde("");
-    setFHasta("");
-  };
-
-  // Exporta lo que está filtrado en pantalla.
-  const exportar = () => {
-    descargarCsv(
-      `tickets-${new Date().toISOString().slice(0, 10)}.csv`,
-      ["Código", "Título", "Estado", "Urgencia", "Categoría", "Área", "Asignado a", "Registrado", "Terminado", "Tiempo de resolución", "SLA"],
-      filtered.map((t) => [
-        t.code,
-        t.title,
-        STATUS_LABELS[t.status],
-        URGENCY_LABELS[t.urgency],
-        t.categoria ?? "",
-        t.area ?? "",
-        t.assignedTo ? empleadoNombre(t.assignedTo) || "Empleado eliminado" : "Sin asignar",
-        fmtFechaHora(t.createdAt),
-        fmtFechaHora(t.finishedAt),
-        fmtDuracion(tiempoResolucionMs(t)),
-        estaVencido(t, sla) ? "Vencido" : "En plazo",
-      ])
-    );
-  };
-
-  const handleDelete = async (ticket: Ticket) => {
-    const ok = await confirmar({
-      title: "Eliminar ticket",
-      text: `¿Seguro que deseas eliminar ${ticket.code}? Se enviará a la papelera.`,
-      confirmText: "Eliminar",
-      danger: true,
-    });
-    if (!ok) return;
-    try {
-      await ticketsService.delete(ticket.id);
-      notificarExito("Enviado a la papelera");
-    } catch {
-      notificarError("Error al eliminar el ticket");
-    }
-  };
-
-  const restaurar = async (ticket: Ticket) => {
-    try {
-      await ticketsService.restaurar(ticket.id);
-      notificarExito("Ticket restaurado");
-    } catch {
-      notificarError("Error al restaurar");
-    }
-  };
-
-  const purgar = async (ticket: Ticket) => {
-    const ok = await confirmar({
-      title: "Eliminar definitivamente",
-      text: `${ticket.code} se borrará para siempre. Esta acción no se puede deshacer.`,
-      confirmText: "Eliminar definitivo",
-      danger: true,
-    });
-    if (!ok) return;
-    try {
-      await ticketsService.eliminarDefinitivo(ticket.id);
-      notificarExito("Eliminado definitivamente");
-    } catch {
-      notificarError("Error al eliminar");
-    }
-  };
-
-  const acciones = (ticket: Ticket) =>
-    soloPapelera ? (
-      <AccionesFila soloPapelera onRestaurar={() => restaurar(ticket)} onPurgar={() => purgar(ticket)} />
-    ) : (
-      <>
-        <Link
-          to={`/tickets/${ticket.id}`}
-          title="Ver detalle"
-          className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-primary"
-        >
-          <Eye className="h-5 w-5" />
-        </Link>
-        {/* Editar/eliminar son de gestión: firestore.rules solo los permite a admins. */}
-        {isAdmin && (
-          <>
-            <Link
-              to={`/tickets/${ticket.id}/editar`}
-              title="Editar"
-              className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-primary"
-            >
-              <Pencil className="h-5 w-5" />
-            </Link>
-            <button
-              onClick={() => handleDelete(ticket)}
-              className="cursor-pointer rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
-              title="Eliminar"
-            >
-              <Trash2 className="h-5 w-5" />
-            </button>
-          </>
-        )}
-      </>
-    );
-
   return (
     <div className="space-y-2">
       {!soloPapelera && (
@@ -248,7 +90,7 @@ export const TicketsList: React.FC<Props> = ({ soloPapelera = false }) => {
             <h1 className="text-2xl font-bold tracking-tight">Tickets</h1>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={exportar} disabled={filtered.length === 0}>
+            <Button variant="outline" onClick={() => exportarTicketsCsv(filtered, asignado, sla)} disabled={filtered.length === 0}>
               <Download className="h-4 w-4" />
               Exportar CSV
             </Button>
@@ -262,121 +104,7 @@ export const TicketsList: React.FC<Props> = ({ soloPapelera = false }) => {
         </div>
       )}
 
-      {/* Filtros */}
-      <div className="flex flex-wrap items-end gap-3 rounded-lg border bg-card p-2 shadow-sm">
-        <div className="flex items-center gap-1.5">
-          <span className="text-xs text-muted-foreground">Estado:</span>
-          <Select
-            items={[{ value: "__all__", label: "Todos" }, ...Object.entries(STATUS_LABELS).map(([value, label]) => ({ value, label }))]}
-            value={dEstado || "__all__"}
-            onValueChange={(v) => setDEstado(v === "__all__" || v == null ? "" : (v as TicketStatus))}
-          >
-            <SelectTrigger className="w-full sm:w-40">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                <SelectItem value="__all__">Todos</SelectItem>
-                {Object.entries(STATUS_LABELS).map(([value, label]) => (
-                  <SelectItem key={value} value={value}>
-                    {label}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <span className="text-xs text-muted-foreground">Urgencia:</span>
-          <Select
-            items={[{ value: "__all__", label: "Todas" }, ...Object.entries(URGENCY_LABELS).map(([value, label]) => ({ value, label }))]}
-            value={dUrgencia || "__all__"}
-            onValueChange={(v) => setDUrgencia(v === "__all__" || v == null ? "" : (v as Urgency))}
-          >
-            <SelectTrigger className="w-full sm:w-40">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                <SelectItem value="__all__">Todas</SelectItem>
-                {Object.entries(URGENCY_LABELS).map(([value, label]) => (
-                  <SelectItem key={value} value={value}>
-                    {label}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <span className="text-xs text-muted-foreground">Categoría:</span>
-          <Select
-            items={[
-              { value: "__all__", label: "Todas" },
-              { value: SIN_CATEGORIA, label: "Sin categoría" },
-              ...opcionesCategoria.map((c) => ({ value: c, label: c })),
-            ]}
-            value={dCategoria || "__all__"}
-            onValueChange={(v) => setDCategoria(v === "__all__" || v == null ? "" : v)}
-          >
-            <SelectTrigger className="w-full sm:w-44">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                <SelectItem value="__all__">Todas</SelectItem>
-                <SelectItem value={SIN_CATEGORIA}>Sin categoría</SelectItem>
-                {opcionesCategoria.map((c) => (
-                  <SelectItem key={c} value={c}>
-                    {c}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="min-w-55 flex-1">
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              type="text"
-              value={dQuery}
-              onChange={(e) => setDQuery(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && aplicarFiltros()}
-              placeholder="Buscar..."
-              className="pl-9"
-            />
-          </div>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <span className="text-xs text-muted-foreground">Desde:</span>
-          <Input
-            type="date"
-            value={dDesde}
-            onChange={(e) => setDDesde(e.target.value)}
-            className="sm:w-40"
-          />
-        </div>
-        <div className="flex items-center gap-1.5">
-          <span className="text-xs text-muted-foreground">Hasta:</span>
-          <Input
-            type="date"
-            value={dHasta}
-            onChange={(e) => setDHasta(e.target.value)}
-            className="sm:w-40"
-          />
-        </div>
-        <Button onClick={aplicarFiltros}>
-          <Search className="h-4 w-4" />
-          Buscar
-        </Button>
-        {hayFiltrosActivos && (
-          <Button variant="outline" onClick={limpiarFiltros} title="Limpiar filtros">
-            <FilterX className="h-4 w-4" />
-            Limpiar
-          </Button>
-        )}
-      </div>
+      <FiltrosTickets categorias={opcionesCategoria} activos={filtrosActivos} onAplicar={setFiltros} />
 
       {loading || !empleadosListos ? (
         <PageSpinner />
@@ -389,7 +117,7 @@ export const TicketsList: React.FC<Props> = ({ soloPapelera = false }) => {
           <p className="text-muted-foreground">
             {soloPapelera
               ? "No hay tickets eliminados."
-              : hayFiltrosActivos
+              : filtrosActivos
               ? "Ningún ticket coincide con la búsqueda."
               : "Crea tu primer ticket para empezar."}
           </p>
@@ -404,11 +132,8 @@ export const TicketsList: React.FC<Props> = ({ soloPapelera = false }) => {
                 numero={i + 1}
                 soloPapelera={soloPapelera}
                 vencido={!soloPapelera && ticket.status !== "terminado" && estaVencido(ticket, sla)}
-                // La lista de personal incluye inactivos (solo excluye
-                // eliminados): assignedTo seteado que no aparece = empleado
-                // eliminado, no "sin asignar".
-                asignado={ticket.assignedTo ? empleadoNombre(ticket.assignedTo) || "Empleado eliminado" : "Sin asignar"}
-                acciones={acciones(ticket)}
+                asignado={asignado(ticket)}
+                acciones={<AccionesTicket ticket={ticket} soloPapelera={soloPapelera} esAdmin={isAdmin} />}
               />
             ))}
           </div>
