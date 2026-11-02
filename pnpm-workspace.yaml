@@ -1,3 +1,11 @@
 allowBuilds:
   '@firebase/util': true
   protobufjs: true
+
+# Versiones corregidas de dependencias internas del SDK de firebase (rutas de
+# Node: gRPC y websockets de Realtime Database; no llegan al bundle del
+# navegador, pero así pnpm audit queda limpio). Compatibles dentro de su mayor.
+overrides:
+  websocket-driver: ">=0.7.5"
+  protobufjs: ">=7.6.5 <8"
+  "@grpc/grpc-js": ">=1.13.6 <2"
