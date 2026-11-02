@@ -11,16 +11,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#18181b" media="(prefers-color-scheme: dark)" />
-    <!-- Aplica el tema guardado antes del primer pintado: sin esto la página
-         arranca en blanco y recién cambia a oscuro cuando carga React. -->
-    <script>
-      try {
-        var t = localStorage.getItem("theme");
-        if (t !== "light" && t !== "dark") t = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-        document.documentElement.classList.toggle("dark", t === "dark");
-        document.documentElement.style.colorScheme = t;
-      } catch (e) {}
-    </script>
+    <!-- Tema guardado antes del primer pintado (archivo aparte por la CSP). -->
+    <script src="/tema.js"></script>
     <title>Apolo Core</title>
   </head>
   <body>
