@@ -26,6 +26,19 @@ interface Props {
   soloPapelera?: boolean;
 }
 
+function ListaVacia({ soloPapelera, conFiltros }: { soloPapelera: boolean; conFiltros: boolean }) {
+  let detalle = "Crea tu primer ticket para empezar.";
+  if (soloPapelera) detalle = "No hay tickets eliminados.";
+  else if (conFiltros) detalle = "Ningún ticket coincide con la búsqueda.";
+  return (
+    <div className="rounded-lg border border-dashed bg-card py-12 text-center">
+      <TicketIcon className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
+      <h3 className="text-lg font-medium">{soloPapelera ? "Papelera vacía" : "No hay tickets"}</h3>
+      <p className="text-muted-foreground">{detalle}</p>
+    </div>
+  );
+}
+
 export const TicketsList: React.FC<Props> = ({ soloPapelera = false }) => {
   // Tickets activos vienen de TicketsProvider (App.tsx, un solo listener
   // compartido por sesión). La Papelera es una query distinta (deletedAt !=
@@ -109,19 +122,7 @@ export const TicketsList: React.FC<Props> = ({ soloPapelera = false }) => {
       {loading || !empleadosListos ? (
         <PageSpinner />
       ) : filtered.length === 0 ? (
-        <div className="rounded-lg border border-dashed bg-card py-12 text-center">
-          <TicketIcon className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
-          <h3 className="text-lg font-medium">
-            {soloPapelera ? "Papelera vacía" : "No hay tickets"}
-          </h3>
-          <p className="text-muted-foreground">
-            {soloPapelera
-              ? "No hay tickets eliminados."
-              : filtrosActivos
-              ? "Ningún ticket coincide con la búsqueda."
-              : "Crea tu primer ticket para empezar."}
-          </p>
-        </div>
+        <ListaVacia soloPapelera={soloPapelera} conFiltros={filtrosActivos} />
       ) : (
         <div ref={cardsRef} style={cardsStyle} className="pr-1">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
