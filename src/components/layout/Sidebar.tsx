@@ -59,7 +59,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                 to={item.path}
                 onClick={onClose}
                 className={cn(
-                  "flex items-center rounded-lg px-4 py-2.5 text-sm font-medium transition-colors",
+                  "flex items-center rounded-lg px-4 py-2.5 text-base font-medium transition-colors",
                   isActive
                     ? "border border-sidebar-primary text-sidebar-primary"
                     : "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
@@ -76,7 +76,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
               to="/papelera"
               onClick={onClose}
               className={cn(
-                "flex items-center rounded-lg px-4 py-2.5 text-sm font-medium transition-colors",
+                "flex items-center rounded-lg px-4 py-2.5 text-base font-medium transition-colors",
                 papeleraActiva
                   ? "border border-sidebar-primary text-sidebar-primary"
                   : "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
@@ -91,7 +91,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
         <div className="border-t border-sidebar-border p-4">
           <button
             onClick={logout}
-            className="flex w-full cursor-pointer items-center rounded-lg px-4 py-2.5 text-sm font-medium text-destructive transition-colors hover:bg-destructive/10 dark:hover:bg-destructive/20"
+            className="flex w-full cursor-pointer items-center rounded-lg px-4 py-2.5 text-base font-medium text-destructive transition-colors hover:bg-destructive/10 dark:hover:bg-destructive/20"
           >
             <LogOut className="mr-3 h-5 w-5" />
             Cerrar Sesión

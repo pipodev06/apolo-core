@@ -22,7 +22,7 @@ function Dato({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex items-center text-sm">
+    <div className="flex items-center text-base">
       <Icono className={cn("mr-3 h-4 w-4", colorIcono)} />
       <span className="mr-2 font-medium">{etiqueta}:</span>
       {children}

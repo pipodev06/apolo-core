@@ -39,8 +39,8 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
         <NotificationBell />
         <div className="flex items-center gap-3">
           <div className="hidden text-right sm:block">
-            <p className="text-sm font-medium text-foreground">{user?.username}</p>
-            <p className="text-xs capitalize text-foreground">{user?.role}</p>
+            <p className="text-base font-medium text-foreground">{user?.username}</p>
+            <p className="text-sm capitalize text-foreground">{user?.role}</p>
           </div>
           <Avatar size="lg">
             <AvatarFallback>{user?.username.substring(0, 2).toUpperCase()}</AvatarFallback>

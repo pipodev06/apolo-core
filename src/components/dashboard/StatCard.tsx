@@ -26,7 +26,7 @@ export const StatCard: React.FC<{ title: string; value: number | string; icon: T
       <Icon className="h-6 w-6" />
     </div>
     <div className="min-w-0">
-      <p className="truncate text-xs font-medium text-muted-foreground">{title}</p>
+      <p className="truncate text-sm font-medium text-muted-foreground">{title}</p>
       <p className="text-2xl font-bold">{value}</p>
     </div>
   </Card>

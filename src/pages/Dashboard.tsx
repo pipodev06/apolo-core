@@ -67,7 +67,7 @@ export const Dashboard: React.FC = () => {
       <div>
         <h1 className="text-2xl font-bold tracking-tight">{vistaEquipo ? "Dashboard de Métricas" : "Mi resumen"}</h1>
         {!vistaEquipo && (
-          <p className="text-sm text-muted-foreground">Métricas de los tickets que creaste o que tienes asignados.</p>
+          <p className="text-base text-muted-foreground">Métricas de los tickets que creaste o que tienes asignados.</p>
         )}
       </div>
 

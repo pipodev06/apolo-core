@@ -145,7 +145,7 @@ function SimplePagination({
           />
         </PaginationItem>
         <PaginationItem>
-          <span className="px-2 text-sm text-muted-foreground">
+          <span className="px-2 text-base text-muted-foreground">
             Página {page} de {totalPages}
           </span>
         </PaginationItem>

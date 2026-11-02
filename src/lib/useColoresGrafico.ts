@@ -14,7 +14,7 @@ export function useColoresGrafico() {
       border: `1px solid ${gridColor}`,
       borderRadius: "0.5rem",
       color: oscuro ? "#f1f5f9" : "#0f172a",
-      fontSize: "0.8125rem",
+      fontSize: "0.875rem",
     },
   };
 }

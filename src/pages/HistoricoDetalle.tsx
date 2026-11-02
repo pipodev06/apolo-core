@@ -54,7 +54,7 @@ export const HistoricoDetalle: React.FC = () => {
         <>
           <div>
             <h1 className="text-2xl font-bold tracking-tight">{empleado.nombre}</h1>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-base text-muted-foreground">
               {empleado.cargo || "-"} · {empleado.area || "-"}
             </p>
           </div>

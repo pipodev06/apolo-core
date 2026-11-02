@@ -77,7 +77,7 @@ export const Login: React.FC = () => {
         <ThemeToggle />
       </div>
 
-      <p className="absolute inset-x-0 bottom-6 text-center text-xs text-muted-foreground">
+      <p className="absolute inset-x-0 bottom-6 text-center text-sm text-muted-foreground">
         Acceso restringido al personal autorizado.
       </p>
 
@@ -85,7 +85,7 @@ export const Login: React.FC = () => {
         <CardContent className="space-y-8">
           <div>
             <h2 className="text-3xl font-bold tracking-tight">Iniciar sesión</h2>
-            <p className="mt-1.5 text-sm text-muted-foreground">Ingresa tus credenciales para acceder.</p>
+            <p className="mt-1.5 text-base text-muted-foreground">Ingresa tus credenciales para acceder.</p>
           </div>
           <form onSubmit={handleSubmit(onSubmit)}>
             <FieldGroup>

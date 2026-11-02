@@ -187,7 +187,7 @@ export const EditarUsuarioModal: React.FC<Props> = ({
                   name="protegida"
                   control={control}
                   render={({ field }) => (
-                    <label className="flex cursor-pointer items-start gap-2 text-sm">
+                    <label className="flex cursor-pointer items-start gap-2 text-base">
                       <Checkbox
                         checked={field.value}
                         onCheckedChange={(v) => field.onChange(!!v)}
@@ -195,7 +195,7 @@ export const EditarUsuarioModal: React.FC<Props> = ({
                       />
                       <span>
                         Cuenta protegida
-                        <span className="block text-xs text-muted-foreground">
+                        <span className="block text-sm text-muted-foreground">
                           Solo un super admin podrá editarla, cambiar su contraseña, desactivarla o eliminarla. Útil para cuentas de demo.
                         </span>
                       </span>

@@ -58,13 +58,13 @@ export const ComentariosPanel: React.FC<{ ticketId: string; eventos: TicketEvent
 
   return (
     <Card className={cn("flex h-full flex-col p-6", className)}>
-      <h3 className="mb-4 text-sm font-semibold uppercase tracking-wider">
+      <h3 className="mb-4 text-base font-semibold uppercase tracking-wider">
         Comentarios
       </h3>
 
       <div ref={listaRef} className="max-h-[600px] space-y-2 overflow-y-auto pr-1">
         {comentarios.length === 0 && (
-          <p className="text-sm text-muted-foreground">Todavía no hay comentarios.</p>
+          <p className="text-base text-muted-foreground">Todavía no hay comentarios.</p>
         )}
         {comentarios.map((evento) => {
           const esPropio = evento.actorId === user?.userId;
@@ -72,7 +72,7 @@ export const ComentariosPanel: React.FC<{ ticketId: string; eventos: TicketEvent
             <div key={evento.id} className="overflow-hidden rounded-md border">
               <div
                 className={cn(
-                  "px-2 py-1 text-center text-xs font-bold text-white",
+                  "px-2 py-1 text-center text-sm font-bold text-white",
                   esPropio ? "bg-green-600" : "bg-blue-600"
                 )}
               >
@@ -82,7 +82,7 @@ export const ComentariosPanel: React.FC<{ ticketId: string; eventos: TicketEvent
                 <ExpandableText
                   texto={evento.texto ?? ""}
                   maxChars={LARGO_PREVIEW}
-                  className="mt-0.5 whitespace-pre-wrap break-words text-sm"
+                  className="mt-0.5 whitespace-pre-wrap break-words text-base"
                 />
                 <ImagenesAdjuntas urls={evento.imagenes} size="sm" className="mt-2" />
                 <div className="mt-1 flex justify-end">
