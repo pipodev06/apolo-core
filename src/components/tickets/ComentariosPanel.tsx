@@ -12,6 +12,7 @@ import { fmtFechaHora } from "../../lib/fecha";
 import { notificarError } from "../../lib/alertas";
 import { useAuth } from "../../context/AuthContext";
 import { useAccess } from "../../context/AccessContext";
+import { useImagenesSinGuardar } from "../../lib/useImagenesSinGuardar";
 import { cn } from "../../lib/cn";
 
 const LARGO_PREVIEW = 120;
@@ -23,6 +24,7 @@ export const ComentariosPanel: React.FC<{ ticketId: string; eventos: TicketEvent
 }) => {
   const { user } = useAuth();
   const puedeSubirImagenes = useAccess().hasAccess("subirImagenes");
+  const sesionImagenes = useImagenesSinGuardar();
   const [texto, setTexto] = useState("");
   const [imagenes, setImagenes] = useState<string[]>([]);
   const [enviando, setEnviando] = useState(false);
@@ -44,6 +46,7 @@ export const ComentariosPanel: React.FC<{ ticketId: string; eventos: TicketEvent
     setEnviando(true);
     try {
       await eventosService.agregarComentario(ticketId, texto.trim(), user.userId, user.username, imagenes);
+      sesionImagenes.alGuardar();
       setTexto("");
       setImagenes([]);
     } catch (error) {
@@ -92,7 +95,7 @@ export const ComentariosPanel: React.FC<{ ticketId: string; eventos: TicketEvent
       </div>
 
       <div className="mt-6 space-y-2 border-t pt-4">
-        <ImageThumbnails value={imagenes} onChange={setImagenes} />
+        <ImageThumbnails value={imagenes} onChange={setImagenes} sesion={sesionImagenes} />
         <div className="flex items-center gap-2">
           <Textarea
             value={texto}
@@ -111,6 +114,7 @@ export const ComentariosPanel: React.FC<{ ticketId: string; eventos: TicketEvent
             <ImageUploader
               value={imagenes}
               onChange={setImagenes}
+              sesion={sesionImagenes}
               pathPrefix={`tickets/${ticketId}/comentarios`}
               maxFiles={5}
               variant="icon"

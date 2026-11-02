@@ -16,6 +16,7 @@ import { useAccess } from "../../context/AccessContext";
 import { esAdmin } from "../../lib/roles";
 import { CategoriaField } from "./CategoriaField";
 import { CamposGestionTicket } from "./CamposGestionTicket";
+import { useImagenesSinGuardar } from "../../lib/useImagenesSinGuardar";
 import { ahoraLimaInputValue } from "../../lib/fecha";
 
 const ticketSchema = z.object({
@@ -33,13 +34,15 @@ export type TicketFormData = z.infer<typeof ticketSchema>;
 
 interface TicketFormProps {
   initialData?: Partial<Ticket>;
-  onSubmit: (data: TicketFormData) => Promise<void>;
+  // Devuelve true si se guardó (recién ahí se confirman las imágenes).
+  onSubmit: (data: TicketFormData) => Promise<boolean>;
   loading?: boolean;
 }
 
 export const TicketForm: React.FC<TicketFormProps> = ({ initialData, onSubmit, loading }) => {
   const { user } = useAuth();
   const puedeSubirImagenes = useAccess().hasAccess("subirImagenes");
+  const imagenes = useImagenesSinGuardar();
   const isAdmin = esAdmin(user?.role);
   // Ticket nuevo: solo título, hora y descripción — urgencia y personal los
   // determina la IA automáticamente tras crearse (o el admin, editando después).
@@ -71,14 +74,16 @@ export const TicketForm: React.FC<TicketFormProps> = ({ initialData, onSubmit, l
     },
   });
 
-  const submit = (data: TicketFormData) =>
-    onSubmit({
+  const submit = async (data: TicketFormData) => {
+    const guardado = await onSubmit({
       ...data,
       title: data.title.toUpperCase(),
       incidentTime: data.incidentTime && data.incidentTime.length > 0
         ? data.incidentTime
         : ahoraLimaInputValue(),
     });
+    if (guardado) imagenes.alGuardar();
+  };
 
   return (
     <form onSubmit={handleSubmit(submit)} className="space-y-6">
@@ -145,6 +150,7 @@ export const TicketForm: React.FC<TicketFormProps> = ({ initialData, onSubmit, l
                 <ImageUploader
                   value={field.value || []}
                   onChange={field.onChange}
+                  sesion={imagenes}
                   pathPrefix={`tickets/${storageTicketId}/problema`}
                 />
               )}
