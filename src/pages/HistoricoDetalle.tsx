@@ -4,7 +4,7 @@ import { IconArrowLeft as ArrowLeft, IconEye as Eye } from "@tabler/icons-react"
 import { useCatalogos } from "../context/CatalogosContext";
 import { useTickets } from "../context/TicketsContext";
 import type { TicketStatus } from "../types/ticket";
-import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "../components/ui/table";
+import { TablaCard, TableHeader, TableBody, TableRow, TableHead, TableCell } from "../components/ui/table";
 import { Button } from "../components/ui/button";
 import { PageSpinner } from "../components/ui/spinner";
 import { EstadoVacio } from "../components/ui/estado-vacio";
@@ -73,43 +73,41 @@ export const HistoricoDetalle: React.FC = () => {
           {ticketsEmpleado.length === 0 ? (
             <EstadoVacio titulo="Sin tickets asignados." />
           ) : (
-            <div className="overflow-hidden rounded-lg border bg-card shadow-sm">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>#</TableHead>
-                    <TableHead>Código</TableHead>
-                    <TableHead>Título</TableHead>
-                    <TableHead>Estado</TableHead>
-                    <TableHead>Urgencia</TableHead>
-                    <TableHead>Actualizado</TableHead>
-                    <TableHead></TableHead>
+            <TablaCard>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>#</TableHead>
+                  <TableHead>Código</TableHead>
+                  <TableHead>Título</TableHead>
+                  <TableHead>Estado</TableHead>
+                  <TableHead>Urgencia</TableHead>
+                  <TableHead>Actualizado</TableHead>
+                  <TableHead></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {ticketsEmpleado.map((t, i) => (
+                  <TableRow key={t.id}>
+                    <TableCell>{i + 1}</TableCell>
+                    <TableCell className="font-medium">{t.code}</TableCell>
+                    <TableCell>{t.title}</TableCell>
+                    <TableCell>
+                      <StatusBadge status={t.status} />
+                    </TableCell>
+                    <TableCell>
+                      <UrgencyBadge urgency={t.urgency} />
+                    </TableCell>
+                    <TableCell>{fmtFechaCorta(t.updatedAt)}</TableCell>
+                    <TableCell>
+                      <Button variant="outline" size="sm" onClick={() => navigate(`/tickets/${t.id}`)}>
+                        <Eye className="h-4 w-4" />
+                        Ver Ticket
+                      </Button>
+                    </TableCell>
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {ticketsEmpleado.map((t, i) => (
-                    <TableRow key={t.id}>
-                      <TableCell>{i + 1}</TableCell>
-                      <TableCell className="font-medium">{t.code}</TableCell>
-                      <TableCell>{t.title}</TableCell>
-                      <TableCell>
-                        <StatusBadge status={t.status} />
-                      </TableCell>
-                      <TableCell>
-                        <UrgencyBadge urgency={t.urgency} />
-                      </TableCell>
-                      <TableCell>{fmtFechaCorta(t.updatedAt)}</TableCell>
-                      <TableCell>
-                        <Button variant="outline" size="sm" onClick={() => navigate(`/tickets/${t.id}`)}>
-                          <Eye className="h-4 w-4" />
-                          Ver Ticket
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+                ))}
+              </TableBody>
+            </TablaCard>
           )}
         </>
       ) : null}

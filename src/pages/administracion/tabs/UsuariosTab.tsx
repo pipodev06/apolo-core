@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { usersService } from "../../../services/usersService";
 import type { User } from "../../../types/user";
-import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "../../../components/ui/table";
+import { TablaCard, TableHeader, TableBody, TableRow, TableHead, TableCell } from "../../../components/ui/table";
 import { Badge } from "../../../components/ui/badge";
 import { Button } from "../../../components/ui/button";
 import { FiltroBuscarPor, type BusquedaPorCampo } from "../../../components/ui/filtro-buscar-por";
@@ -175,8 +175,7 @@ export const UsuariosTab: React.FC<Props> = ({ soloPapelera = false }) => {
         />
       ) : (
         <>
-          <div className="overflow-hidden rounded-lg border bg-card shadow-sm">
-          <Table>
+          <TablaCard>
             <TableHeader>
               <TableRow>
                 <TableHead>#</TableHead>
@@ -242,8 +241,7 @@ export const UsuariosTab: React.FC<Props> = ({ soloPapelera = false }) => {
               </TableRow>
             ))}
             </TableBody>
-          </Table>
-          </div>
+          </TablaCard>
 
           {totalPages > 1 && (
             <div className="flex justify-end">

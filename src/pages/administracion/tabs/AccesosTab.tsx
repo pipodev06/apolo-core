@@ -3,7 +3,7 @@ import { accessService } from "../../../services/accessService";
 import { usersService } from "../../../services/usersService";
 import type { User } from "../../../types/user";
 import type { UserAccess, AccessSections } from "../../../types/access";
-import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "../../../components/ui/table";
+import { TablaCard, TableHeader, TableBody, TableRow, TableHead, TableCell } from "../../../components/ui/table";
 import { Button } from "../../../components/ui/button";
 import { Checkbox } from "../../../components/ui/checkbox";
 import { PageSpinner } from "../../../components/ui/spinner";
@@ -124,8 +124,7 @@ export const AccesosTab: React.FC = () => {
         <h3 className="text-lg font-medium">Matriz de Accesos por Sección</h3>
       </div>
 
-      <div className="overflow-hidden rounded-lg border bg-card shadow-sm">
-      <Table>
+      <TablaCard>
         <TableHeader>
           <TableRow>
             <TableHead>#</TableHead>
@@ -221,8 +220,7 @@ export const AccesosTab: React.FC = () => {
           );
         })}
         </TableBody>
-      </Table>
-      </div>
+      </TablaCard>
 
       <div className="pt-6 border-t flex justify-end">
         <Button onClick={handleSave} disabled={saving}>

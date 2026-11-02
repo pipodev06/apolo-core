@@ -7,7 +7,7 @@ import { notificacionesService } from "../services/notificacionesService";
 import type { Notificacion } from "../types/notificacion";
 import type { FirestoreTimestamp } from "../types/firestore";
 import { useAuth } from "../context/AuthContext";
-import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "../components/ui/table";
+import { TablaCard, TableHeader, TableBody, TableRow, TableHead, TableCell } from "../components/ui/table";
 import { Button } from "../components/ui/button";
 import { FiltroBuscarPor, type BusquedaPorCampo } from "../components/ui/filtro-buscar-por";
 import { SimplePagination } from "../components/ui/pagination";
@@ -107,34 +107,32 @@ export const Notificaciones: React.FC = () => {
         />
       ) : (
         <>
-          <div className="overflow-hidden rounded-lg border bg-card shadow-sm">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>#</TableHead>
-                  <TableHead>Ticket</TableHead>
-                  <TableHead>Detalle</TableHead>
-                  <TableHead>Hora</TableHead>
-                  <TableHead>Acciones</TableHead>
+          <TablaCard>
+            <TableHeader>
+              <TableRow>
+                <TableHead>#</TableHead>
+                <TableHead>Ticket</TableHead>
+                <TableHead>Detalle</TableHead>
+                <TableHead>Hora</TableHead>
+                <TableHead>Acciones</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {paginadas.map((n, i) => (
+                <TableRow key={n.id} className={cn(!n.leida && "bg-primary/5")}>
+                  <TableCell>{numero(i)}</TableCell>
+                  <TableCell className="font-semibold text-primary">{n.ticketCode}</TableCell>
+                  <TableCell>{n.mensaje}</TableCell>
+                  <TableCell className="text-muted-foreground">{fmtRelativo(n.createdAt)}</TableCell>
+                  <TableCell>
+                    <Button variant="outline" size="sm" onClick={() => handleClick(n)}>
+                      Ver ticket
+                    </Button>
+                  </TableCell>
                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                {paginadas.map((n, i) => (
-                  <TableRow key={n.id} className={cn(!n.leida && "bg-primary/5")}>
-                    <TableCell>{numero(i)}</TableCell>
-                    <TableCell className="font-semibold text-primary">{n.ticketCode}</TableCell>
-                    <TableCell>{n.mensaje}</TableCell>
-                    <TableCell className="text-muted-foreground">{fmtRelativo(n.createdAt)}</TableCell>
-                    <TableCell>
-                      <Button variant="outline" size="sm" onClick={() => handleClick(n)}>
-                        Ver ticket
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+              ))}
+            </TableBody>
+          </TablaCard>
 
           {totalPages > 1 && (
             <div className="flex justify-end">

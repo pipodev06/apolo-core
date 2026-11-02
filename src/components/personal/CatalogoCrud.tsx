@@ -1,6 +1,6 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useState } from "react";
 import { IconTag as Tag } from "@tabler/icons-react";
-import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "../ui/table";
+import { TablaCard, TableHeader, TableBody, TableRow, TableHead, TableCell } from "../ui/table";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
@@ -167,8 +167,7 @@ export const CatalogoCrud = forwardRef<CatalogoCrudHandle, Props>(
         />
       ) : (
         <>
-          <div className="overflow-hidden rounded-lg border bg-card shadow-sm">
-          <Table>
+          <TablaCard>
             <TableHeader>
               <TableRow>
                 <TableHead>#</TableHead>
@@ -207,8 +206,7 @@ export const CatalogoCrud = forwardRef<CatalogoCrudHandle, Props>(
               </TableRow>
             ))}
             </TableBody>
-          </Table>
-          </div>
+          </TablaCard>
 
           {totalPages > 1 && (
             <div className="flex justify-end">

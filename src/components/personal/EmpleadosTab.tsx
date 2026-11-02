@@ -5,7 +5,7 @@ import { configService } from "../../services/configService";
 import { useTickets } from "../../context/TicketsContext";
 import type { Empleado } from "../../types/empleado";
 import { calcularCarga, estaOcupado } from "../../lib/carga";
-import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "../ui/table";
+import { TablaCard, TableHeader, TableBody, TableRow, TableHead, TableCell } from "../ui/table";
 import { Badge } from "../ui/badge";
 import { SimplePagination } from "../ui/pagination";
 import { FiltroBuscarPor, type BusquedaPorCampo } from "../ui/filtro-buscar-por";
@@ -192,8 +192,7 @@ export const EmpleadosTab = forwardRef<EmpleadosTabHandle, Props>(({ soloPapeler
         />
       ) : (
         <>
-          <div className="overflow-hidden rounded-lg border bg-card shadow-sm">
-          <Table>
+          <TablaCard>
             <TableHeader>
               <TableRow>
                 <TableHead>#</TableHead>
@@ -277,8 +276,7 @@ export const EmpleadosTab = forwardRef<EmpleadosTabHandle, Props>(({ soloPapeler
               </TableRow>
             ))}
             </TableBody>
-          </Table>
-          </div>
+          </TablaCard>
 
           {totalPages > 1 && (
             <div className="flex justify-end">
