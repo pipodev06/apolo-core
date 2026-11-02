@@ -44,6 +44,9 @@ Descripción: ${descripcion}
 Responde ÚNICAMENTE con un JSON de la forma {"area": "<una de las áreas de la lista>", "urgencia": "CRITICO|ALTO|MEDIO|BAJO"${pedirCategoria ? ', "categoria": "<una de las categorías de la lista>"' : ""}}. Sin texto adicional.`;
 
   const res = await fetch(GROQ_URL, {
+    // Si Groq no responde en 20 s se aborta: la función no queda esperando
+    // (y cobrando) hasta su timeout; el ticket queda sin asignar.
+    signal: AbortSignal.timeout(20_000),
     method: "POST",
     headers: {
       "Content-Type": "application/json",
