@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useNavigate, useParams, Link } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { ticketsService } from "../../services/ticketsService";
 import { usersService } from "../../services/usersService";
 import type { Ticket } from "../../types/ticket";
@@ -16,18 +16,14 @@ import { Button } from "../../components/ui/button";
 import { Card } from "../../components/ui/card";
 import { ExpandableText } from "../../components/ui/expandable-text";
 import { PageSpinner } from "../../components/ui/spinner";
-import { IconPencil as Pencil, IconArrowLeft as ArrowLeft, IconCalendar as Calendar, IconUser as UserIcon, IconHash as Hash, IconClock as Clock, IconRobot as Bot, IconRefresh as RefreshCw, IconCircleCheck as CircleCheck, IconTag as Tag, IconHourglass as Hourglass } from "@tabler/icons-react";
-import { fmtFechaHora } from "../../lib/fecha";
-import { confirmar, notificarExito, notificarError } from "../../lib/alertas";
+import { IconArrowLeft as ArrowLeft, IconHash as Hash } from "@tabler/icons-react";
+import { notificarError } from "../../lib/alertas";
 import { useAuth } from "../../context/AuthContext";
 import { esAdmin } from "../../lib/roles";
-import { cn } from "../../lib/cn";
 import { useTickets } from "../../context/TicketsContext";
-import { estaVencido, venceEnMs } from "../../lib/sla";
-import { Badge } from "../../components/ui/badge";
+import { AccionesDetalleTicket } from "../../components/tickets/AccionesDetalleTicket";
+import { DatosTicket } from "../../components/tickets/DatosTicket";
 import { ImagenesAdjuntas } from "../../components/ui/image-uploader";
-
-// Sentinel usado cuando un ticket se crea de forma automática (sin usuario humano detrás).
 
 export const TicketDetail: React.FC = () => {
   const { user } = useAuth();
@@ -40,7 +36,6 @@ export const TicketDetail: React.FC = () => {
   // Cuenta que creó el ticket (null = ya no existe). `undefined` mientras
   // carga, para no pintar "cuenta eliminada" en rojo durante ese lapso.
   const [creadorCuenta, setCreadorCuenta] = useState<{ ticketId: string; user: User | null } | undefined>(undefined);
-  const [analizando, setAnalizando] = useState(false);
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
@@ -77,45 +72,11 @@ export const TicketDetail: React.FC = () => {
     return () => unsubscribe();
   }, [id]);
 
-  const ejecutarAnalisis = async () => {
-    if (!id) return;
-    setAnalizando(true);
-    try {
-      const resultado = await ticketsService.reanalizarIA(id);
-      if (resultado.ok) {
-        notificarExito("La IA analizó el ticket y asignó personal");
-      } else {
-        notificarError(resultado.motivo || "La IA no pudo asignar el ticket");
-      }
-    } catch (error) {
-      notificarError(error instanceof Error ? error.message : "Error al analizar con IA");
-    } finally {
-      setAnalizando(false);
-    }
-  };
-
-  const handleAnalizar = () => ejecutarAnalisis();
-
-  const handleReanalizar = async () => {
-    const ok = await confirmar({
-      title: "¿Reanalizar con IA?",
-      text: "Esto reemplazará la asignación actual (área y personal) por la que determine la IA.",
-      confirmText: "Reanalizar",
-      danger: true,
-    });
-    if (ok) await ejecutarAnalisis();
-  };
-
   if (loading || !empleadosListos || !usuariosListos) return <PageSpinner />;
 
   if (!ticket) return null;
 
   const asignado = empleados.find((e) => e.id === ticket.assignedTo);
-  // Una vez que el ticket ya tiene solución documentada, "Cerrar Ticket" deja
-  // de ofrecerse — reabrirlo (lo que limpia esa solución) solo se hace desde
-  // Editar Ticket, reservado a Admin.
-  const puedeGestionarCierre =
-    !ticket.solutionDescription && (isAdmin || (!!ticket.assignedTo && ticket.assignedTo === user?.personalId));
   const esIA = ticket.createdBy === IA_CREATED_BY;
   // El usuario que creó el ticket puede ya no existir (eliminado, soft o
   // definitivo) — ahí se usa el snapshot `createdByUsername` guardado al crear
@@ -132,36 +93,7 @@ export const TicketDetail: React.FC = () => {
           <ArrowLeft className="h-4 w-4" />
           Volver
         </Button>
-        <div className="flex items-center gap-2">
-          {isAdmin && !ticket.assignedTo && (
-            <Button variant="secondary" onClick={handleAnalizar} disabled={analizando}>
-              <Bot className="h-4 w-4" />
-              {analizando ? "Analizando..." : "Analizar con IA"}
-            </Button>
-          )}
-          {isAdmin && ticket.assignedTo && (ticket.status === "asignado" || ticket.status === "en_proceso") && (
-            <Button variant="secondary" onClick={handleReanalizar} disabled={analizando}>
-              <RefreshCw className="h-4 w-4" />
-              {analizando ? "Analizando..." : "Reanalizar con IA"}
-            </Button>
-          )}
-          {isAdmin && (
-            <Link to={`/tickets/${ticket.id}/editar`} state={{ from: "detalle" }}>
-              <Button>
-                <Pencil className="h-4 w-4" />
-                Editar
-              </Button>
-            </Link>
-          )}
-          {puedeGestionarCierre && (
-            <Link to={`/tickets/${ticket.id}/cerrar`}>
-              <Button variant="secondary">
-                <CircleCheck className="h-4 w-4" />
-                Cerrar Ticket
-              </Button>
-            </Link>
-          )}
-        </div>
+        <AccionesDetalleTicket ticket={ticket} esAdmin={isAdmin} miPersonalId={user?.personalId} />
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
@@ -210,71 +142,13 @@ export const TicketDetail: React.FC = () => {
                 </div>
               )}
 
-              <div className="grid grid-cols-1 gap-8 border-t pt-6 md:grid-cols-2">
-                <div className="space-y-4">
-                  <div className="flex items-center text-sm">
-                    <Calendar className="mr-3 h-4 w-4 text-primary" />
-                    <span className="mr-2 font-medium">Fecha y hora del incidente:</span>
-                    {fmtFechaHora(ticket.incidentTime)}
-                  </div>
-                  <div className="flex items-center text-sm">
-                    <Calendar className="mr-3 h-4 w-4" />
-                    <span className="mr-2 font-medium">Registrado el:</span>
-                    {fmtFechaHora(ticket.createdAt)}
-                  </div>
-                  {ticket.finishedAt && (
-                    <div className="flex items-center text-sm">
-                      <Calendar className="mr-3 h-4 w-4 text-green-600" />
-                      <span className="mr-2 font-medium">Finalizado el:</span>
-                      {fmtFechaHora(ticket.finishedAt)}
-                    </div>
-                  )}
-                  {ticket.createdAt && (
-                    <div className="flex items-center text-sm">
-                      <Hourglass className="mr-3 h-4 w-4" />
-                      <span className="mr-2 font-medium">Vence (SLA):</span>
-                      {fmtFechaHora(new Date(venceEnMs(ticket, sla)))}
-                      {estaVencido(ticket, sla) && (
-                        <Badge variant="red" className="ml-2">
-                          {ticket.status === "terminado" ? "Fuera de plazo" : "Vencido"}
-                        </Badge>
-                      )}
-                    </div>
-                  )}
-                </div>
-                <div className="space-y-4">
-                  <div className="flex items-center text-sm">
-                    <Tag className="mr-3 h-4 w-4" />
-                    <span className="mr-2 font-medium">Categoría:</span>
-                    {ticket.categoria || "Sin categoría"}
-                  </div>
-                  <div className="flex items-center text-sm">
-                    <UserIcon className="mr-3 h-4 w-4 text-primary" />
-                    <span className="mr-2 font-medium">Asignado a:</span>
-                    {asignado ? asignado.nombre : ticket.assignedTo ? "Empleado eliminado" : "No asignado"}
-                    {asignado && !asignado.activo && (
-                      <Badge variant="red" className="ml-2" title="Este técnico está desactivado: conviene reasignar el ticket">
-                        Inactivo
-                      </Badge>
-                    )}
-                  </div>
-                  {ticket.assignedTo && ticket.assignedAt && (
-                    <div className="flex items-center text-sm">
-                      <Clock className="mr-3 h-4 w-4" />
-                      <span className="mr-2 font-medium">Asignado el:</span>
-                      {fmtFechaHora(ticket.assignedAt)}
-                    </div>
-                  )}
-                  <div className="flex items-center text-sm">
-                    <UserIcon className="mr-3 h-4 w-4" />
-                    <span className="mr-2 font-medium">Creado por:</span>
-                    <span className={cn(creadorEliminado && "text-destructive")}>
-                      {creador}
-                      {creadorEliminado}
-                    </span>
-                  </div>
-                </div>
-              </div>
+              <DatosTicket
+                ticket={ticket}
+                sla={sla}
+                asignado={asignado}
+                creador={creador}
+                creadorEliminado={creadorEliminado}
+              />
             </div>
           </Card>
           <ActividadPanel eventos={eventos} />
