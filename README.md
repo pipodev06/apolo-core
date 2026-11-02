@@ -73,6 +73,16 @@ Cada instalación usa **su propio proyecto Firebase**: no alcanza con clonar y c
    - Vercel: importa el repo y carga las mismas variables `VITE_FIREBASE_*` en *Project Settings → Environment Variables*.
 7. **Crea el primer usuario** (ver abajo).
 
+### App Check (recomendado)
+
+Sin App Check, cualquiera que copie la API key del navegador puede crear cuentas de Auth vacías y gastar tu cuota de lecturas. App Check exige que las peticiones salgan de tu app:
+
+1. Crea una clave **reCAPTCHA v3** para tu dominio (y `localhost`) en [Google Cloud → reCAPTCHA](https://console.cloud.google.com/security/recaptcha) del mismo proyecto. Copia la *site key* (es pública).
+2. Firebase Console → **App Check** → tu app web → **reCAPTCHA v3** → pega la *secret key* y sube el **TTL del token a 24 h** (cada renovación es una verificación de reCAPTCHA: hay 10,000 gratis al mes).
+3. Pon la site key en `VITE_RECAPTCHA_SITE_KEY` (`.env` y variables de Vercel).
+4. En local (`pnpm dev`) la consola del navegador imprime un *debug token*: regístralo en App Check → *Manage debug tokens*.
+5. Revisa en App Check que las peticiones salen como **verificadas** y recién entonces pulsa **Enforce** en Cloud Firestore y Cloud Storage. Si lo exiges antes, la app deja de funcionar.
+
 ### Primer usuario (super_admin)
 
 El sistema no trae usuarios precargados. **Haz este paso apenas despliegues**, porque hasta que se complete cualquiera que entre a `/setup` puede crear el primer super_admin:

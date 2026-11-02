@@ -1,5 +1,6 @@
 // Import the functions you need from the SDKs you need
 import { initializeApp } from "firebase/app";
+import { initializeAppCheck, ReCaptchaV3Provider } from "firebase/app-check";
 import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from "firebase/firestore";
 import { getFunctions } from "firebase/functions";
 import { getAuth, initializeAuth, inMemoryPersistence, type Auth } from "firebase/auth";
@@ -18,6 +19,23 @@ const firebaseConfig = {
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
+
+// App Check (reCAPTCHA v3): prueba que las peticiones a Firestore, Storage
+// y Auth salen de esta app y no de un script con la API key. Solo se activa
+// si hay site key; exigirlo se hace después en la consola de Firebase
+// (App Check → Enforce), cuando las métricas muestren peticiones verificadas.
+// En desarrollo usa un token de depuración (se imprime en la consola del
+// navegador y se registra en App Check → Manage debug tokens).
+const recaptchaSiteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY;
+if (recaptchaSiteKey) {
+  if (import.meta.env.DEV) {
+    (self as { FIREBASE_APPCHECK_DEBUG_TOKEN?: boolean }).FIREBASE_APPCHECK_DEBUG_TOKEN = true;
+  }
+  initializeAppCheck(app, {
+    provider: new ReCaptchaV3Provider(recaptchaSiteKey),
+    isTokenAutoRefreshEnabled: true,
+  });
+}
 // Caché local (IndexedDB): al recargar, los listeners pintan primero lo que
 // ya estaba guardado y después sincronizan con el servidor, en vez de
 // esperar a descargar todo de nuevo. Compartida entre pestañas.
