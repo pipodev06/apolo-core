@@ -8,8 +8,11 @@ import { SLA_DEFAULT, type SlaHoras } from "../lib/sla";
 interface TicketsContextType {
   tickets: Ticket[];
   loading: boolean;
-  // SLA por urgencia de config/app (o SLA_DEFAULT) — se carga una vez por sesión.
+  // De config/app, leído UNA vez por sesión (no con listener: config/app
+  // cambia en cada ticket creado, por el contador, y cada cambio costaría 1
+  // lectura por sesión abierta). Cambios de SLA o techo se ven al recargar.
   sla: SlaHoras;
+  maxTicketsAbiertos?: number;
 }
 
 const SIN_TICKETS: Ticket[] = [];
@@ -28,6 +31,7 @@ export const TicketsProvider: React.FC<{ children: React.ReactNode }> = ({ child
   // logout/login con otra cuenta, no se muestran (ni un render) los del anterior.
   const [cargados, setCargados] = useState<{ userId: string; tickets: Ticket[] } | null>(null);
   const [sla, setSla] = useState<SlaHoras>(SLA_DEFAULT);
+  const [maxTicketsAbiertos, setMaxTicketsAbiertos] = useState<number | undefined>(undefined);
 
   useEffect(() => {
     if (!user) return;
@@ -35,7 +39,9 @@ export const TicketsProvider: React.FC<{ children: React.ReactNode }> = ({ child
     configService
       .getAppConfig()
       .then((c) => {
-        if (activo) setSla({ ...SLA_DEFAULT, ...c.slaHoras });
+        if (!activo) return;
+        setSla({ ...SLA_DEFAULT, ...c.slaHoras });
+        setMaxTicketsAbiertos(c.maxTicketsAbiertos);
       })
       .catch(() => {});
     const unsubscribe = ticketsService.watch(
@@ -53,7 +59,10 @@ export const TicketsProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const listos = !!user && cargados?.userId === user.userId;
   const tickets = listos ? cargados.tickets : SIN_TICKETS;
   const loading = !!user && !listos;
-  const value = useMemo(() => ({ tickets, loading, sla }), [tickets, loading, sla]);
+  const value = useMemo(
+    () => ({ tickets, loading, sla, maxTicketsAbiertos }),
+    [tickets, loading, sla, maxTicketsAbiertos]
+  );
   return <TicketsContext.Provider value={value}>{children}</TicketsContext.Provider>;
 };
 

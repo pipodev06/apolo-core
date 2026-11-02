@@ -18,15 +18,6 @@ import type { Role } from "../lib/roles";
 import { emailDeUsuario, mensajeErrorAuth, seccionesIniciales } from "../lib/cuentas";
 
 export const usersService = {
-  getAll: async () => {
-    const usersRef = collection(db, "users");
-    const q = query(usersRef, orderBy("createdAt", "desc"));
-    const querySnapshot = await getDocs(q);
-    return querySnapshot.docs
-      .map((doc) => ({ id: doc.id, ...doc.data() } as User))
-      .filter((u) => !u.deletedAt);
-  },
-
   // Un solo usuario (null si no existe). Para mostrar un nombre no hace
   // falta descargar la colección entera.
   getById: async (id: string) => {

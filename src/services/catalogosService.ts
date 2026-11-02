@@ -47,16 +47,12 @@ async function propagarRenombre(cascadas: Cascada[], campoViejo: string, nombreN
 // Factory de servicio CRUD para catálogos simples (soft-delete + activo).
 // `cascadas`: qué otras colecciones referencian el nombre de este catálogo
 // por string, para propagar el renombre (ver propagarRenombre arriba).
-export function crearCatalogoService(coleccion: string, cascadas: Cascada[] = []) {
+export type ColeccionCatalogo = "cargos" | "areas" | "categorias";
+
+export function crearCatalogoService(coleccion: ColeccionCatalogo, cascadas: Cascada[] = []) {
   return {
-    getAll: async (): Promise<Catalogo[]> => {
-      const ref = collection(db, coleccion);
-      const q = query(ref, orderBy("nombre", "asc"));
-      const snap = await getDocs(q);
-      return snap.docs
-        .map((d) => ({ id: d.id, ...d.data() } as Catalogo))
-        .filter((c) => !c.deletedAt);
-    },
+    // Para que CatalogoCrud tome la lista viva de CatalogosContext.
+    coleccion,
 
     create: async (nombre: string) => {
       await addDoc(collection(db, coleccion), {

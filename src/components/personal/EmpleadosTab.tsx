@@ -1,8 +1,9 @@
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useState } from "react";
+import { forwardRef, useImperativeHandle, useMemo, useState } from "react";
 import { IconUsers as Users, IconMail as Mail, IconPhone as Phone } from "@tabler/icons-react";
 import { empleadosService } from "../../services/empleadosService";
-import { configService } from "../../services/configService";
 import { useTickets } from "../../context/TicketsContext";
+import { useCatalogos } from "../../context/CatalogosContext";
+import { useListaConPapelera } from "../../lib/useListaConPapelera";
 import type { Empleado } from "../../types/empleado";
 import { calcularCarga, estaOcupado } from "../../lib/carga";
 import { TablaCard, TableHeader, TableBody, TableRow, TableHead, TableCell } from "../ui/table";
@@ -27,40 +28,26 @@ interface Props {
 }
 
 export const EmpleadosTab = forwardRef<EmpleadosTabHandle, Props>(({ soloPapelera = false }, ref) => {
-  const [empleados, setEmpleados] = useState<Empleado[]>([]);
   // Tickets viene de TicketsProvider (App.tsx) — no aplica en la papelera,
   // ahí no se puede asignar nada, así que ni se usa.
-  const { tickets } = useTickets();
-  const [maxTicketsAbiertos, setMaxTicketsAbiertos] = useState<number | undefined>(undefined);
-  const [loading, setLoading] = useState(true);
+  const { tickets, maxTicketsAbiertos } = useTickets();
+  // Activos desde el listener compartido; la papelera se pide aparte.
+  const catalogos = useCatalogos();
+  const {
+    items: empleados,
+    loading,
+    recargar,
+  } = useListaConPapelera(
+    soloPapelera,
+    { lista: catalogos.empleados, listo: catalogos.empleadosListos },
+    empleadosService.listarPapelera
+  );
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Empleado | null>(null);
 
   // Búsqueda aplicada (el borrador vive en FiltroBuscarPor). campo: "" = todos, o "cargo" | "area" | "estado".
   const [busqueda, setBusqueda] = useState<BusquedaPorCampo>({ query: "", campo: "" });
   const { query, campo: fCampo } = busqueda;
-
-  const fetch = useCallback(async () => {
-    setLoading(true);
-    try {
-      const data = soloPapelera ? await empleadosService.listarPapelera() : await empleadosService.getAll();
-      setEmpleados(data);
-    } catch {
-      notificarError("Error al cargar el personal");
-    } finally {
-      setLoading(false);
-    }
-  }, [soloPapelera]);
-
-  useEffect(() => {
-    Promise.resolve().then(fetch);
-  }, [fetch]);
-
-  // Techo de carga: no aplica en la papelera.
-  useEffect(() => {
-    if (soloPapelera) return;
-    configService.getAppConfig().then((c) => setMaxTicketsAbiertos(c.maxTicketsAbiertos)).catch(() => {});
-  }, [soloPapelera]);
 
   const openNuevo = () => {
     setEditing(null);
@@ -92,7 +79,7 @@ export const EmpleadosTab = forwardRef<EmpleadosTabHandle, Props>(({ soloPapeler
     }
     try {
       await empleadosService.toggleActivo(e.id, e.activo);
-      fetch();
+      recargar();
     } catch {
       notificarError("Error al actualizar");
     }
@@ -113,7 +100,7 @@ export const EmpleadosTab = forwardRef<EmpleadosTabHandle, Props>(({ soloPapeler
     try {
       await empleadosService.delete(e.id);
       notificarExito("Enviado a la papelera");
-      fetch();
+      recargar();
     } catch {
       notificarError("Error al eliminar");
     }
@@ -123,7 +110,7 @@ export const EmpleadosTab = forwardRef<EmpleadosTabHandle, Props>(({ soloPapeler
     try {
       await empleadosService.restaurar(e.id);
       notificarExito("Empleado restaurado");
-      fetch();
+      recargar();
     } catch {
       notificarError("Error al restaurar");
     }
@@ -140,7 +127,7 @@ export const EmpleadosTab = forwardRef<EmpleadosTabHandle, Props>(({ soloPapeler
     try {
       await empleadosService.eliminarDefinitivo(e.id);
       notificarExito("Eliminado definitivamente");
-      fetch();
+      recargar();
     } catch {
       notificarError("Error al eliminar");
     }
@@ -287,7 +274,7 @@ export const EmpleadosTab = forwardRef<EmpleadosTabHandle, Props>(({ soloPapeler
       )}
 
       {!soloPapelera && (
-        <EmpleadoModal open={modalOpen} onClose={() => setModalOpen(false)} onSaved={fetch} empleado={editing} />
+        <EmpleadoModal open={modalOpen} onClose={() => setModalOpen(false)} onSaved={recargar} empleado={editing} />
       )}
     </div>
   );

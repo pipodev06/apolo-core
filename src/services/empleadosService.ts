@@ -15,15 +15,6 @@ import type { Empleado } from "../types/empleado";
 type EmpleadoInput = Pick<Empleado, "nombre" | "cargo" | "area" | "email" | "telefono" | "activo">;
 
 export const empleadosService = {
-  getAll: async () => {
-    const ref = collection(db, "personal");
-    const q = query(ref, orderBy("nombre", "asc"));
-    const snap = await getDocs(q);
-    return snap.docs
-      .map((d) => ({ id: d.id, ...d.data() } as Empleado))
-      .filter((e) => !e.deletedAt);
-  },
-
   create: async (data: EmpleadoInput) => {
     const ref = collection(db, "personal");
     await addDoc(ref, {

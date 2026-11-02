@@ -1,4 +1,4 @@
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useState } from "react";
+import { forwardRef, useImperativeHandle, useMemo, useState } from "react";
 import { IconTag as Tag } from "@tabler/icons-react";
 import { TablaCard, TableHeader, TableBody, TableRow, TableHead, TableCell } from "../ui/table";
 import { Badge } from "../ui/badge";
@@ -13,6 +13,8 @@ import { confirmar, notificarExito, notificarError } from "../../lib/alertas";
 import type { Catalogo } from "../../types/catalogo";
 import type { CatalogoService } from "../../services/catalogosService";
 import { AccionesFila } from "../ui/acciones-fila";
+import { useCatalogos } from "../../context/CatalogosContext";
+import { useListaConPapelera } from "../../lib/useListaConPapelera";
 
 const PAGE_SIZE = 10;
 
@@ -34,29 +36,19 @@ export const CatalogoCrud = forwardRef<CatalogoCrudHandle, Props>(
   const nuevo = femenino ? "Nueva" : "Nuevo";
   const primero = femenino ? "la primera" : "el primer";
   const del = femenino ? "de la" : "del";
-  const [items, setItems] = useState<Catalogo[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Activos desde el listener compartido (CatalogosContext); la papelera aparte.
+  const catalogos = useCatalogos();
+  const vivos = {
+    cargos: { lista: catalogos.cargos, listo: catalogos.cargosListos },
+    areas: { lista: catalogos.areas, listo: catalogos.areasListas },
+    categorias: { lista: catalogos.categorias, listo: catalogos.categoriasListas },
+  }[service.coleccion];
+  const { items, loading, recargar } = useListaConPapelera(soloPapelera, vivos, service.listarPapelera);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Catalogo | null>(null);
   const [nombre, setNombre] = useState("");
   const [saving, setSaving] = useState(false);
   const [page, setPage] = useState(1);
-
-  const fetch = useCallback(async () => {
-    setLoading(true);
-    try {
-      const data = soloPapelera ? await service.listarPapelera() : await service.getAll();
-      setItems(data);
-    } catch {
-      notificarError("Error al cargar");
-    } finally {
-      setLoading(false);
-    }
-  }, [soloPapelera, service]);
-
-  useEffect(() => {
-    Promise.resolve().then(fetch);
-  }, [fetch]);
 
   const openNuevo = () => {
     setEditing(null);
@@ -64,7 +56,7 @@ export const CatalogoCrud = forwardRef<CatalogoCrudHandle, Props>(
     setModalOpen(true);
   };
 
-  useImperativeHandle(ref, () => ({ abrirNuevo: openNuevo, recargar: fetch }));
+  useImperativeHandle(ref, () => ({ abrirNuevo: openNuevo, recargar }));
 
   const openEditar = (it: Catalogo) => {
     setEditing(it);
@@ -83,7 +75,7 @@ export const CatalogoCrud = forwardRef<CatalogoCrudHandle, Props>(
       else await service.create(nombre.trim());
       notificarExito("Guardado correctamente");
       setModalOpen(false);
-      fetch();
+      recargar();
     } catch {
       notificarError("Error al guardar");
     } finally {
@@ -102,7 +94,7 @@ export const CatalogoCrud = forwardRef<CatalogoCrudHandle, Props>(
     try {
       await service.delete(it.id);
       notificarExito("Enviado a la papelera");
-      fetch();
+      recargar();
     } catch {
       notificarError("Error al eliminar");
     }
@@ -111,7 +103,7 @@ export const CatalogoCrud = forwardRef<CatalogoCrudHandle, Props>(
   const toggle = async (it: Catalogo) => {
     try {
       await service.toggleActivo(it.id, it.activo);
-      fetch();
+      recargar();
     } catch {
       notificarError("Error al actualizar");
     }
@@ -121,7 +113,7 @@ export const CatalogoCrud = forwardRef<CatalogoCrudHandle, Props>(
     try {
       await service.restaurar(it.id);
       notificarExito("Restaurado");
-      fetch();
+      recargar();
     } catch {
       notificarError("Error al restaurar");
     }
@@ -138,7 +130,7 @@ export const CatalogoCrud = forwardRef<CatalogoCrudHandle, Props>(
     try {
       await service.eliminarDefinitivo(it.id);
       notificarExito("Eliminado definitivamente");
-      fetch();
+      recargar();
     } catch {
       notificarError("Error al eliminar");
     }
