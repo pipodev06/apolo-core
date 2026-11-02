@@ -1,4 +1,18 @@
-import type { TicketStatus } from "../types/ticket";
+import type { TicketStatus, Urgency } from "../types/ticket";
+
+export const STATUS_LABELS: Record<TicketStatus, string> = {
+  pendiente: "Pendiente",
+  asignado: "Asignado",
+  en_proceso: "En Proceso",
+  terminado: "Terminado",
+};
+
+export const URGENCY_LABELS: Record<Urgency, string> = {
+  CRITICO: "Crítico",
+  ALTO: "Alto",
+  MEDIO: "Medio",
+  BAJO: "Bajo",
+};
 
 // Mismas transiciones prohibidas que transicionDeEstadoValida en
 // firestore.rules — no saltar pasos hacia adelante (pendiente→en_proceso/

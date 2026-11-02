@@ -5,7 +5,6 @@ import type { FirestoreTimestamp } from "./firestore";
 export interface User {
   id: string;
   username: string;
-  usernameHash: string;
   email?: string;
   role: Role;
   // id del doc en personal/ vinculado a esta cuenta — solo aplica a técnicos

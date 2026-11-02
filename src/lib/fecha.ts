@@ -3,7 +3,7 @@ import { es } from "date-fns/locale";
 import { Timestamp } from "firebase/firestore";
 import type { FirestoreTimestamp } from "../types/firestore";
 
-function toDate(value: FirestoreTimestamp | null | undefined): Date | null {
+export function toDate(value: FirestoreTimestamp | null | undefined): Date | null {
   if (!value) return null;
   if (value instanceof Timestamp) return value.toDate();
   const d = new Date(value);

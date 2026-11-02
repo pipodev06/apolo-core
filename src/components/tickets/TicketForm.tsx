@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectVa
 import { Textarea } from "../ui/textarea";
 import { ImageUploader } from "../ui/image-uploader";
 import { useAuth } from "../../context/AuthContext";
+import { useAccess } from "../../context/AccessContext";
 import { esAdmin } from "../../lib/roles";
 import { useCatalogos } from "../../context/CatalogosContext";
 import { configService } from "../../services/configService";
@@ -43,6 +44,7 @@ interface TicketFormProps {
 
 export const TicketForm: React.FC<TicketFormProps> = ({ initialData, onSubmit, loading }) => {
   const { user } = useAuth();
+  const puedeSubirImagenes = useAccess().hasAccess("subirImagenes");
   const isAdmin = esAdmin(user?.role);
   // Ticket nuevo: solo título, hora y descripción — urgencia y personal los
   // determina la IA automáticamente tras crearse (o el admin, editando después).
@@ -202,21 +204,23 @@ export const TicketForm: React.FC<TicketFormProps> = ({ initialData, onSubmit, l
 
         <CategoriaField control={control} categoriaActual={initialData?.categoria} />
 
-        {/* Fila 4 — Imágenes del problema */}
-        <Field>
-          <FieldLabel>Imágenes del problema</FieldLabel>
-          <Controller
-            name="problemImages"
-            control={control}
-            render={({ field }) => (
-              <ImageUploader
-                value={field.value || []}
-                onChange={field.onChange}
-                pathPrefix={`tickets/${storageTicketId}/problema`}
-              />
-            )}
-          />
-        </Field>
+        {/* Fila 4 — Imágenes del problema (solo con permiso "Subir imágenes") */}
+        {puedeSubirImagenes && (
+          <Field>
+            <FieldLabel>Imágenes del problema</FieldLabel>
+            <Controller
+              name="problemImages"
+              control={control}
+              render={({ field }) => (
+                <ImageUploader
+                  value={field.value || []}
+                  onChange={field.onChange}
+                  pathPrefix={`tickets/${storageTicketId}/problema`}
+                />
+              )}
+            />
+          </Field>
+        )}
 
         {mostrarCamposAdmin ? (
           <>

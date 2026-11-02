@@ -11,5 +11,7 @@ export interface TicketEvento {
   actorId?: string;
   actorNombre?: string;
   actorTipo?: "usuario" | "ia"; // solo tipo=sistema   // comentario: autor; sistema: quién hizo el cambio (usuario o "Asistente IA")
+  clave?: "asignacion";    // tipo=sistema: cambio de asignación
+  orden?: number;         // desempata eventos escritos en la misma operación
   createdAt: FirestoreTimestamp;
 }

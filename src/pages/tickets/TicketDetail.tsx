@@ -10,6 +10,7 @@ import { StatusBadge } from "../../components/tickets/StatusBadge";
 import { ComentariosPanel } from "../../components/tickets/ComentariosPanel";
 import { ActividadPanel } from "../../components/tickets/ActividadPanel";
 import { eventosService } from "../../services/eventosService";
+import { IA_CREATED_BY } from "../../lib/historial";
 import type { TicketEvento } from "../../types/evento";
 import { Button } from "../../components/ui/button";
 import { Card } from "../../components/ui/card";
@@ -27,7 +28,6 @@ import { Badge } from "../../components/ui/badge";
 import { ImagenesAdjuntas } from "../../components/ui/image-uploader";
 
 // Sentinel usado cuando un ticket se crea de forma automática (sin usuario humano detrás).
-const IA_CREATED_BY = "ia-assistant";
 
 export const TicketDetail: React.FC = () => {
   const { user } = useAuth();

@@ -1,6 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { onIdTokenChanged } from "firebase/auth";
-import { auth } from "../firebase";
+import { onAuthStateChanged } from "firebase/auth";
+import { doc, onSnapshot } from "firebase/firestore";
+import { auth, db } from "../firebase";
 import { authService } from "../services/authService";
 
 interface Session {
@@ -25,28 +26,54 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<Session | null>(() => authService.getSession());
 
   // La sesión de localStorage es solo para pintar la UI sin esperar; la
-  // fuente de verdad es Firebase Auth. Si Auth no tiene sesión (revocada por
-  // un admin, expirada, borrada a mano) se cierra la de la UI; si la tiene,
-  // rol y personalId se toman de los claims del token (no del localStorage,
-  // que se puede editar a mano).
+  // fuente de verdad es Firebase Auth + el doc users/{uid} (el mismo que
+  // leen las reglas). Sin sesión de Auth, o si la cuenta se desactiva, va a
+  // la papelera o deja de existir, se cierra la de la UI al instante. Rol,
+  // personalId y username se toman del doc (el localStorage se puede editar
+  // a mano). Solo se actúa si ya hay sesión de UI: durante el login, la
+  // verificación la hace authService.login.
   useEffect(() => {
-    return onIdTokenChanged(auth, async (fbUser) => {
+    let dejarDeEscuchar: (() => void) | undefined;
+    const cerrar = () => {
+      if (!authService.getSession()) return;
+      authService.logout();
+      setUser(null);
+    };
+
+    const dejarDeEscucharAuth = onAuthStateChanged(auth, (fbUser) => {
+      dejarDeEscuchar?.();
+      dejarDeEscuchar = undefined;
       if (!fbUser) {
-        if (authService.getSession()) {
-          authService.logout();
-          setUser(null);
-        }
+        cerrar();
         return;
       }
-      const { claims } = await fbUser.getIdTokenResult();
-      const role = typeof claims.role === "string" ? claims.role : "usuario";
-      const personalId = typeof claims.personalId === "string" ? claims.personalId : undefined;
-      const actual = authService.getSession();
-      if (!actual || (actual.role === role && actual.personalId === personalId)) return;
-      const actualizada = { ...actual, role, personalId };
-      localStorage.setItem("session", JSON.stringify(actualizada));
-      setUser(actualizada);
+      dejarDeEscuchar = onSnapshot(
+        doc(db, "users", fbUser.uid),
+        (snap) => {
+          const data = snap.data();
+          if (!data || data.active !== true || data.deletedAt) {
+            cerrar();
+            return;
+          }
+          const actual = authService.getSession();
+          if (!actual || actual.userId !== fbUser.uid) return;
+          const role = data.role as string;
+          const personalId = (data.personalId as string | undefined) || undefined;
+          const username = data.username as string;
+          if (actual.role === role && actual.personalId === personalId && actual.username === username) return;
+          const actualizada = { ...actual, role, personalId, username };
+          localStorage.setItem("session", JSON.stringify(actualizada));
+          setUser(actualizada);
+        },
+        // Sin permiso de lectura = cuenta desactivada (reglas).
+        cerrar
+      );
     });
+
+    return () => {
+      dejarDeEscucharAuth();
+      dejarDeEscuchar?.();
+    };
   }, []);
 
   const login = useCallback(async (username: string, password: string) => {

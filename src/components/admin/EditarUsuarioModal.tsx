@@ -2,6 +2,7 @@ import React, { useEffect, useMemo } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
+import { USERNAME_REGEX, USERNAME_MENSAJE } from "../../lib/cuentas";
 import { IconKey as KeyRound } from "@tabler/icons-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "../ui/dialog";
 import { Input } from "../ui/input";
@@ -17,7 +18,7 @@ import type { User } from "../../types/user";
 const SIN_VINCULO = "__none__";
 
 const schema = z.object({
-  username: z.string().min(3, "Mínimo 3 caracteres"),
+  username: z.string().trim().regex(USERNAME_REGEX, USERNAME_MENSAJE),
   email: z.string().email("Email inválido").optional().or(z.literal("")),
   role: z.enum(["usuario", "admin", "super_admin"]),
   personalId: z.string(),

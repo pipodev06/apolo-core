@@ -6,16 +6,16 @@ import {
   updateDoc,
   deleteField,
   query,
-  where,
   orderBy,
-  limit,
   serverTimestamp,
+  writeBatch,
 } from "firebase/firestore";
 import { httpsCallable } from "firebase/functions";
-import { db, functions } from "../firebase";
+import { createUserWithEmailAndPassword, signOut } from "firebase/auth";
+import { db, functions, getAuthCuentas } from "../firebase";
 import type { User } from "../types/user";
 import type { Role } from "../lib/roles";
-import { hashUsername } from "../lib/hash";
+import { emailDeUsuario, mensajeErrorAuth, seccionesIniciales } from "../lib/cuentas";
 
 export const usersService = {
   getAll: async () => {
@@ -34,11 +34,41 @@ export const usersService = {
     return snap.exists() ? ({ id: snap.id, ...snap.data() } as User) : null;
   },
 
-  // Vía Cloud Function: hashea la contraseña server-side y crea users +
-  // credenciales + access en una transacción.
+  // Crea la cuenta en Firebase Auth con la instancia secundaria (la sesión
+  // del admin no cambia) y después users + access con la sesión del admin
+  // (las reglas exigen admin). Si eso falla, se borra la cuenta de Auth.
   create: async (data: { username: string; password: string; email?: string; role: Role; personalId?: string }) => {
-    const fn = httpsCallable(functions, "crearUsuario");
-    await fn(data);
+    const authCuentas = getAuthCuentas();
+    let cred;
+    try {
+      cred = await createUserWithEmailAndPassword(authCuentas, emailDeUsuario(data.username), data.password);
+    } catch (error) {
+      throw new Error(mensajeErrorAuth(error), { cause: error });
+    }
+    const uid = cred.user.uid;
+    try {
+      const batch = writeBatch(db);
+      batch.set(doc(db, "users", uid), {
+        username: data.username.trim(),
+        email: data.email ?? "",
+        role: data.role,
+        ...(data.personalId ? { personalId: data.personalId } : {}),
+        active: true,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+      batch.set(doc(db, "access", uid), {
+        userId: uid,
+        sections: seccionesIniciales(data.role),
+        updatedAt: serverTimestamp(),
+      });
+      await batch.commit();
+    } catch (error) {
+      await cred.user.delete().catch(() => {});
+      throw error;
+    } finally {
+      await signOut(authCuentas).catch(() => {});
+    }
   },
 
   update: async (id: string, data: Partial<User>) => {
@@ -55,20 +85,11 @@ export const usersService = {
     });
   },
 
-  // Solo super_admin puede llegar hasta aquí (ver UsuariosTab); las reglas de
-  // Firestore además exigen el custom claim role == 'super_admin' para que
-  // el cambio de username pase, sea cual sea quien llame a este método.
+  // El usuario es también el email de login en Firebase Auth: cambiarlo
+  // necesita la Admin SDK (Cloud Function, solo super_admin).
   updateUsername: async (id: string, newUsername: string) => {
-    const usernameHash = await hashUsername(newUsername);
-
-    const usersRef = collection(db, "users");
-    const existing = await getDocs(query(usersRef, where("usernameHash", "==", usernameHash), limit(1)));
-    if (!existing.empty && existing.docs[0].id !== id) {
-      throw new Error("El nombre de usuario ya existe");
-    }
-
-    const userRef = doc(db, "users", id);
-    await updateDoc(userRef, { username: newUsername, usernameHash, updatedAt: serverTimestamp() });
+    const fn = httpsCallable(functions, "cambiarUsername");
+    await fn({ userId: id, username: newUsername });
   },
 
   toggleActive: async (id: string, currentStatus: boolean) => {
@@ -97,8 +118,9 @@ export const usersService = {
     await updateDoc(doc(db, "users", id), { deletedAt: null, updatedAt: serverTimestamp() });
   },
 
+  // Borra también su login de Firebase Auth: necesita la Admin SDK.
   eliminarDefinitivo: async (id: string) => {
-    const fn = httpsCallable(functions, "eliminarDefinitivo");
-    await fn({ coleccion: "users", id });
+    const fn = httpsCallable(functions, "eliminarCuenta");
+    await fn({ id });
   },
 };

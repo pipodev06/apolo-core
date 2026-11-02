@@ -1,6 +1,7 @@
 import * as logger from "firebase-functions/logger";
 import { FieldValue } from "firebase-admin/firestore";
 import { analizarTicket } from "./groq";
+import { registrarCambiosIA } from "./historial";
 
 const OPEN_STATUSES = ["asignado", "en_proceso"];
 
@@ -8,19 +9,13 @@ interface AnalizarYAsignarParams {
   db: FirebaseFirestore.Firestore;
   ticketId: string;
   ticketRef: FirebaseFirestore.DocumentReference;
-  title: string;
-  description: string;
+  // Datos actuales del ticket: título/descripción para la IA y estado,
+  // urgencia, asignación y categoría previos para el historial.
+  ticket: FirebaseFirestore.DocumentData;
   apiKey: string;
   // Techo de carga (tickets abiertos) por empleado, desde config/app. Si no
   // se pasa, no se filtra por ocupación — todos cuentan como disponibles.
   maxTicketsAbiertos?: number;
-  // Estado/asignación actuales del ticket: si al reanalizar la IA elige al
-  // mismo técnico, el ticket conserva su estado (no retrocede en_proceso → asignado).
-  statusActual?: string;
-  assignedToActual?: string;
-  // Categoría elegida por quien creó el ticket: si ya tiene una, la IA no la
-  // pisa; si no tiene, la IA sugiere una de las categorías activas.
-  categoriaActual?: string;
 }
 
 export interface ResultadoAnalisis {
@@ -34,7 +29,16 @@ export interface ResultadoAnalisis {
  * Usado tanto por el trigger de creación como por la re-ejecución manual.
  */
 export async function analizarYAsignar(params: AnalizarYAsignarParams): Promise<ResultadoAnalisis> {
-  const { db, ticketId, ticketRef, title, description, apiKey, maxTicketsAbiertos, statusActual, assignedToActual, categoriaActual } = params;
+  const { db, ticketId, ticketRef, ticket, apiKey, maxTicketsAbiertos } = params;
+  const title = (ticket.title as string | undefined) ?? "";
+  const description = (ticket.description as string | undefined) ?? "";
+  // Si al reanalizar la IA elige al mismo técnico, el ticket conserva su
+  // estado (no retrocede en_proceso → asignado).
+  const statusActual = ticket.status as string | undefined;
+  const assignedToActual = ticket.assignedTo as string | undefined;
+  // Categoría elegida por quien creó el ticket: si ya tiene una, la IA no la
+  // pisa; si no tiene, la IA sugiere una de las categorías activas.
+  const categoriaActual = ticket.categoria as string | undefined;
 
   const areasSnap = await db.collection("areas").where("activo", "==", true).get();
   const areas = areasSnap.docs.flatMap((d) => {
@@ -77,6 +81,7 @@ export async function analizarYAsignar(params: AnalizarYAsignarParams): Promise<
   if (!analisis.area) {
     logger.warn(`Ticket ${ticketId}: Groq no devolvió un área válida`);
     await ticketRef.update(update);
+    await registrarCambiosIA(db, ticketId, ticket, update);
     return { ok: false, motivo: "La IA no pudo determinar el área del ticket." };
   }
 
@@ -90,6 +95,7 @@ export async function analizarYAsignar(params: AnalizarYAsignarParams): Promise<
     logger.warn(`Ticket ${ticketId}: área "${analisis.area}" sin empleados activos`);
     update.area = analisis.area;
     await ticketRef.update(update);
+    await registrarCambiosIA(db, ticketId, ticket, update);
     return { ok: false, motivo: `El área "${analisis.area}" no tiene empleados activos.` };
   }
 
@@ -137,6 +143,7 @@ export async function analizarYAsignar(params: AnalizarYAsignarParams): Promise<
     update.status = "asignado";
   }
   await ticketRef.update(update);
+  await registrarCambiosIA(db, ticketId, ticket, update, elegido.nombre);
 
   logger.info(
     `Ticket ${ticketId} asignado por IA a ${elegido.nombre} (${elegido.id}) en área "${analisis.area}"`

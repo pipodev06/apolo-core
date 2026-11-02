@@ -8,19 +8,40 @@ rules_version = '2';
 // solo la necesita quien subió el archivo, o un admin.
 service firebase.storage {
   match /b/{bucket}/o {
+    // Rol leído de users/{uid} en Firestore (no hay custom claims), mismo
+    // criterio que firestore.rules: cuenta activa y fuera de la papelera.
+    function perfil() {
+      return firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function cuentaActiva() {
+      return request.auth != null
+             && perfil().get('active', false) == true
+             && perfil().get('deletedAt', null) == null;
+    }
+
     function esAdmin() {
-      return request.auth != null && request.auth.token.get('role', '') in ['admin', 'super_admin'];
+      return cuentaActiva() && perfil().get('role', '') in ['admin', 'super_admin'];
     }
 
     // Quien subió el archivo (customMetadata.uploadedBy) o un admin.
     function esDuenoOAdmin() {
-      return request.auth != null
+      return cuentaActiva()
              && (resource.metadata.get('uploadedBy', '') == request.auth.uid || esAdmin());
     }
 
-    // Imagen nueva de hasta 5MB, firmada por quien la sube.
+    // Permiso "Subir imágenes" de la Matriz de Accesos: el super_admin
+    // siempre; el resto según access/{uid}.sections.subirImagenes.
+    function puedeSubirImagenes() {
+      return perfil().get('role', '') == 'super_admin'
+             || firestore.get(/databases/(default)/documents/access/$(request.auth.uid)).data.sections
+                  .get('subirImagenes', false) == true;
+    }
+
+    // Imagen nueva de hasta 5MB, firmada por quien la sube, con permiso.
     function esSubidaValida() {
-      return request.auth != null
+      return cuentaActiva()
+             && puedeSubirImagenes()
              && request.resource.size < 5 * 1024 * 1024
              && request.resource.contentType.matches('image/.*')
              && request.resource.metadata.uploadedBy == request.auth.uid;
