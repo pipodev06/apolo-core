@@ -102,7 +102,18 @@ function TableCaption({
   )
 }
 
+// Tabla del proyecto dentro de su tarjeta (borde, fondo y sombra): el
+// contenedor que lleva toda tabla de la app (ver AGENTS.md).
+function TablaCard({ className, ...props }: React.ComponentProps<"table">) {
+  return (
+    <div className="overflow-hidden rounded-lg border bg-card shadow-sm">
+      <Table className={className} {...props} />
+    </div>
+  )
+}
+
 export {
+  TablaCard,
   Table,
   TableHeader,
   TableBody,

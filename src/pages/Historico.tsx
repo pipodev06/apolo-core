@@ -4,7 +4,7 @@ import { IconHistory as History, IconEye as Eye, IconDownload as Download } from
 import { useCatalogos } from "../context/CatalogosContext";
 import { useTickets } from "../context/TicketsContext";
 import type { Empleado } from "../types/empleado";
-import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "../components/ui/table";
+import { TablaCard, TableHeader, TableBody, TableRow, TableHead, TableCell } from "../components/ui/table";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { SimplePagination } from "../components/ui/pagination";
@@ -117,52 +117,50 @@ export const Historico: React.FC = () => {
         />
       ) : (
         <>
-          <div className="overflow-hidden rounded-lg border bg-card shadow-sm">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>#</TableHead>
-                  <TableHead>Empleado</TableHead>
-                  <TableHead>Cargo</TableHead>
-                  <TableHead>Área</TableHead>
-                  <TableHead>Asignados</TableHead>
-                  <TableHead>Terminados</TableHead>
-                  <TableHead>Tiempo prom.</TableHead>
-                  <TableHead>Detalle</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {paginados.map((f, i) => (
-                  <TableRow key={f.empleado.id}>
-                    <TableCell>{numero(i)}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center">
-                        <div className="mr-3 flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary">
-                          {f.empleado.nombre.substring(0, 2).toUpperCase()}
-                        </div>
-                        <span className="font-medium">{f.empleado.nombre}</span>
+          <TablaCard>
+            <TableHeader>
+              <TableRow>
+                <TableHead>#</TableHead>
+                <TableHead>Empleado</TableHead>
+                <TableHead>Cargo</TableHead>
+                <TableHead>Área</TableHead>
+                <TableHead>Asignados</TableHead>
+                <TableHead>Terminados</TableHead>
+                <TableHead>Tiempo prom.</TableHead>
+                <TableHead>Detalle</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {paginados.map((f, i) => (
+                <TableRow key={f.empleado.id}>
+                  <TableCell>{numero(i)}</TableCell>
+                  <TableCell>
+                    <div className="flex items-center">
+                      <div className="mr-3 flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary">
+                        {f.empleado.nombre.substring(0, 2).toUpperCase()}
                       </div>
-                    </TableCell>
-                    <TableCell>{f.empleado.cargo || "-"}</TableCell>
-                    <TableCell>{f.empleado.area || "-"}</TableCell>
-                    <TableCell>
-                      <Badge variant="blue">{f.asignados}</Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="green">{f.terminados}</Badge>
-                    </TableCell>
-                    <TableCell>{fmtDuracion(f.promedioMs)}</TableCell>
-                    <TableCell>
-                      <Button variant="outline" size="sm" onClick={() => navigate(`/historico/${f.empleado.id}`)}>
-                        <Eye className="h-4 w-4" />
-                        Ver detalles
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+                      <span className="font-medium">{f.empleado.nombre}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell>{f.empleado.cargo || "-"}</TableCell>
+                  <TableCell>{f.empleado.area || "-"}</TableCell>
+                  <TableCell>
+                    <Badge variant="blue">{f.asignados}</Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="green">{f.terminados}</Badge>
+                  </TableCell>
+                  <TableCell>{fmtDuracion(f.promedioMs)}</TableCell>
+                  <TableCell>
+                    <Button variant="outline" size="sm" onClick={() => navigate(`/historico/${f.empleado.id}`)}>
+                      <Eye className="h-4 w-4" />
+                      Ver detalles
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </TablaCard>
 
           {totalPages > 1 && (
             <div className="flex justify-end">
