@@ -1,6 +1,5 @@
-import React, { useEffect, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { accessService } from "../../../services/accessService";
-import { usersService } from "../../../services/usersService";
 import type { User } from "../../../types/user";
 import type { UserAccess, AccessSections } from "../../../types/access";
 import { TablaCard, TableHeader, TableBody, TableRow, TableHead, TableCell } from "../../../components/ui/table";
@@ -10,6 +9,9 @@ import { PageSpinner } from "../../../components/ui/spinner";
 import { notificarExito, notificarError } from "../../../lib/alertas";
 import { esAdmin, esSuperAdmin, roleLabel } from "../../../lib/roles";
 import { useAuth } from "../../../context/AuthContext";
+import { useAdminDatos } from "../../../context/AdminDatosContext";
+
+const SIN_USUARIOS: User[] = [];
 
 export const AccesosTab: React.FC = () => {
   const { user: currentUser } = useAuth();
@@ -17,40 +19,31 @@ export const AccesosTab: React.FC = () => {
   // Los accesos de una cuenta protegida solo los cambia un super_admin
   // (firestore.rules): para un admin se muestran pero no se pueden tocar.
   const bloqueadaParaMi = (u?: User) => !!u?.protegida && !soySuperAdmin;
-  const [users, setUsers] = useState<User[]>([]);
-  const [accessList, setAccessList] = useState<UserAccess[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Cuentas y accesos del listener de AdminDatosProvider (Administración):
+  // cambiar de pestaña ya no vuelve a descargarlos.
+  const adminDatos = useAdminDatos();
+  const users = adminDatos?.users ?? SIN_USUARIOS;
+  const loading = !adminDatos?.listo;
+  // Ediciones sin guardar por cuenta, encima de los datos en vivo: si llega
+  // un cambio del listener mientras editas, no pisa lo que tocaste.
+  const [cambios, setCambios] = useState<Record<string, AccessSections>>({});
   const [saving, setSaving] = useState(false);
 
-  const fetchData = async () => {
-    try {
-      const [usersData, accessData] = await Promise.all([
-        usersService.getAll(),
-        accessService.getAll()
-      ]);
-      setUsers(usersData);
-      // Campo nuevo: los documentos existentes todavía no lo tienen — se
-      // normaliza a "true" aquí para no apagarlo sin querer al guardar la
-      // matriz por otro motivo (ver AccessContext, mismo criterio).
-      setAccessList(accessData.map(acc => ({
+  // Campos nuevos: docs que todavía no los tienen se normalizan acá, para
+  // no apagarlos sin querer al guardar (mismo criterio que AccessContext).
+  const accessList = useMemo<UserAccess[]>(
+    () =>
+      (adminDatos?.access ?? []).map((acc) => ({
         ...acc,
-        sections: {
+        sections: cambios[acc.userId] ?? {
           ...acc.sections,
           notificaciones: acc.sections.notificaciones ?? true,
           papelera: acc.sections.papelera ?? false,
           subirImagenes: acc.sections.subirImagenes ?? false,
         },
-      })));
-    } catch {
-      notificarError("Error al cargar datos");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    Promise.resolve().then(fetchData);
-  }, []);
+      })),
+    [adminDatos?.access, cambios]
+  );
 
   // "Subir imágenes" es el único permiso que también aplica a un admin, y
   // ese solo lo cambia un super_admin (firestore.rules). El super_admin
@@ -73,24 +66,16 @@ export const AccesosTab: React.FC = () => {
       return;
     }
 
-    setAccessList(prev => prev.map(acc => {
-      if (acc.userId === userId) {
-        return {
-          ...acc,
-          sections: {
-            ...acc.sections,
-            [section]: !acc.sections[section]
-          }
-        };
-      }
-      return acc;
-    }));
+    const actual = accessList.find((acc) => acc.userId === userId);
+    if (!actual) return;
+    setCambios((prev) => ({ ...prev, [userId]: { ...actual.sections, [section]: !actual.sections[section] } }));
   };
 
   const handleSave = async () => {
     setSaving(true);
     try {
-      const promises = accessList.map(acc => {
+      // Solo las filas que cambiaron (antes se reescribía la matriz entera).
+      const promises = accessList.filter((acc) => cambios[acc.userId]).map(acc => {
         const user = users.find(u => u.id === acc.userId);
         // De un admin solo importa "subirImagenes", y solo lo guarda un super_admin.
         const guardable = user?.role === "admin" ? soySuperAdmin : !esAdmin(user?.role) && !bloqueadaParaMi(user);
@@ -108,6 +93,7 @@ export const AccesosTab: React.FC = () => {
         return accessService.updateAccess(acc.userId, sections);
       });
       await Promise.all(promises);
+      setCambios({});
       notificarExito("Matriz de accesos actualizada");
     } catch {
       notificarError("Error al guardar los cambios");

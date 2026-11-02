@@ -1,5 +1,6 @@
 import React from "react";
 import { Navigate, useLocation } from "react-router-dom";
+import { AdminDatosProvider } from "../../context/AdminDatosContext";
 import { PaginaConPestanas } from "../../components/layout/PaginaConPestanas";
 
 const tabs = [
@@ -16,5 +17,9 @@ export const Administracion: React.FC = () => {
     return <Navigate to="/administracion/modo" replace />;
   }
 
-  return <PaginaConPestanas titulo="Administración" tabs={tabs} />;
+  return (
+    <AdminDatosProvider>
+      <PaginaConPestanas titulo="Administración" tabs={tabs} />
+    </AdminDatosProvider>
+  );
 };

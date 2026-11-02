@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { usersService } from "../../../services/usersService";
 import type { User } from "../../../types/user";
 import { TablaCard, TableHeader, TableBody, TableRow, TableHead, TableCell } from "../../../components/ui/table";
@@ -18,8 +18,11 @@ import { EditarPasswordModal } from "../../../components/admin/EditarPasswordMod
 import { EditarUsuarioModal } from "../../../components/admin/EditarUsuarioModal";
 import { AccionesFila } from "../../../components/ui/acciones-fila";
 import { usePaginacion } from "../../../lib/usePaginacion";
+import { useListaConPapelera } from "../../../lib/useListaConPapelera";
+import { useAdminDatos } from "../../../context/AdminDatosContext";
 
 const PAGE_SIZE = 10;
+const SIN_USUARIOS: User[] = [];
 
 interface Props {
   soloPapelera?: boolean;
@@ -40,8 +43,18 @@ export const UsuariosTab: React.FC<Props> = ({ soloPapelera = false }) => {
     return undefined;
   };
 
-  const [users, setUsers] = useState<User[]>([]);
-  const [loading, setLoading] = useState(true);
+  // En Administración, las cuentas vienen del listener de AdminDatosProvider;
+  // en la Papelera (fuera de Administración) se piden aparte.
+  const adminDatos = useAdminDatos();
+  const {
+    items: users,
+    loading,
+    recargar: fetchUsers,
+  } = useListaConPapelera(
+    soloPapelera,
+    { lista: adminDatos?.users ?? SIN_USUARIOS, listo: !!adminDatos?.listo },
+    usersService.listarPapelera
+  );
   const [showNuevo, setShowNuevo] = useState(false);
   const [editandoPassword, setEditandoPassword] = useState<User | null>(null);
   const [editandoUsuario, setEditandoUsuario] = useState<User | null>(null);
@@ -49,22 +62,6 @@ export const UsuariosTab: React.FC<Props> = ({ soloPapelera = false }) => {
   // Búsqueda aplicada (el borrador vive en FiltroBuscarPor). campo: "" = todos,
   // o "rol" | "estado" para acotar la búsqueda a ese campo.
   const [busqueda, setBusqueda] = useState<BusquedaPorCampo>({ query: "", campo: "" });
-
-  const fetchUsers = useCallback(async () => {
-    setLoading(true);
-    try {
-      const data = soloPapelera ? await usersService.listarPapelera() : await usersService.getAll();
-      setUsers(data);
-    } catch {
-      notificarError("Error al cargar los usuarios");
-    } finally {
-      setLoading(false);
-    }
-  }, [soloPapelera]);
-
-  useEffect(() => {
-    Promise.resolve().then(fetchUsers);
-  }, [fetchUsers]);
 
   const handleToggleActive = async (id: string, currentStatus: boolean, role: string) => {
     if (esSuperAdmin(role)) {

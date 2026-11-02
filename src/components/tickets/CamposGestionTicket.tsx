@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect } from "react";
 import { Controller, type Control, type UseFormSetValue } from "react-hook-form";
 import type { Ticket, TicketStatus } from "../../types/ticket";
 import { Input } from "../ui/input";
@@ -6,7 +6,6 @@ import { Field, FieldLabel } from "../ui/field";
 import { SelectOpciones } from "../ui/select-opciones";
 import { useCatalogos } from "../../context/CatalogosContext";
 import { useTickets } from "../../context/TicketsContext";
-import { configService } from "../../services/configService";
 import { calcularCarga, estaOcupado } from "../../lib/carga";
 import { STATUS_LABELS, transicionEstadoValida } from "../../lib/ticketStatus";
 import type { TicketFormData } from "./TicketForm";
@@ -36,22 +35,10 @@ export const CamposGestionTicket: React.FC<{
   const { empleados, empleadosListos: empleadosCargados } = useCatalogos();
   // Tickets viene de TicketsProvider (App.tsx) — un solo listener compartido
   // por sesión, en vez de pedir la colección entera cada vez.
-  const { tickets, loading: ticketsLoading } = useTickets();
-  const [maxTicketsAbiertos, setMaxTicketsAbiertos] = useState<number | undefined>(undefined);
+  const { tickets, loading: ticketsLoading, maxTicketsAbiertos } = useTickets();
   // Sin esto el Select de "Asignar a" se pinta antes de tener la opción que
   // matchea ticket.assignedTo, y SelectValue muestra el id crudo.
   const empleadosListos = empleadosCargados && !ticketsLoading;
-
-  useEffect(() => {
-    let activo = true;
-    configService
-      .getAppConfig()
-      .then((config) => activo && setMaxTicketsAbiertos(config?.maxTicketsAbiertos))
-      .catch(() => {});
-    return () => {
-      activo = false;
-    };
-  }, []);
 
   // El Select de "Asignar a" se puebla de forma asíncrona (después del mount).
   // Se re-aplica el valor inicial una vez existen las opciones; si no, queda

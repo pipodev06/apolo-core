@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -8,9 +8,8 @@ import { Button } from "../ui/button";
 import { Field, FieldError, FieldGroup, FieldLabel } from "../ui/field";
 import { SelectOpciones } from "../ui/select-opciones";
 import { empleadosService } from "../../services/empleadosService";
-import { cargosService, areasService } from "../../services/catalogosService";
+import { useCatalogos } from "../../context/CatalogosContext";
 import type { Empleado } from "../../types/empleado";
-import type { Catalogo } from "../../types/catalogo";
 import { notificarExito, notificarError } from "../../lib/alertas";
 
 const schema = z.object({
@@ -32,8 +31,11 @@ interface Props {
 
 export const EmpleadoModal: React.FC<Props> = ({ open, onClose, onSaved, empleado }) => {
   const isEdit = !!empleado;
-  const [cargos, setCargos] = useState<Catalogo[]>([]);
-  const [areas, setAreas] = useState<Catalogo[]>([]);
+  // Cargos y áreas activos del listener compartido: antes se leían enteros
+  // del servidor cada vez que se abría el modal.
+  const catalogos = useCatalogos();
+  const cargos = useMemo(() => catalogos.cargos.filter((c) => c.activo), [catalogos.cargos]);
+  const areas = useMemo(() => catalogos.areas.filter((a) => a.activo), [catalogos.areas]);
   const {
     register,
     control,
@@ -45,8 +47,6 @@ export const EmpleadoModal: React.FC<Props> = ({ open, onClose, onSaved, emplead
 
   useEffect(() => {
     if (!open) return;
-    cargosService.getAll().then((d) => setCargos(d.filter((c) => c.activo))).catch(() => {});
-    areasService.getAll().then((d) => setAreas(d.filter((c) => c.activo))).catch(() => {});
     reset({
       nombre: empleado?.nombre || "",
       cargo: empleado?.cargo || "",
