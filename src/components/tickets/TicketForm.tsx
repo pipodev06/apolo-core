@@ -1,26 +1,21 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Timestamp } from "firebase/firestore";
-import type { Ticket, TicketStatus } from "../../types/ticket";
+import type { Ticket } from "../../types/ticket";
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
 import { Card } from "../ui/card";
 import { Field, FieldError, FieldLabel } from "../ui/field";
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "../ui/input-group";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { Textarea } from "../ui/textarea";
 import { ImageUploader } from "../ui/image-uploader";
 import { useAuth } from "../../context/AuthContext";
 import { useAccess } from "../../context/AccessContext";
 import { esAdmin } from "../../lib/roles";
-import { useCatalogos } from "../../context/CatalogosContext";
-import { configService } from "../../services/configService";
 import { CategoriaField } from "./CategoriaField";
-import { useTickets } from "../../context/TicketsContext";
-import { calcularCarga, estaOcupado } from "../../lib/carga";
-import { transicionEstadoValida } from "../../lib/ticketStatus";
+import { CamposGestionTicket } from "./CamposGestionTicket";
 import { ahoraLimaInputValue } from "../../lib/fecha";
 
 const ticketSchema = z.object({
@@ -50,32 +45,11 @@ export const TicketForm: React.FC<TicketFormProps> = ({ initialData, onSubmit, l
   // determina la IA automáticamente tras crearse (o el admin, editando después).
   const isNew = !initialData?.id;
   const mostrarCamposAdmin = isAdmin && !isNew;
-  const { empleados, empleadosListos: empleadosCargados } = useCatalogos();
-  // Tickets viene de TicketsProvider (App.tsx) — un solo listener compartido
-  // por sesión, en vez de que este form pida la colección entera cada vez
-  // que se abre para crear/editar un ticket.
-  const { tickets, loading: ticketsLoading } = useTickets();
-  const [maxTicketsAbiertos, setMaxTicketsAbiertos] = useState<number | undefined>(undefined);
-  // Sin esto el Select de "Asignar a" se pinta antes de tener la opción que
-  // matchea initialData.assignedTo, y SelectValue muestra el id crudo.
-  const empleadosListos = empleadosCargados && !ticketsLoading;
   // Un ticket nuevo todavía no tiene id (se genera recién al guardar, en la
   // transacción de ticketsService.create) — usamos uno temporal solo para
   // agrupar las imágenes en Storage; no necesita corresponder a un doc real.
   const [tempTicketId] = useState(() => crypto.randomUUID());
   const storageTicketId = initialData?.id || tempTicketId;
-
-  useEffect(() => {
-    if (!mostrarCamposAdmin) return;
-    let activo = true;
-    configService
-      .getAppConfig()
-      .then((config) => activo && setMaxTicketsAbiertos(config?.maxTicketsAbiertos))
-      .catch(() => {});
-    return () => {
-      activo = false;
-    };
-  }, [mostrarCamposAdmin]);
 
   const { register, control, handleSubmit, setValue, formState: { errors } } = useForm<TicketFormData>({
     resolver: zodResolver(ticketSchema),
@@ -96,50 +70,6 @@ export const TicketForm: React.FC<TicketFormProps> = ({ initialData, onSubmit, l
       problemImages: initialData?.problemImages || [],
     },
   });
-
-  // El <select> de "Asignar a" se puebla de forma asíncrona (después del mount).
-  // Re-aplicamos el valor inicial una vez existen las <option>, si no, el navegador
-  // no encuentra coincidencia y el select queda en "Sin asignar" aunque el ticket
-  // sí tenga assignedTo, provocando que al guardar se pierda la asignación.
-  useEffect(() => {
-    if (initialData?.assignedTo && empleados.length > 0) {
-      setValue("assignedTo", initialData.assignedTo);
-    }
-  }, [empleados, initialData?.assignedTo, setValue]);
-
-  // Empleados seleccionables: activos + el actualmente asignado aunque esté inactivo,
-  // para que siempre exista una <option> que respalde el valor guardado en el ticket.
-  // Ordenados por carga ascendente (igual que la IA en analizarYAsignar) para que,
-  // aunque la elección final sea manual, el admin vea primero a los menos ocupados.
-  const ticketsParaCarga = tickets.filter((t) => t.id !== initialData?.id);
-  const empleadosSeleccionables = empleados
-    .filter((e) => e.activo || e.id === initialData?.assignedTo)
-    .map((e) => ({ ...e, carga: calcularCarga(ticketsParaCarga, e.id) }))
-    .sort((a, b) => (a.carga !== b.carga ? a.carga - b.carga : a.nombre.localeCompare(b.nombre)));
-  // El empleado asignado pudo ser eliminado (ya no viene en getAll): sin
-  // esta opción, el Select mostraría su id crudo.
-  const asignadoEliminado =
-    !!initialData?.assignedTo && !empleados.some((e) => e.id === initialData.assignedTo);
-
-  // No dejar elegir un salto de estado hacia adelante invalido (ver
-  // lib/ticketStatus.ts) — comparado contra el status que el ticket tiene
-  // guardado hoy, no contra lo que haya en el form sin guardar todavia.
-  const todosLosEstados: { value: TicketStatus; label: string }[] = [
-    { value: "pendiente", label: "Pendiente" },
-    { value: "asignado", label: "Asignado" },
-    { value: "en_proceso", label: "En Proceso" },
-    { value: "terminado", label: "Terminado" },
-  ];
-  const estadoActual = initialData?.status;
-  // "Terminado" ya no se elige desde acá: cerrar un ticket exige descripción
-  // de solución, y eso vive en la pantalla dedicada /tickets/:id/cerrar. Se
-  // deja visible únicamente si el ticket YA está terminado (para no ocultar
-  // el valor actual), pero no se puede elegir como destino nuevo desde aquí.
-  const estadosDisponibles = estadoActual
-    ? todosLosEstados.filter(
-        (e) => transicionEstadoValida(estadoActual, e.value) && (e.value !== "terminado" || estadoActual === "terminado")
-      )
-    : todosLosEstados;
 
   const submit = (data: TicketFormData) =>
     onSubmit({
@@ -223,131 +153,12 @@ export const TicketForm: React.FC<TicketFormProps> = ({ initialData, onSubmit, l
         )}
 
         {mostrarCamposAdmin ? (
-          <>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <Field>
-                <FieldLabel htmlFor="urgency">Urgencia</FieldLabel>
-                <Controller
-                  name="urgency"
-                  control={control}
-                  render={({ field }) => (
-                    <Select
-                      items={[
-                        { value: "BAJO", label: "Bajo" },
-                        { value: "MEDIO", label: "Medio" },
-                        { value: "ALTO", label: "Alto" },
-                        { value: "CRITICO", label: "Crítico" },
-                      ]}
-                      value={field.value}
-                      onValueChange={field.onChange}
-                    >
-                      <SelectTrigger id="urgency" className="w-full">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectGroup>
-                          <SelectItem value="BAJO">Bajo</SelectItem>
-                          <SelectItem value="MEDIO">Medio</SelectItem>
-                          <SelectItem value="ALTO">Alto</SelectItem>
-                          <SelectItem value="CRITICO">Crítico</SelectItem>
-                        </SelectGroup>
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
-              </Field>
-
-              <Field>
-                <FieldLabel htmlFor="status">Estado</FieldLabel>
-                <Controller
-                  name="status"
-                  control={control}
-                  render={({ field }) => (
-                    <Select
-                      items={estadosDisponibles}
-                      value={field.value}
-                      onValueChange={field.onChange}
-                    >
-                      <SelectTrigger id="status" className="w-full">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectGroup>
-                          {estadosDisponibles.map((e) => (
-                            <SelectItem key={e.value} value={e.value}>
-                              {e.label}
-                            </SelectItem>
-                          ))}
-                        </SelectGroup>
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
-              </Field>
-            </div>
-
-            <Field>
-              <FieldLabel htmlFor="assignedTo">Asignar a</FieldLabel>
-              {empleadosListos ? (
-                <Controller
-                  name="assignedTo"
-                  control={control}
-                  render={({ field }) => (
-                    <Select
-                      items={[
-                        { value: "__none__", label: "Sin asignar" },
-                        ...(asignadoEliminado ? [{ value: initialData!.assignedTo!, label: "Empleado eliminado" }] : []),
-                        ...empleadosSeleccionables.map((e) => ({
-                          value: e.id,
-                          label: `${e.nombre}${e.cargo ? ` — ${e.cargo}` : ""}${
-                            estaOcupado(e.carga, maxTicketsAbiertos)
-                              ? " · Ocupado"
-                              : ` · ${e.carga} ${e.carga === 1 ? "abierto" : "abiertos"}`
-                          }${!e.activo ? " (inactivo)" : ""}`,
-                        })),
-                      ]}
-                      value={field.value || "__none__"}
-                      onValueChange={(v) => field.onChange(v === "__none__" ? "" : v)}
-                    >
-                      <SelectTrigger id="assignedTo" className="w-full">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectGroup>
-                          <SelectItem value="__none__">Sin asignar</SelectItem>
-                          {asignadoEliminado && (
-                            <SelectItem value={initialData!.assignedTo!}>Empleado eliminado</SelectItem>
-                          )}
-                          {empleadosSeleccionables.map((e) => {
-                            const ocupado = estaOcupado(e.carga, maxTicketsAbiertos);
-                            return (
-                              <SelectItem key={e.id} value={e.id}>
-                                {e.nombre}
-                                {e.cargo ? ` — ${e.cargo}` : ""}
-                                {ocupado ? " · Ocupado" : ` · ${e.carga} ${e.carga === 1 ? "abierto" : "abiertos"}`}
-                                {!e.activo ? " (inactivo)" : ""}
-                              </SelectItem>
-                            );
-                          })}
-                        </SelectGroup>
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
-              ) : (
-                <Input id="assignedTo" disabled placeholder="Cargando personal..." />
-              )}
-              <p className="mt-1.5 text-xs text-muted-foreground">
-                La hora de asignación se registra automáticamente.
-              </p>
-            </Field>
-          </>
+          <CamposGestionTicket control={control} setValue={setValue} ticket={initialData!} />
         ) : (
           <>
             <input type="hidden" {...register("urgency")} />
             <input type="hidden" {...register("status")} />
             <input type="hidden" {...register("assignedTo")} />
-
           </>
         )}
       </Card>
