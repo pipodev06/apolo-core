@@ -11,6 +11,7 @@ import { SimplePagination } from "../ui/pagination";
 import { FiltroBuscarPor, type BusquedaPorCampo } from "../ui/filtro-buscar-por";
 import { usePaginacion } from "../../lib/usePaginacion";
 import { PageSpinner } from "../ui/spinner";
+import { EstadoVacio } from "../ui/estado-vacio";
 import { EmpleadoModal } from "./EmpleadoModal";
 import { confirmar, notificarExito, notificarError } from "../../lib/alertas";
 import { AccionesFila } from "../ui/acciones-fila";
@@ -180,19 +181,15 @@ export const EmpleadosTab = forwardRef<EmpleadosTabHandle, Props>(({ soloPapeler
       {loading ? (
         <PageSpinner />
       ) : filtered.length === 0 ? (
-        <div className="rounded-lg border border-dashed bg-card py-12 text-center">
-          <Users className="mx-auto mb-4 h-12 w-12 text-muted-foreground/40" />
-          <h3 className="text-lg font-medium">
-            {soloPapelera ? "Papelera vacía" : "Sin personal registrado"}
-          </h3>
-          <p className="text-muted-foreground">
-            {soloPapelera
-              ? "No hay empleados eliminados."
-              : hayFiltrosActivos
-              ? "Ningún empleado coincide con la búsqueda."
-              : "Crea el primer empleado para poder asignar tickets."}
-          </p>
-        </div>
+        <EstadoVacio
+          icono={Users}
+          titulo="Sin personal registrado"
+          detalle="Crea el primer empleado para poder asignar tickets."
+          soloPapelera={soloPapelera}
+          textoPapelera="No hay empleados eliminados."
+          conFiltros={hayFiltrosActivos}
+          textoFiltros="Ningún empleado coincide con la búsqueda."
+        />
       ) : (
         <>
           <div className="overflow-hidden rounded-lg border bg-card shadow-sm">

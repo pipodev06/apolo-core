@@ -7,6 +7,7 @@ import type { TicketStatus } from "../types/ticket";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "../components/ui/table";
 import { Button } from "../components/ui/button";
 import { PageSpinner } from "../components/ui/spinner";
+import { EstadoVacio } from "../components/ui/estado-vacio";
 import { StatusBadge } from "../components/tickets/StatusBadge";
 import { UrgencyBadge } from "../components/tickets/UrgencyBadge";
 import { notificarError } from "../lib/alertas";
@@ -70,9 +71,7 @@ export const HistoricoDetalle: React.FC = () => {
           </div>
 
           {ticketsEmpleado.length === 0 ? (
-            <div className="rounded-lg border border-dashed bg-card py-12 text-center">
-              <h3 className="text-lg font-medium">Sin tickets asignados.</h3>
-            </div>
+            <EstadoVacio titulo="Sin tickets asignados." />
           ) : (
             <div className="overflow-hidden rounded-lg border bg-card shadow-sm">
               <Table>

@@ -13,6 +13,7 @@ import { Input } from "../components/ui/input";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { SimplePagination } from "../components/ui/pagination";
 import { PageSpinner } from "../components/ui/spinner";
+import { EstadoVacio } from "../components/ui/estado-vacio";
 import { IconBell as Bell, IconSearch as Search, IconFilterOff as FilterX } from "@tabler/icons-react";
 import { cn } from "../lib/cn";
 
@@ -163,17 +164,14 @@ export const Notificaciones: React.FC = () => {
       {loading ? (
         <PageSpinner />
       ) : filtradas.length === 0 ? (
-        <div className="rounded-lg border border-dashed bg-card py-12 text-center">
-          <Bell className="mx-auto mb-4 h-12 w-12 text-muted-foreground/40" />
-          <h3 className="text-lg font-medium">
-            {notificaciones.length === 0 ? "Sin notificaciones" : "Ninguna coincide"}
-          </h3>
-          <p className="text-muted-foreground">
-            {notificaciones.length === 0
-              ? "Todavía no tienes notificaciones."
-              : "Ninguna notificación coincide con la búsqueda."}
-          </p>
-        </div>
+        <EstadoVacio
+          icono={Bell}
+          titulo="Sin notificaciones"
+          detalle="Todavía no tienes notificaciones."
+          conFiltros={notificaciones.length > 0}
+          tituloFiltros="Ninguna coincide"
+          textoFiltros="Ninguna notificación coincide con la búsqueda."
+        />
       ) : (
         <>
           <div className="overflow-hidden rounded-lg border bg-card shadow-sm">

@@ -7,6 +7,7 @@ import { Button } from "../../../components/ui/button";
 import { FiltroBuscarPor, type BusquedaPorCampo } from "../../../components/ui/filtro-buscar-por";
 import { SimplePagination } from "../../../components/ui/pagination";
 import { PageSpinner } from "../../../components/ui/spinner";
+import { EstadoVacio } from "../../../components/ui/estado-vacio";
 import { IconShield as Shield, IconUser as UserIcon, IconPlus as Plus } from "@tabler/icons-react";
 import { confirmar, notificarExito, notificarError } from "../../../lib/alertas";
 import { esAdmin, esSuperAdmin, roleLabel } from "../../../lib/roles";
@@ -163,19 +164,15 @@ export const UsuariosTab: React.FC<Props> = ({ soloPapelera = false }) => {
       {loading ? (
         <PageSpinner />
       ) : filtered.length === 0 ? (
-        <div className="rounded-lg border border-dashed bg-card py-12 text-center">
-          <UserIcon className="mx-auto mb-4 h-12 w-12 text-muted-foreground/40" />
-          <h3 className="text-lg font-medium">
-            {soloPapelera ? "Papelera vacía" : "Sin usuarios"}
-          </h3>
-          <p className="text-muted-foreground">
-            {soloPapelera
-              ? "No hay usuarios eliminados."
-              : hayFiltrosActivos
-              ? "Ningún usuario coincide con la búsqueda."
-              : "Crea el primer usuario para empezar."}
-          </p>
-        </div>
+        <EstadoVacio
+          icono={UserIcon}
+          titulo="Sin usuarios"
+          detalle="Crea el primer usuario para empezar."
+          soloPapelera={soloPapelera}
+          textoPapelera="No hay usuarios eliminados."
+          conFiltros={hayFiltrosActivos}
+          textoFiltros="Ningún usuario coincide con la búsqueda."
+        />
       ) : (
         <>
           <div className="overflow-hidden rounded-lg border bg-card shadow-sm">
