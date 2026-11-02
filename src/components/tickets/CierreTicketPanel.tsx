@@ -6,6 +6,7 @@ import { SelectOpciones } from "../ui/select-opciones";
 import { ImageUploader } from "../ui/image-uploader";
 import { ticketsService } from "../../services/ticketsService";
 import { useAccess } from "../../context/AccessContext";
+import { borrarImagenes, useImagenesSinGuardar } from "../../lib/useImagenesSinGuardar";
 import { transicionEstadoValida } from "../../lib/ticketStatus";
 import { notificarExito, notificarError } from "../../lib/alertas";
 import type { Ticket, TicketStatus } from "../../types/ticket";
@@ -34,6 +35,7 @@ export const CierreTicketPanel: React.FC<{ ticket: Ticket }> = ({ ticket }) => {
   const [imagenesEditadas, setSolutionImages] = useState<string[] | null>(null);
   const [guardando, setGuardando] = useState(false);
   const puedeSubirImagenes = useAccess().hasAccess("subirImagenes");
+  const imagenes = useImagenesSinGuardar();
 
   const status = statusEditado ?? ticket.status;
   const solutionDescription = solucionEditada ?? ticket.solutionDescription ?? "";
@@ -64,6 +66,9 @@ export const CierreTicketPanel: React.FC<{ ticket: Ticket }> = ({ ticket }) => {
               ...(imagenesEditadas !== null ? { solutionImages: imagenesEditadas } : {}),
             }),
       });
+      imagenes.alGuardar();
+      // Reabierto: la solución vieja se descarta, también sus imágenes.
+      if (reabierto) borrarImagenes(ticket.solutionImages ?? []);
       // Guardado: el panel vuelve a mostrar el ticket en vivo.
       setStatus(null);
       setSolutionDescription(null);
@@ -109,6 +114,7 @@ export const CierreTicketPanel: React.FC<{ ticket: Ticket }> = ({ ticket }) => {
           <ImageUploader
             value={solutionImages}
             onChange={setSolutionImages}
+            sesion={imagenes}
             pathPrefix={`tickets/${ticket.id}/solucion`}
           />
         </div>

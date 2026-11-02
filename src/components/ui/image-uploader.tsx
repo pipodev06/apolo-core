@@ -1,9 +1,10 @@
 import * as React from "react"
-import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage"
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage"
 import { IconUpload as Upload, IconPhoto as Photo, IconX as X } from "@tabler/icons-react"
 import { cn } from "@/lib/utils"
 import { auth, storage } from "@/firebase"
 import { compressToWebp } from "@/lib/image"
+import type { ImagenesSinGuardar } from "@/lib/useImagenesSinGuardar"
 import { Spinner } from "@/components/ui/spinner"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
@@ -11,6 +12,8 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 interface ThumbnailsProps {
   value: string[]
   onChange: (urls: string[]) => void
+  // Seguimiento de lo subido/quitado sin guardar (useImagenesSinGuardar).
+  sesion: ImagenesSinGuardar
   disabled?: boolean
   className?: string
 }
@@ -18,17 +21,17 @@ interface ThumbnailsProps {
 // Grilla de miniaturas + preview en modal, separada del trigger de carga para
 // poder ubicarla en un lugar distinto en el layout (ej. ComentariosPanel: las
 // miniaturas van arriba del input, pero el botón de agregar va al costado).
-export function ImageThumbnails({ value, onChange, disabled, className }: ThumbnailsProps) {
+export function ImageThumbnails({ value, onChange, sesion, disabled, className }: ThumbnailsProps) {
   const [preview, setPreview] = React.useState<string | null>(null)
 
   if (value.length === 0) return null
 
-  // Best-effort: borra el archivo real de Storage al quitarlo (no solo del
-  // array) para no dejar basura acumulándose — si falla (ya borrado, offline),
-  // no bloquea la quitada de la UI, que es lo que le importa al usuario.
+  // El archivo de Storage lo borra `sesion`: al instante si se subió en esta
+  // pantalla, o recién al guardar si ya estaba guardado (así cancelar no deja
+  // al ticket apuntando a una imagen borrada).
   const quitar = (url: string) => {
     onChange(value.filter((u) => u !== url))
-    deleteObject(ref(storage, url)).catch(() => {})
+    sesion.alQuitar(url)
   }
 
   return (
@@ -86,6 +89,8 @@ export function ImagenesAdjuntas({ urls, size = "md", className }: { urls?: stri
 interface ImageUploaderProps {
   value: string[]
   onChange: (urls: string[]) => void
+  // Seguimiento de lo subido/quitado sin guardar (useImagenesSinGuardar).
+  sesion: ImagenesSinGuardar
   pathPrefix: string
   maxFiles?: number
   disabled?: boolean
@@ -104,6 +109,7 @@ interface ImageUploaderProps {
 export function ImageUploader({
   value,
   onChange,
+  sesion,
   pathPrefix,
   maxFiles = 5,
   disabled,
@@ -133,6 +139,7 @@ export function ImageUploader({
           return getDownloadURL(fileRef)
         })
       )
+      sesion.alSubir(urls)
       onChange([...value, ...urls])
     } finally {
       setUploading(false)
@@ -142,7 +149,7 @@ export function ImageUploader({
 
   return (
     <div className={cn("space-y-2", className)}>
-      {!hideThumbnails && <ImageThumbnails value={value} onChange={onChange} disabled={disabled} />}
+      {!hideThumbnails && <ImageThumbnails value={value} onChange={onChange} sesion={sesion} disabled={disabled} />}
 
       {!disabled &&
         value.length < maxFiles &&

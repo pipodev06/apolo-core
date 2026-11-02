@@ -3,6 +3,7 @@ import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { ticketsService } from "../../services/ticketsService";
 import type { Ticket } from "../../types/ticket";
 import { TicketForm, type TicketFormData } from "../../components/tickets/TicketForm";
+import { borrarImagenes } from "../../lib/useImagenesSinGuardar";
 import { PageSpinner } from "../../components/ui/spinner";
 import { notificarExito, notificarError } from "../../lib/alertas";
 import { limaInputValueToDate } from "../../lib/fecha";
@@ -30,7 +31,7 @@ export const TicketEdit: React.FC = () => {
   }, [id, navigate]);
 
   const handleSubmit = async (data: TicketFormData) => {
-    if (!id) return;
+    if (!id) return false;
     setSaving(true);
     try {
       const prevAssigned = ticket?.assignedTo || "";
@@ -47,10 +48,14 @@ export const TicketEdit: React.FC = () => {
         ...(assignmentChanged ? { assignedAt: nextAssigned ? new Date() : null } : {}),
         ...(reabierto ? { solutionDescription: "", solutionImages: [] } : {}),
       });
+      // Reabierto: la solución vieja se descarta, también sus imágenes.
+      if (reabierto) borrarImagenes(ticket?.solutionImages ?? []);
       notificarExito("Ticket actualizado correctamente");
       navigate(vieneDeDetalle ? `/tickets/${id}` : "/tickets");
+      return true;
     } catch (error) {
       notificarError(error instanceof Error ? error.message : "Error al actualizar el ticket");
+      return false;
     } finally {
       setSaving(false);
     }

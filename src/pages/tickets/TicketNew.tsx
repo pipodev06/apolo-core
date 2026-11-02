@@ -12,7 +12,7 @@ export const TicketNew: React.FC = () => {
   const { user } = useAuth();
 
   const handleSubmit = async (data: TicketFormData) => {
-    if (!user) return;
+    if (!user) return false;
     setLoading(true);
     try {
       await ticketsService.create({
@@ -23,8 +23,10 @@ export const TicketNew: React.FC = () => {
       });
       notificarExito("Ticket creado correctamente");
       navigate("/tickets");
+      return true;
     } catch (error) {
       notificarError(error instanceof Error ? error.message : "Error al crear el ticket");
+      return false;
     } finally {
       setLoading(false);
     }
