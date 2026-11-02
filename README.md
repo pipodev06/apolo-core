@@ -27,19 +27,6 @@ pnpm build
 
 > La configuración web de Firebase (`VITE_FIREBASE_*` en `.env`) no es un secreto: es el mismo `firebaseConfig` que viaja en el bundle de cualquier sitio Firebase. La seguridad real está en `firestore.rules`, `storage.rules` y las Cloud Functions.
 
-## Demo
-
-Hay una instancia pública en **[apolo-core.vercel.app](https://apolo-core.vercel.app)** con dos cuentas de prueba:
-
-| Usuario | Contraseña | Rol | Qué puede hacer |
-|---|---|---|---|
-| `demo.admin` | `DemoAdmin2026` | Admin | Ve todos los tickets; gestiona usuarios, personal, categorías, accesos y configuración |
-| `demo.usuario` | `DemoUsuario2026` | Usuario | Crea tickets y ve solo los suyos (y los asignados, si su cuenta está vinculada a un técnico) |
-
-> Es una demo compartida: los datos pueden cambiar o reiniciarse en cualquier momento. No cargues información real.
-
-Las dos cuentas están marcadas como **protegidas**: nadie salvo un super_admin puede cambiarles la contraseña, editarlas, desactivarlas, eliminarlas ni tocar sus accesos. Así un visitante con `demo.admin` no puede dejar la demo inutilizable para el siguiente. Para marcar una cuenta: entra como super_admin → *Administración → Usuarios → Editar* → casilla **Cuenta protegida**.
-
 ## Puesta en marcha con Firebase (desde cero)
 
 Cada instalación usa **su propio proyecto Firebase**: no alcanza con clonar y completar el `.env`, también hay que desplegar reglas y Cloud Functions en tu proyecto.
@@ -103,7 +90,7 @@ Con el super_admin, en este orden:
 1. **Personal → Áreas y Cargos**: por ejemplo áreas *Soporte*, *Redes*, *Sistemas*; cargos *Técnico de soporte*, *Administrador de redes*.
 2. **Personal → Empleados**: los técnicos a los que se asignan tickets, cada uno con su área.
 3. **Administración → Categorías**: ya vienen cargadas desde el setup; ajústalas si hace falta (ver abajo).
-4. **Administración → Usuarios**: las cuentas demo (`demo.admin` con rol Admin, `demo.usuario` con rol Usuario) y márcalas como **Cuenta protegida**. Si una cuenta *Usuario* se vincula a un técnico de Personal, también ve y puede cerrar los tickets asignados a ese técnico.
+4. **Administración → Usuarios**: cuentas de prueba (por ejemplo una Admin y una Usuario) y márcalas como **Cuenta protegida**. **No publiques sus contraseñas** (README, redes, etc.): con una cuenta admin pública cualquiera puede crear sus propios admins y gastar tu capa gratuita. Si una cuenta *Usuario* se vincula a un técnico de Personal, también ve y puede cerrar los tickets asignados a ese técnico.
 5. **Administración → Accesos**: una cuenta *Usuario* nueva arranca solo con *Tickets* y *Notificaciones*. Si quieres que vea su resumen, activa *Dashboard* (admins y super_admins ven todo siempre).
 6. Crea algunos tickets con distintas urgencias y categorías para que el Dashboard tenga datos.
 
@@ -157,7 +144,7 @@ Desactivar a un técnico **no** reasigna sus tickets: la app avisa si tiene tick
 
 ## Rendimiento
 
-- **Costo cero**: ninguna Function reserva instancias siempre encendidas (`minInstances`), porque eso cobra un monto fijo al mes aunque nadie use la app. El precio es que el primer login tras un rato sin uso tarda unos segundos (*cold start*); los siguientes son rápidos. Con el uso normal de una demo o un equipo chico, todo entra en la capa gratuita del plan Blaze.
+- **Costo cero**: ninguna Function reserva instancias siempre encendidas (`minInstances`), porque eso cobra un monto fijo al mes aunque nadie use la app. El precio es que el primer análisis con IA (o acción de cuentas) tras un rato sin uso tarda unos segundos (*cold start*); el login no depende de Functions. Con el uso normal de un equipo chico, todo entra en la capa gratuita del plan Blaze.
 - **Caché local de Firestore** (IndexedDB): al recargar, las listas se pintan al instante con lo que ya estaba guardado y luego se sincronizan. Al cerrar sesión la caché se borra.
 - **Un solo listener por colección** para tickets, personal y categorías, compartido por todas las pantallas.
 - Los permisos de cada usuario quedan en caché en el navegador, así las pantallas no esperan a Firestore para pintarse.
@@ -177,7 +164,7 @@ Si borras el proyecto Firebase y creas otro, **no hay que definir tablas ni esqu
 
 Todo el día a día se gestiona logueado como `admin`/`super_admin`:
 
-- **Usuarios y roles** → `/administracion/usuarios` (crear, desactivar, cambiar rol o contraseña). Solo un `super_admin` toca a otro `super_admin` o a una cuenta protegida: para un admin esas acciones aparecen deshabilitadas. Desactivar, eliminar o cambiar el rol de alguien cierra sus sesiones abiertas.
+- **Usuarios y roles** → `/administracion/usuarios` (crear, desactivar, cambiar rol o contraseña). Solo un `super_admin` toca a otro `super_admin` o a una cuenta protegida: para un admin esas acciones aparecen deshabilitadas. Desactivar o mandar a la papelera a alguien le corta el acceso al instante (las reglas leen su cuenta en cada petición).
 - **Configuración** → `/administracion/modo`: asignación manual o por IA, máximo de tickets abiertos por empleado y horas de SLA por urgencia.
 - **Categorías de ticket** → `/administracion/categorias`.
 - **Permisos por sección** → `/administracion/accesos`.
