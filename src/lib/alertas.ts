@@ -1,7 +1,7 @@
 import Swal from "sweetalert2";
 
 const btnBase =
-  "inline-flex cursor-pointer items-center justify-center rounded-md px-4 h-10 text-sm font-medium transition-colors mx-1";
+  "inline-flex cursor-pointer items-center justify-center rounded-md px-4 h-10 text-base font-medium transition-colors mx-1";
 
 interface ConfirmOpts {
   title: string;

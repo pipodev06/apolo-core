@@ -83,10 +83,10 @@ export const CierreTicketPanel: React.FC<{ ticket: Ticket }> = ({ ticket }) => {
 
   return (
     <Card className="space-y-4 p-6">
-      <h3 className="text-sm font-semibold uppercase tracking-wider">Cerrar / Actualizar Ticket</h3>
+      <h3 className="text-base font-semibold uppercase tracking-wider">Cerrar / Actualizar Ticket</h3>
 
       <div className="space-y-1.5">
-        <label htmlFor="cierre-estado" className="text-sm font-medium">Estado</label>
+        <label htmlFor="cierre-estado" className="text-base font-medium">Estado</label>
         <SelectOpciones
           id="cierre-estado"
           opciones={estadosDisponibles}
@@ -96,7 +96,7 @@ export const CierreTicketPanel: React.FC<{ ticket: Ticket }> = ({ ticket }) => {
       </div>
 
       <div className="space-y-1.5">
-        <label htmlFor="cierre-solucion" className="text-sm font-medium">
+        <label htmlFor="cierre-solucion" className="text-base font-medium">
           Descripción de la solución {requiereSolucion && <span className="text-destructive">*</span>}
         </label>
         <Textarea
@@ -110,7 +110,7 @@ export const CierreTicketPanel: React.FC<{ ticket: Ticket }> = ({ ticket }) => {
 
       {puedeSubirImagenes && (
         <div className="space-y-1.5">
-          <p className="text-sm font-medium">Imágenes de la solución</p>
+          <p className="text-base font-medium">Imágenes de la solución</p>
           <ImageUploader
             value={solutionImages}
             onChange={setSolutionImages}

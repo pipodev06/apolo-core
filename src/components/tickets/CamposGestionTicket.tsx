@@ -135,7 +135,7 @@ export const CamposGestionTicket: React.FC<{
         ) : (
           <Input id="assignedTo" disabled placeholder="Cargando personal..." />
         )}
-        <p className="mt-1.5 text-xs text-muted-foreground">La hora de asignación se registra automáticamente.</p>
+        <p className="mt-1.5 text-sm text-muted-foreground">La hora de asignación se registra automáticamente.</p>
       </Field>
     </>
   );

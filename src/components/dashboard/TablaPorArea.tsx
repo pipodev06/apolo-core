@@ -13,7 +13,7 @@ export const TablaPorArea: React.FC<{ filas: FilaPorArea[]; promedioGeneral: num
   <Card className="lg:col-span-2">
     <CardHeader>
       <CardTitle>Resolución y SLA por Área</CardTitle>
-      <p className="text-sm text-muted-foreground">
+      <p className="text-base text-muted-foreground">
         Tiempo promedio de resolución general: {fmtDuracion(promedioGeneral)}
       </p>
     </CardHeader>

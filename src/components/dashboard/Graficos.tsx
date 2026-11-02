@@ -37,7 +37,7 @@ export const GraficoDona: React.FC<{ data: Dato[] }> = ({ data }) => {
           ))}
         </Pie>
         <Tooltip contentStyle={tooltipStyle} />
-        <Legend wrapperStyle={{ fontSize: "0.8125rem", color: axisColor }} />
+        <Legend wrapperStyle={{ fontSize: "0.875rem", color: axisColor }} />
       </PieChart>
     </ResponsiveContainer>
   );
@@ -49,8 +49,8 @@ export const GraficoBarras: React.FC<{ data: Dato[] }> = ({ data }) => {
     <ResponsiveContainer width="100%" height="100%">
       <BarChart data={data}>
         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={gridColor} />
-        <XAxis dataKey="name" tick={{ fill: axisColor, fontSize: 12 }} stroke={gridColor} />
-        <YAxis tick={{ fill: axisColor, fontSize: 12 }} stroke={gridColor} allowDecimals={false} />
+        <XAxis dataKey="name" tick={{ fill: axisColor, fontSize: 14 }} stroke={gridColor} />
+        <YAxis tick={{ fill: axisColor, fontSize: 14 }} stroke={gridColor} allowDecimals={false} />
         <Tooltip contentStyle={tooltipStyle} cursor={{ fill: gridColor, opacity: 0.3 }} />
         <Bar dataKey="value" radius={[6, 6, 0, 0]}>
           {data.map((e) => (
@@ -74,8 +74,8 @@ export const GraficoTendencia: React.FC<{ data: { name: string; tickets: number 
           </linearGradient>
         </defs>
         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={gridColor} />
-        <XAxis dataKey="name" tick={{ fill: axisColor, fontSize: 11 }} stroke={gridColor} />
-        <YAxis tick={{ fill: axisColor, fontSize: 12 }} stroke={gridColor} allowDecimals={false} />
+        <XAxis dataKey="name" tick={{ fill: axisColor, fontSize: 12.25 }} stroke={gridColor} />
+        <YAxis tick={{ fill: axisColor, fontSize: 14 }} stroke={gridColor} allowDecimals={false} />
         <Tooltip contentStyle={tooltipStyle} />
         <Area type="monotone" dataKey="tickets" stroke="#6366f1" strokeWidth={2.5} fill="url(#grad)" />
       </AreaChart>
@@ -95,8 +95,8 @@ export const BarrasHorizontales: React.FC<{ data: Dato[]; color: string; anchoEt
     <ResponsiveContainer width="100%" height="100%">
       <BarChart data={data} layout="vertical" margin={{ left: 24 }}>
         <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke={gridColor} />
-        <XAxis type="number" tick={{ fill: axisColor, fontSize: 12 }} stroke={gridColor} allowDecimals={false} />
-        <YAxis type="category" dataKey="name" tick={{ fill: axisColor, fontSize: 12 }} stroke={gridColor} width={anchoEtiqueta} />
+        <XAxis type="number" tick={{ fill: axisColor, fontSize: 14 }} stroke={gridColor} allowDecimals={false} />
+        <YAxis type="category" dataKey="name" tick={{ fill: axisColor, fontSize: 14 }} stroke={gridColor} width={anchoEtiqueta} />
         <Tooltip contentStyle={tooltipStyle} cursor={{ fill: gridColor, opacity: 0.3 }} />
         <Bar dataKey="value" fill={color} radius={[0, 6, 6, 0]} barSize={22} />
       </BarChart>

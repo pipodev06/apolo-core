@@ -150,7 +150,7 @@ export const AccesosTab: React.FC = () => {
               <TableCell>{i + 1}</TableCell>
               <TableCell className="font-medium">
                 {user.username}{" "}
-                {elevado && <span className="ml-1 text-xs font-bold text-primary">({roleLabel(user.role)})</span>}
+                {elevado && <span className="ml-1 text-sm font-bold text-primary">({roleLabel(user.role)})</span>}
               </TableCell>
               <TableCell className="text-center">
                 <Checkbox

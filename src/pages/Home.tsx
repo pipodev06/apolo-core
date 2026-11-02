@@ -38,7 +38,7 @@ export const Home: React.FC = () => {
         <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 text-primary">
           <Icon className="h-8 w-8" />
         </div>
-        <p className="text-sm font-medium capitalize text-muted-foreground">{fecha}</p>
+        <p className="text-base font-medium capitalize text-muted-foreground">{fecha}</p>
         <h1 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">
           {greeting}, <span className="text-primary">{user?.username}</span>
         </h1>

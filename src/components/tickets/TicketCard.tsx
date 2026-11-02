@@ -24,10 +24,10 @@ export const TicketCard: React.FC<Props> = ({ ticket, numero, soloPapelera, venc
   <Card className="flex flex-col p-5">
     <div className="mb-3 flex items-center justify-between">
       <div className="flex items-center gap-2">
-        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
+        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground">
           {numero}
         </span>
-        <span className="text-sm font-bold text-primary">{ticket.code}</span>
+        <span className="text-base font-bold text-primary">{ticket.code}</span>
       </div>
       {soloPapelera ? (
         <Badge variant="red" dot>
@@ -35,24 +35,24 @@ export const TicketCard: React.FC<Props> = ({ ticket, numero, soloPapelera, venc
         </Badge>
       ) : (
         <div className="flex items-center gap-1.5">
-          <span className="text-xs font-bold">Estado:</span>
+          <span className="text-sm font-bold">Estado:</span>
           <StatusBadge status={ticket.status} />
         </div>
       )}
     </div>
     <h3 className="mb-2 line-clamp-2 font-bold uppercase">{ticket.title}</h3>
-    <p className="mb-4 line-clamp-2 text-sm text-muted-foreground">{ticket.description}</p>
+    <p className="mb-4 line-clamp-2 text-base text-muted-foreground">{ticket.description}</p>
 
     <div className="mt-auto space-y-3">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1.5">
-          <span className="text-xs font-bold">Urgencia:</span>
+          <span className="text-sm font-bold">Urgencia:</span>
           <UrgencyBadge urgency={ticket.urgency} />
           {vencido && <Badge variant="red">Vencido</Badge>}
         </div>
-        <span className="text-xs text-muted-foreground">{fmtFechaHora(ticket.incidentTime)}</span>
+        <span className="text-sm text-muted-foreground">{fmtFechaHora(ticket.incidentTime)}</span>
       </div>
-      <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+      <div className="flex items-center gap-1.5 text-base text-muted-foreground">
         <User className="h-4 w-4" />
         {asignado}
       </div>

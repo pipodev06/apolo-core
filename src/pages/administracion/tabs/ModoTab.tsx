@@ -132,7 +132,7 @@ export const ModoTab: React.FC = () => {
             </Field>
           ))}
         </div>
-        <p className="text-center text-xs text-muted-foreground">
+        <p className="text-center text-sm text-muted-foreground">
           Se cuenta desde que se registra el ticket. Pasado ese plazo sin terminar, el ticket se marca como vencido.
         </p>
       </div>

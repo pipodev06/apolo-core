@@ -75,11 +75,11 @@ export const NotificationBell: React.FC = () => {
       {abierto && (
         <div className="absolute right-0 z-20 mt-2 w-xl rounded-md border bg-card shadow-xl">
           <div className="flex items-center justify-between border-b px-4 py-3">
-            <span className="text-sm font-semibold">Notificaciones</span>
+            <span className="text-base font-semibold">Notificaciones</span>
             {noLeidas.length > 0 && (
               <button
                 onClick={handleMarcarTodas}
-                className="cursor-pointer text-xs font-medium text-primary hover:underline"
+                className="cursor-pointer text-sm font-medium text-primary hover:underline"
               >
                 Marcar todas como leídas
               </button>
@@ -87,7 +87,7 @@ export const NotificationBell: React.FC = () => {
           </div>
           <div className="max-h-96 overflow-y-auto">
             {notificaciones.length === 0 && (
-              <p className="px-4 py-6 text-center text-sm text-muted-foreground">Sin notificaciones.</p>
+              <p className="px-4 py-6 text-center text-base text-muted-foreground">Sin notificaciones.</p>
             )}
             {notificaciones.map((n) => (
               <button
@@ -97,16 +97,16 @@ export const NotificationBell: React.FC = () => {
                   n.leida ? "" : "bg-primary/5"
                 }`}
               >
-                <p className="text-xs font-semibold text-primary">{n.ticketCode}</p>
-                <p className="mt-0.5 text-sm">{n.mensaje}</p>
-                <p className="mt-0.5 text-xs text-muted-foreground">{fmtRelativo(n.createdAt)}</p>
+                <p className="text-sm font-semibold text-primary">{n.ticketCode}</p>
+                <p className="mt-0.5 text-base">{n.mensaje}</p>
+                <p className="mt-0.5 text-sm text-muted-foreground">{fmtRelativo(n.createdAt)}</p>
               </button>
             ))}
           </div>
           <Link
             to="/notificaciones"
             onClick={() => setAbierto(false)}
-            className="block border-t px-4 py-2.5 text-center text-xs font-medium text-primary transition-colors hover:bg-muted"
+            className="block border-t px-4 py-2.5 text-center text-sm font-medium text-primary transition-colors hover:bg-muted"
           >
             Ver todas las notificaciones
           </Link>

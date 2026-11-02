@@ -13,13 +13,13 @@ export const ActividadPanel: React.FC<{ eventos: TicketEvento[]; className?: str
 
   return (
     <Card className={cn("flex h-full flex-col p-6", className)}>
-      <h3 className="mb-4 text-sm font-semibold uppercase tracking-wider">
+      <h3 className="mb-4 text-base font-semibold uppercase tracking-wider">
         Actividad
       </h3>
 
       <div className="max-h-80 space-y-4 overflow-y-auto pr-1">
         {actividad.length === 0 && (
-          <p className="text-sm text-muted-foreground">Todavía no hay actividad registrada.</p>
+          <p className="text-base text-muted-foreground">Todavía no hay actividad registrada.</p>
         )}
         {actividad.map((evento) => {
           // Eventos viejos (antes de registrar el autor) no traen actor.
@@ -31,8 +31,8 @@ export const ActividadPanel: React.FC<{ eventos: TicketEvento[]; className?: str
                 <Icono className={cn("h-4 w-4", esIA ? "text-primary" : "text-muted-foreground")} />
               </div>
               <div className="flex-1 pt-1">
-                <p className="text-sm">{evento.mensaje}</p>
-                <p className="mt-0.5 text-xs text-muted-foreground">
+                <p className="text-base">{evento.mensaje}</p>
+                <p className="mt-0.5 text-sm text-muted-foreground">
                   {fmtFechaHora(evento.createdAt)}
                   {evento.actorNombre && <> · por {evento.actorNombre}</>}
                 </p>

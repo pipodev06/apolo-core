@@ -56,7 +56,7 @@ export const Setup: React.FC = () => {
             <ShieldCheck className="h-6 w-6" />
           </div>
           <h2 className="text-2xl font-bold tracking-tight">Configuración Inicial</h2>
-          <p className="mt-1.5 text-center text-sm text-muted-foreground">
+          <p className="mt-1.5 text-center text-base text-muted-foreground">
             Crea el primer usuario administrador del sistema
           </p>
         </div>

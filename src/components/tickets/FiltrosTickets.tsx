@@ -28,7 +28,7 @@ function FiltroSelect({
   const items = [{ value: TODOS, label: todos }, ...opciones];
   return (
     <div className="flex items-center gap-1.5">
-      <span className="text-xs text-muted-foreground">{etiqueta}:</span>
+      <span className="text-sm text-muted-foreground">{etiqueta}:</span>
       <SelectOpciones
         opciones={items}
         value={valor || TODOS}
@@ -96,11 +96,11 @@ export const FiltrosTickets: React.FC<{
         </div>
       </div>
       <div className="flex items-center gap-1.5">
-        <span className="text-xs text-muted-foreground">Desde:</span>
+        <span className="text-sm text-muted-foreground">Desde:</span>
         <Input type="date" value={borrador.desde} onChange={(e) => cambiar("desde", e.target.value)} className="sm:w-40" />
       </div>
       <div className="flex items-center gap-1.5">
-        <span className="text-xs text-muted-foreground">Hasta:</span>
+        <span className="text-sm text-muted-foreground">Hasta:</span>
         <Input type="date" value={borrador.hasta} onChange={(e) => cambiar("hasta", e.target.value)} className="sm:w-40" />
       </div>
       <Button onClick={() => onAplicar(borrador)}>

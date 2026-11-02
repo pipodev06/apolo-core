@@ -109,11 +109,11 @@ export const TicketDetail: React.FC = () => {
               </div>
               <div className="flex flex-col items-start gap-2 sm:items-end">
                 <div className="flex items-center gap-1.5">
-                  <span className="text-xs font-bold">Estado:</span>
+                  <span className="text-sm font-bold">Estado:</span>
                   <StatusBadge status={ticket.status} />
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <span className="text-xs font-bold">Urgencia:</span>
+                  <span className="text-sm font-bold">Urgencia:</span>
                   <UrgencyBadge urgency={ticket.urgency} />
                 </div>
               </div>
@@ -121,7 +121,7 @@ export const TicketDetail: React.FC = () => {
 
             <div className="space-y-8 p-6">
               <div>
-                <h3 className="mb-2 text-sm font-semibold uppercase tracking-wider">
+                <h3 className="mb-2 text-base font-semibold uppercase tracking-wider">
                   Descripción
                 </h3>
                 <ExpandableText
@@ -134,7 +134,7 @@ export const TicketDetail: React.FC = () => {
 
               {ticket.solutionDescription && (
                 <div className="border-t pt-6">
-                  <h3 className="mb-2 text-sm font-semibold uppercase tracking-wider">
+                  <h3 className="mb-2 text-base font-semibold uppercase tracking-wider">
                     Solución
                   </h3>
                   <p className="whitespace-pre-wrap break-words leading-relaxed">{ticket.solutionDescription}</p>
