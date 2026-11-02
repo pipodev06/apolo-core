@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
 import { Field, FieldError, FieldGroup, FieldLabel } from "../ui/field";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
+import { SelectOpciones } from "../ui/select-opciones";
 import { empleadosService } from "../../services/empleadosService";
 import { cargosService, areasService } from "../../services/catalogosService";
 import type { Empleado } from "../../types/empleado";
@@ -112,28 +112,15 @@ export const EmpleadoModal: React.FC<Props> = ({ open, onClose, onSaved, emplead
                 name="cargo"
                 control={control}
                 render={({ field }) => (
-                  <Select
-                    items={[
+                  <SelectOpciones
+                    id="cargo"
+                    opciones={[
                       { value: "__none__", label: "Sin especificar" },
                       ...cargos.map((c) => ({ value: c.nombre, label: c.nombre })),
                     ]}
                     value={field.value || "__none__"}
-                    onValueChange={(v) => field.onChange(v === "__none__" ? "" : v)}
-                  >
-                    <SelectTrigger id="cargo" className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectGroup>
-                        <SelectItem value="__none__">Sin especificar</SelectItem>
-                        {cargos.map((c) => (
-                          <SelectItem key={c.id} value={c.nombre}>
-                            {c.nombre}
-                          </SelectItem>
-                        ))}
-                      </SelectGroup>
-                    </SelectContent>
-                  </Select>
+                    onChange={(v) => field.onChange(v === "__none__" ? "" : v)}
+                  />
                 )}
               />
             </Field>
@@ -143,28 +130,15 @@ export const EmpleadoModal: React.FC<Props> = ({ open, onClose, onSaved, emplead
                 name="area"
                 control={control}
                 render={({ field }) => (
-                  <Select
-                    items={[
+                  <SelectOpciones
+                    id="area"
+                    opciones={[
                       { value: "__none__", label: "Sin especificar" },
                       ...areas.map((a) => ({ value: a.nombre, label: a.nombre })),
                     ]}
                     value={field.value || "__none__"}
-                    onValueChange={(v) => field.onChange(v === "__none__" ? "" : v)}
-                  >
-                    <SelectTrigger id="area" className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectGroup>
-                        <SelectItem value="__none__">Sin especificar</SelectItem>
-                        {areas.map((a) => (
-                          <SelectItem key={a.id} value={a.nombre}>
-                            {a.nombre}
-                          </SelectItem>
-                        ))}
-                      </SelectGroup>
-                    </SelectContent>
-                  </Select>
+                    onChange={(v) => field.onChange(v === "__none__" ? "" : v)}
+                  />
                 )}
               />
             </Field>
