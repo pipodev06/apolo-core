@@ -22,9 +22,9 @@ export default defineConfig({
         // de la app (no reduce la primera descarga, sí las siguientes).
         codeSplitting: {
           groups: [
-            { name: 'firebase', test: /node_modules[\/](@firebase|firebase)[\/]/, priority: 3 },
-            { name: 'react', test: /node_modules[\/](react|react-dom|react-router|react-router-dom|scheduler)[\/]/, priority: 2 },
-            { name: 'ui', test: /node_modules[\/](@base-ui|@floating-ui|@tabler)[\/]/, priority: 1 },
+            { name: 'firebase', test: /node_modules[\\/](@firebase|firebase)[\\/]/, priority: 3 },
+            { name: 'react', test: /node_modules[\\/](react|react-dom|react-router|react-router-dom|scheduler)[\\/]/, priority: 2 },
+            { name: 'ui', test: /node_modules[\\/](@base-ui|@floating-ui|@tabler)[\\/]/, priority: 1 },
           ],
         },
       },
