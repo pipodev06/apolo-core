@@ -11,6 +11,7 @@ import { Field, FieldError, FieldGroup, FieldLabel } from "../ui/field";
 import { Checkbox } from "../ui/checkbox";
 import { SelectOpciones } from "../ui/select-opciones";
 import { usersService } from "../../services/usersService";
+import { roleLabel } from "../../lib/roles";
 import { useCatalogos } from "../../context/CatalogosContext";
 import { notificarExito, notificarError } from "../../lib/alertas";
 import type { User } from "../../types/user";
@@ -59,6 +60,15 @@ export const EditarUsuarioModal: React.FC<Props> = ({
     formState: { errors, isSubmitting },
   } = useForm<FormData>({ resolver: zodResolver(schema) });
   const role = watch("role");
+  // Solo un super_admin cambia roles a admin/super_admin (firestore.rules):
+  // un admin solo ve el rol actual de la cuenta (usuario, o el suyo propio).
+  const opcionesRol = esSuperAdminActual
+    ? [
+        { value: "usuario", label: "Usuario" },
+        { value: "admin", label: "Administrador" },
+        { value: "super_admin", label: "Super Admin" },
+      ]
+    : [{ value: user?.role ?? "usuario", label: roleLabel(user?.role) }];
 
   useEffect(() => {
     if (!open) return;
@@ -148,11 +158,7 @@ export const EditarUsuarioModal: React.FC<Props> = ({
                 render={({ field }) => (
                   <SelectOpciones
                     id="role"
-                    opciones={[
-                      { value: "usuario", label: "Usuario" },
-                      { value: "admin", label: "Administrador" },
-                      ...(esSuperAdminActual ? [{ value: "super_admin", label: "Super Admin" }] : []),
-                    ]}
+                    opciones={opcionesRol}
                     value={field.value}
                     onChange={field.onChange}
                   />

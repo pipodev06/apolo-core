@@ -133,6 +133,13 @@ service cloud.firestore {
                .difference(resource.data.get(campo, []).toSet()).size() > 0;
     }
 
+    // La serie de los códigos de ticket se usa dentro de una regex (create de
+    // tickets): solo letras y números, para que nadie la rompa con caracteres
+    // especiales y deje a todos sin poder crear tickets.
+    function serieValida(s) {
+      return s is string && s.matches('^[A-Za-z0-9]{1,10}$');
+    }
+
     function usernameValido(u) {
       return u is string && u.matches('^[a-zA-Z0-9._-]{3,60}$');
     }
@@ -183,7 +190,8 @@ service cloud.firestore {
       // Create: (a) el primer super_admin durante el setup — su propio uid y
       // su usuario debe coincidir con el email de su sesión de Auth; o (b) un
       // admin creando una cuenta (la de Auth la crea antes desde el cliente).
-      // Solo un super_admin crea otro super_admin o una cuenta protegida.
+      // Un admin solo crea cuentas "usuario": las admin y super_admin (y las
+      // protegidas) las crea solo un super_admin.
       allow create: if datosUserValidos()
                     && request.resource.data.active == true
                     && request.resource.data.get('deletedAt', null) == null
@@ -193,13 +201,14 @@ service cloud.firestore {
                           && request.resource.data.role == 'super_admin'
                           && request.auth.token.email == request.resource.data.username.lower() + '@apolo.local')
                          || (esAdmin()
-                             && (request.resource.data.role != 'super_admin' || rol() == 'super_admin')
+                             && (request.resource.data.role == 'usuario' || rol() == 'super_admin')
                              && (request.resource.data.get('protegida', false) == false || rol() == 'super_admin'))
                        );
 
       // Update: exige admin/super_admin. El username es inmutable desde el
-      // cliente, y solo un super_admin puede otorgar, conservar o editar el
-      // rol super_admin (evita autopromoverse).
+      // cliente. Un admin solo edita cuentas "usuario" que siguen siendo
+      // "usuario" (no puede degradar, promover ni tocar a otro admin), o su
+      // propia cuenta sin cambiarse el rol; el resto, solo un super_admin.
       // Cuentas protegidas (ej. las cuentas de la demo pública): solo un
       // super_admin las modifica, y solo un super_admin pone o quita la marca.
       allow update: if esAdmin()
@@ -208,8 +217,9 @@ service cloud.firestore {
                     && (resource.data.get('protegida', false) != true || rol() == 'super_admin')
                     && (request.resource.data.get('protegida', false) == resource.data.get('protegida', false)
                         || rol() == 'super_admin')
-                    && (request.resource.data.role != 'super_admin' || rol() == 'super_admin')
-                    && (resource.data.role != 'super_admin' || rol() == 'super_admin');
+                    && (rol() == 'super_admin'
+                        || (resource.data.role == 'usuario' && request.resource.data.role == 'usuario')
+                        || (userId == request.auth.uid && request.resource.data.role == resource.data.role));
 
       // Sin borrado físico: desactivar (active=false) en su lugar.
       allow delete: if false;
@@ -257,6 +267,9 @@ service cloud.firestore {
                     && (!('categoria' in request.resource.data)
                         || request.resource.data.categoria == ''
                         || nonEmptyStr(request.resource.data.categoria, 120))
+                    && (!('area' in request.resource.data)
+                        || request.resource.data.area == ''
+                        || nonEmptyStr(request.resource.data.area, 120))
                     && (!('problemImages' in request.resource.data)
                         || (request.resource.data.problemImages is list
                             && request.resource.data.problemImages.size() <= 5))
@@ -280,6 +293,10 @@ service cloud.firestore {
                     && request.resource.data.code == resource.data.code
                     && request.resource.data.order == resource.data.order
                     && request.resource.data.createdBy == resource.data.createdBy
+                    && (request.resource.data.get('area', '') == ''
+                        || nonEmptyStr(request.resource.data.area, 120))
+                    && (request.resource.data.get('categoria', '') == ''
+                        || nonEmptyStr(request.resource.data.categoria, 120))
                     && ((!agregaImagenes('problemImages') && !agregaImagenes('solutionImages'))
                         || puedeSubirImagenes());
 
@@ -443,11 +460,13 @@ service cloud.firestore {
       // Los accesos de un admin, un super_admin o una cuenta protegida solo
       // los cambia un super_admin (de un admin, en la práctica, solo importa
       // "subirImagenes": las secciones las tiene siempre).
+      // Se mira la cuenta como queda DESPUÉS de la escritura (getAfter): si
+      // un batch crea la cuenta y su access juntos, cuenta el rol nuevo.
       function cuentaIntocable() {
         let u = /databases/$(database)/documents/users/$(userId);
-        return exists(u)
-               && (get(u).data.get('protegida', false) == true
-                   || get(u).data.role in ['admin', 'super_admin']);
+        return existsAfter(u)
+               && (getAfter(u).data.get('protegida', false) == true
+                   || getAfter(u).data.role in ['admin', 'super_admin']);
       }
       allow create: if seccionesValidas()
                     && ((enSetup() && userId == request.auth.uid)
@@ -468,7 +487,7 @@ service cloud.firestore {
                     && request.resource.data.keys().hasOnly(['ticketCounter', 'series', 'assignmentMode',
                                                              'maxTicketsAbiertos', 'updatedAt'])
                     && request.resource.data.ticketCounter == 0
-                    && nonEmptyStr(request.resource.data.series, 20)
+                    && serieValida(request.resource.data.series)
                     && request.resource.data.assignmentMode in ['ia', 'manual']
                     && request.resource.data.maxTicketsAbiertos is int
                     && request.resource.data.maxTicketsAbiertos >= 1;
@@ -477,6 +496,7 @@ service cloud.firestore {
       // misma transacción de crear un ticket — y solo de a 1 (nadie puede
       // resetearlo y duplicar códigos de ticket).
       allow update: if request.resource.data.assignmentMode in ['ia', 'manual']
+                    && serieValida(request.resource.data.series)
                     && request.resource.data.ticketCounter is int
                     && (request.resource.data.ticketCounter == resource.data.ticketCounter
                         || request.resource.data.ticketCounter == resource.data.ticketCounter + 1)
