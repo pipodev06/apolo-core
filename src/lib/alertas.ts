@@ -33,13 +33,13 @@ export async function confirmar(opts: ConfirmOpts): Promise<boolean> {
     color: "var(--foreground)",
     buttonsStyling: false,
     customClass: {
-      popup: "rounded-xl border border-gray-200 shadow-xl",
+      popup: "rounded-xl border border-border shadow-xl",
       confirmButton: `${btnBase} ${
         opts.danger
-          ? "border border-red-600 bg-red-600 text-white hover:bg-red-600/90"
-          : "border border-indigo-600 bg-indigo-600 text-white hover:bg-indigo-600/90"
+          ? "border border-destructive bg-destructive text-white hover:bg-destructive/90"
+          : "border border-primary bg-primary text-primary-foreground hover:bg-primary/90"
       }`,
-      cancelButton: `${btnBase} border border-gray-200 bg-gray-100 text-gray-800 hover:bg-gray-100/80`,
+      cancelButton: `${btnBase} border border-border bg-secondary text-secondary-foreground hover:bg-secondary/80`,
     },
   });
   return result.isConfirmed;
@@ -55,11 +55,11 @@ function notificar(icon: "success" | "error", title: string) {
     color: "var(--foreground)",
     buttonsStyling: false,
     customClass: {
-      popup: "rounded-xl border border-gray-200 shadow-xl",
+      popup: "rounded-xl border border-border shadow-xl",
       confirmButton: `${btnBase} ${
         icon === "error"
-          ? "border border-red-600 bg-red-600 text-white hover:bg-red-600/90"
-          : "border border-indigo-600 bg-indigo-600 text-white hover:bg-indigo-600/90"
+          ? "border border-destructive bg-destructive text-white hover:bg-destructive/90"
+          : "border border-primary bg-primary text-primary-foreground hover:bg-primary/90"
       }`,
     },
   });
