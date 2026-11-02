@@ -1,4 +1,3 @@
-export type { Role } from "../lib/roles";
 import type { Role } from "../lib/roles";
 import type { FirestoreTimestamp } from "./firestore";
 

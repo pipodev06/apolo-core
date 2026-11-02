@@ -1,6 +1,6 @@
 import type { FirestoreTimestamp } from "./firestore";
 
-export type TicketEventoTipo = "sistema" | "comentario";
+type TicketEventoTipo = "sistema" | "comentario";
 
 export interface TicketEvento {
   id: string;
