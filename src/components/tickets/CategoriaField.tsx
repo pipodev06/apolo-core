@@ -1,7 +1,7 @@
 import React, { useMemo } from "react";
 import { Controller, type Control } from "react-hook-form";
 import { Field, FieldLabel } from "../ui/field";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
+import { SelectOpciones } from "../ui/select-opciones";
 import { useCatalogos } from "../../context/CatalogosContext";
 import type { TicketFormData } from "./TicketForm";
 
@@ -26,28 +26,15 @@ export const CategoriaField: React.FC<Props> = ({ control, categoriaActual }) =>
         name="categoria"
         control={control}
         render={({ field }) => (
-          <Select
-            items={[
+          <SelectOpciones
+            id="categoria"
+            opciones={[
               { value: "__none__", label: "Sin categoría" },
               ...categorias.map((c) => ({ value: c.nombre, label: c.nombre })),
             ]}
             value={field.value || "__none__"}
-            onValueChange={(v) => field.onChange(v === "__none__" || v == null ? "" : v)}
-          >
-            <SelectTrigger id="categoria" className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                <SelectItem value="__none__">Sin categoría</SelectItem>
-                {categorias.map((c) => (
-                  <SelectItem key={c.id} value={c.nombre}>
-                    {c.nombre}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
+            onChange={(v) => field.onChange(v === "__none__" ? "" : v)}
+          />
         )}
       />
     </Field>

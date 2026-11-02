@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { IconSearch as Search, IconFilterOff as FilterX } from "@tabler/icons-react";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
+import { SelectOpciones } from "../ui/select-opciones";
 import { STATUS_LABELS, URGENCY_LABELS } from "../../lib/ticketStatus";
 import { FILTROS_VACIOS, SIN_CATEGORIA, type FiltrosTicket } from "../../lib/filtrosTickets";
 import type { TicketStatus, Urgency } from "../../types/ticket";
@@ -29,20 +29,12 @@ function FiltroSelect({
   return (
     <div className="flex items-center gap-1.5">
       <span className="text-xs text-muted-foreground">{etiqueta}:</span>
-      <Select items={items} value={valor || TODOS} onValueChange={(v) => onChange(v === TODOS || v == null ? "" : v)}>
-        <SelectTrigger className={`w-full ${ancho}`}>
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectGroup>
-            {items.map((o) => (
-              <SelectItem key={o.value} value={o.value}>
-                {o.label}
-              </SelectItem>
-            ))}
-          </SelectGroup>
-        </SelectContent>
-      </Select>
+      <SelectOpciones
+        opciones={items}
+        value={valor || TODOS}
+        onChange={(v) => onChange(v === TODOS ? "" : v)}
+        className={ancho}
+      />
     </div>
   );
 }

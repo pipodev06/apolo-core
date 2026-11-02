@@ -2,7 +2,7 @@ import * as React from "react"
 import { IconSearch as Search, IconFilterOff as FilterX } from "@tabler/icons-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { SelectOpciones } from "@/components/ui/select-opciones"
 
 // campo "" = buscar en todos los campos.
 export interface BusquedaPorCampo {
@@ -37,24 +37,12 @@ export function FiltroBuscarPor({
   return (
     <div className="flex flex-wrap items-end gap-3 rounded-lg border bg-card p-2 shadow-sm">
       <div>
-        <Select
-          items={items}
+        <SelectOpciones
+          opciones={items}
           value={borrador.campo || TODOS}
-          onValueChange={(v) => setBorrador((b) => ({ ...b, campo: v === TODOS || v == null ? "" : v }))}
-        >
-          <SelectTrigger className="w-full sm:w-44">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectGroup>
-              {items.map((o) => (
-                <SelectItem key={o.value} value={o.value}>
-                  {o.label}
-                </SelectItem>
-              ))}
-            </SelectGroup>
-          </SelectContent>
-        </Select>
+          onChange={(v) => setBorrador((b) => ({ ...b, campo: v === TODOS ? "" : v }))}
+          className="sm:w-44"
+        />
       </div>
       <div className="min-w-55 flex-1">
         <div className="relative">

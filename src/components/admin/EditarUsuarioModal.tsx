@@ -9,7 +9,7 @@ import { Input } from "../ui/input";
 import { Button } from "../ui/button";
 import { Field, FieldError, FieldGroup, FieldLabel } from "../ui/field";
 import { Checkbox } from "../ui/checkbox";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
+import { SelectOpciones } from "../ui/select-opciones";
 import { usersService } from "../../services/usersService";
 import { useCatalogos } from "../../context/CatalogosContext";
 import { notificarExito, notificarError } from "../../lib/alertas";
@@ -146,26 +146,16 @@ export const EditarUsuarioModal: React.FC<Props> = ({
                 name="role"
                 control={control}
                 render={({ field }) => (
-                  <Select
-                    items={[
+                  <SelectOpciones
+                    id="role"
+                    opciones={[
                       { value: "usuario", label: "Usuario" },
                       { value: "admin", label: "Administrador" },
                       ...(esSuperAdminActual ? [{ value: "super_admin", label: "Super Admin" }] : []),
                     ]}
                     value={field.value}
-                    onValueChange={(v) => v && field.onChange(v)}
-                  >
-                    <SelectTrigger id="role" className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectGroup>
-                        <SelectItem value="usuario">Usuario</SelectItem>
-                        <SelectItem value="admin">Administrador</SelectItem>
-                        {esSuperAdminActual && <SelectItem value="super_admin">Super Admin</SelectItem>}
-                      </SelectGroup>
-                    </SelectContent>
-                  </Select>
+                    onChange={field.onChange}
+                  />
                 )}
               />
             </Field>
@@ -177,28 +167,15 @@ export const EditarUsuarioModal: React.FC<Props> = ({
                   name="personalId"
                   control={control}
                   render={({ field }) => (
-                    <Select
-                      items={[
+                    <SelectOpciones
+                      id="personalId"
+                      opciones={[
                         { value: SIN_VINCULO, label: "Sin vincular" },
                         ...empleados.map((e) => ({ value: e.id, label: e.nombre })),
                       ]}
                       value={field.value}
-                      onValueChange={(v) => v && field.onChange(v)}
-                    >
-                      <SelectTrigger id="personalId" className="w-full">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectGroup>
-                          <SelectItem value={SIN_VINCULO}>Sin vincular</SelectItem>
-                          {empleados.map((e) => (
-                            <SelectItem key={e.id} value={e.id}>
-                              {e.nombre}
-                            </SelectItem>
-                          ))}
-                        </SelectGroup>
-                      </SelectContent>
-                    </Select>
+                      onChange={field.onChange}
+                    />
                   )}
                 />
               </Field>

@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Card } from "../ui/card";
 import { Button } from "../ui/button";
 import { Textarea } from "../ui/textarea";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
+import { SelectOpciones } from "../ui/select-opciones";
 import { ImageUploader } from "../ui/image-uploader";
 import { ticketsService } from "../../services/ticketsService";
 import { useAccess } from "../../context/AccessContext";
@@ -82,20 +82,12 @@ export const CierreTicketPanel: React.FC<{ ticket: Ticket }> = ({ ticket }) => {
 
       <div className="space-y-1.5">
         <label htmlFor="cierre-estado" className="text-sm font-medium">Estado</label>
-        <Select items={estadosDisponibles} value={status} onValueChange={(v) => v && setStatus(v as TicketStatus)}>
-          <SelectTrigger id="cierre-estado" className="w-full">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectGroup>
-              {estadosDisponibles.map((e) => (
-                <SelectItem key={e.value} value={e.value}>
-                  {e.label}
-                </SelectItem>
-              ))}
-            </SelectGroup>
-          </SelectContent>
-        </Select>
+        <SelectOpciones
+          id="cierre-estado"
+          opciones={estadosDisponibles}
+          value={status}
+          onChange={(v) => setStatus(v as TicketStatus)}
+        />
       </div>
 
       <div className="space-y-1.5">

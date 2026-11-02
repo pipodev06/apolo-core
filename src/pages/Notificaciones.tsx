@@ -9,12 +9,12 @@ import type { FirestoreTimestamp } from "../types/firestore";
 import { useAuth } from "../context/AuthContext";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "../components/ui/table";
 import { Button } from "../components/ui/button";
-import { Input } from "../components/ui/input";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
+import { FiltroBuscarPor, type BusquedaPorCampo } from "../components/ui/filtro-buscar-por";
 import { SimplePagination } from "../components/ui/pagination";
 import { PageSpinner } from "../components/ui/spinner";
 import { EstadoVacio } from "../components/ui/estado-vacio";
-import { IconBell as Bell, IconSearch as Search, IconFilterOff as FilterX } from "@tabler/icons-react";
+import { IconBell as Bell } from "@tabler/icons-react";
+import { usePaginacion } from "../lib/usePaginacion";
 import { cn } from "../lib/cn";
 
 const PAGE_SIZE = 15;
@@ -31,16 +31,11 @@ export const Notificaciones: React.FC = () => {
   const navigate = useNavigate();
   const [notificaciones, setNotificaciones] = useState<Notificacion[]>([]);
   const [loading, setLoading] = useState(true);
-  const [page, setPage] = useState(1);
 
-  // Borrador: lo que el usuario va eligiendo antes de aplicar.
-  // dCampo: "" = todos los campos, o "ticket" | "detalle" para acotar la búsqueda a ese campo.
-  const [dQuery, setDQuery] = useState("");
-  const [dCampo, setDCampo] = useState("");
-
-  // Aplicado: lo que realmente filtra la lista, se actualiza con "Buscar".
-  const [query, setQuery] = useState("");
-  const [fCampo, setFCampo] = useState("");
+  // Búsqueda aplicada (el borrador vive en FiltroBuscarPor). campo: "" = todos,
+  // o "ticket" | "detalle".
+  const [busqueda, setBusqueda] = useState<BusquedaPorCampo>({ query: "", campo: "" });
+  const { query, campo: fCampo } = busqueda;
 
   useEffect(() => {
     if (!user) return;
@@ -73,32 +68,10 @@ export const Notificaciones: React.FC = () => {
   }, [notificaciones, query, fCampo]);
 
   const hayFiltrosActivos = !!query;
-
-  const aplicarFiltros = () => {
-    setQuery(dQuery);
-    setFCampo(dCampo);
-  };
-
-  const limpiarFiltros = () => {
-    setDQuery("");
-    setDCampo("");
-    setQuery("");
-    setFCampo("");
-  };
-
-  // Reinicia a la página 1 cuando cambian los filtros aplicados.
-  const filtrosKey = `${query}|${fCampo}`;
-  const [prevFiltrosKey, setPrevFiltrosKey] = useState(filtrosKey);
-  if (filtrosKey !== prevFiltrosKey) {
-    setPrevFiltrosKey(filtrosKey);
-    setPage(1);
-  }
-
-  const totalPages = Math.max(1, Math.ceil(filtradas.length / PAGE_SIZE));
-  const pageSafe = Math.min(page, totalPages);
-  const paginadas = useMemo(
-    () => filtradas.slice((pageSafe - 1) * PAGE_SIZE, pageSafe * PAGE_SIZE),
-    [filtradas, pageSafe]
+  const { pagina, totalPages, paginados: paginadas, numero, setPage } = usePaginacion(
+    filtradas,
+    PAGE_SIZE,
+    `${query}|${fCampo}`
   );
 
   return (
@@ -112,54 +85,14 @@ export const Notificaciones: React.FC = () => {
         )}
       </div>
 
-      {/* Filtros */}
-      <div className="flex flex-wrap items-end gap-3 rounded-lg border bg-card p-2 shadow-sm">
-        <div>
-          <Select
-            items={[
-              { value: "__all__", label: "Todos los campos" },
-              { value: "ticket", label: "Ticket" },
-              { value: "detalle", label: "Detalle" },
-            ]}
-            value={dCampo || "__all__"}
-            onValueChange={(v) => setDCampo(v === "__all__" || v == null ? "" : v)}
-          >
-            <SelectTrigger className="w-full sm:w-44">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                <SelectItem value="__all__">Todos los campos</SelectItem>
-                <SelectItem value="ticket">Ticket</SelectItem>
-                <SelectItem value="detalle">Detalle</SelectItem>
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="min-w-55 flex-1">
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              type="text"
-              value={dQuery}
-              onChange={(e) => setDQuery(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && aplicarFiltros()}
-              placeholder="Buscar..."
-              className="pl-9"
-            />
-          </div>
-        </div>
-        <Button onClick={aplicarFiltros}>
-          <Search className="h-4 w-4" />
-          Buscar
-        </Button>
-        {hayFiltrosActivos && (
-          <Button variant="outline" onClick={limpiarFiltros} title="Limpiar filtros">
-            <FilterX className="h-4 w-4" />
-            Limpiar
-          </Button>
-        )}
-      </div>
+      <FiltroBuscarPor
+        campos={[
+          { value: "ticket", label: "Ticket" },
+          { value: "detalle", label: "Detalle" },
+        ]}
+        activo={hayFiltrosActivos}
+        onAplicar={setBusqueda}
+      />
 
       {loading ? (
         <PageSpinner />
@@ -188,7 +121,7 @@ export const Notificaciones: React.FC = () => {
               <TableBody>
                 {paginadas.map((n, i) => (
                   <TableRow key={n.id} className={cn(!n.leida && "bg-primary/5")}>
-                    <TableCell>{(pageSafe - 1) * PAGE_SIZE + i + 1}</TableCell>
+                    <TableCell>{numero(i)}</TableCell>
                     <TableCell className="font-semibold text-primary">{n.ticketCode}</TableCell>
                     <TableCell>{n.mensaje}</TableCell>
                     <TableCell className="text-muted-foreground">{fmtRelativo(n.createdAt)}</TableCell>
@@ -205,7 +138,7 @@ export const Notificaciones: React.FC = () => {
 
           {totalPages > 1 && (
             <div className="flex justify-end">
-              <SimplePagination page={pageSafe} totalPages={totalPages} onPageChange={setPage} />
+              <SimplePagination page={pagina} totalPages={totalPages} onPageChange={setPage} />
             </div>
           )}
         </>

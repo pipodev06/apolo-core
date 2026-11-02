@@ -3,7 +3,7 @@ import { Controller, type Control, type UseFormSetValue } from "react-hook-form"
 import type { Ticket, TicketStatus } from "../../types/ticket";
 import { Input } from "../ui/input";
 import { Field, FieldLabel } from "../ui/field";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
+import { SelectOpciones } from "../ui/select-opciones";
 import { useCatalogos } from "../../context/CatalogosContext";
 import { useTickets } from "../../context/TicketsContext";
 import { configService } from "../../services/configService";
@@ -24,36 +24,6 @@ const TODOS_LOS_ESTADOS = (Object.keys(STATUS_LABELS) as TicketStatus[]).map((va
   value,
   label: STATUS_LABELS[value],
 }));
-
-// Select controlado por react-hook-form con sus opciones.
-function SelectCampo({
-  id,
-  opciones,
-  value,
-  onChange,
-}: {
-  id: string;
-  opciones: { value: string; label: string }[];
-  value: string;
-  onChange: (v: string) => void;
-}) {
-  return (
-    <Select items={opciones} value={value} onValueChange={(v) => v != null && onChange(v)}>
-      <SelectTrigger id={id} className="w-full">
-        <SelectValue />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectGroup>
-          {opciones.map((o) => (
-            <SelectItem key={o.value} value={o.value}>
-              {o.label}
-            </SelectItem>
-          ))}
-        </SelectGroup>
-      </SelectContent>
-    </Select>
-  );
-}
 
 // Urgencia, estado y asignación de un ticket existente: solo admins (en
 // TicketForm). Las opciones de "Asignar a" muestran la carga de cada técnico
@@ -130,7 +100,7 @@ export const CamposGestionTicket: React.FC<{
             name="urgency"
             control={control}
             render={({ field }) => (
-              <SelectCampo id="urgency" opciones={URGENCIAS} value={field.value} onChange={field.onChange} />
+              <SelectOpciones id="urgency" opciones={URGENCIAS} value={field.value} onChange={field.onChange} />
             )}
           />
         </Field>
@@ -141,7 +111,7 @@ export const CamposGestionTicket: React.FC<{
             name="status"
             control={control}
             render={({ field }) => (
-              <SelectCampo id="status" opciones={estadosDisponibles} value={field.value} onChange={field.onChange} />
+              <SelectOpciones id="status" opciones={estadosDisponibles} value={field.value} onChange={field.onChange} />
             )}
           />
         </Field>
@@ -154,7 +124,7 @@ export const CamposGestionTicket: React.FC<{
             name="assignedTo"
             control={control}
             render={({ field }) => (
-              <SelectCampo
+              <SelectOpciones
                 id="assignedTo"
                 opciones={opcionesAsignar}
                 value={field.value || SIN_ASIGNAR}
