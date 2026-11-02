@@ -23,16 +23,21 @@ const TODOS_LOS_ESTADOS: { value: TicketStatus; label: string }[] = [
 // puede tocar estado + solución + imágenes de solución — nunca título,
 // descripción, urgencia ni asignación.
 //
-// El padre (TicketDetail) debe montar esto con key={ticket.id} — así React
-// resetea el estado local solo al cambiar de ticket (remount), sin pisar lo
-// que el usuario esté escribiendo si algo más actualiza el doc en vivo
-// mientras tiene el panel abierto (evita un setState síncrono en un efecto).
+// Borradores: cada campo vale `null` mientras el usuario no lo toca y se
+// muestra el valor en vivo del ticket. Así, si la IA u otro admin cambia el
+// ticket con el panel abierto, se ve el cambio y al guardar no se pisa con
+// una copia vieja: solo se envía lo que el usuario editó. TicketCerrar lo
+// monta con key={ticket.id} para descartar los borradores al cambiar de ticket.
 export const CierreTicketPanel: React.FC<{ ticket: Ticket }> = ({ ticket }) => {
-  const [status, setStatus] = useState<TicketStatus>(ticket.status);
-  const [solutionDescription, setSolutionDescription] = useState(ticket.solutionDescription ?? "");
-  const [solutionImages, setSolutionImages] = useState<string[]>(ticket.solutionImages ?? []);
+  const [statusEditado, setStatus] = useState<TicketStatus | null>(null);
+  const [solucionEditada, setSolutionDescription] = useState<string | null>(null);
+  const [imagenesEditadas, setSolutionImages] = useState<string[] | null>(null);
   const [guardando, setGuardando] = useState(false);
   const puedeSubirImagenes = useAccess().hasAccess("subirImagenes");
+
+  const status = statusEditado ?? ticket.status;
+  const solutionDescription = solucionEditada ?? ticket.solutionDescription ?? "";
+  const solutionImages = imagenesEditadas ?? ticket.solutionImages ?? [];
 
   const estadosDisponibles = TODOS_LOS_ESTADOS.filter((e) => transicionEstadoValida(ticket.status, e.value));
   const requiereSolucion = status === "terminado";
@@ -51,10 +56,18 @@ export const CierreTicketPanel: React.FC<{ ticket: Ticket }> = ({ ticket }) => {
     setGuardando(true);
     try {
       await ticketsService.update(ticket.id, {
-        status,
-        solutionDescription: reabierto ? "" : solutionDescription.trim(),
-        solutionImages: reabierto ? [] : solutionImages,
+        ...(statusEditado !== null ? { status: statusEditado } : {}),
+        ...(reabierto
+          ? { solutionDescription: "", solutionImages: [] }
+          : {
+              ...(solucionEditada !== null ? { solutionDescription: solucionEditada.trim() } : {}),
+              ...(imagenesEditadas !== null ? { solutionImages: imagenesEditadas } : {}),
+            }),
       });
+      // Guardado: el panel vuelve a mostrar el ticket en vivo.
+      setStatus(null);
+      setSolutionDescription(null);
+      setSolutionImages(null);
       notificarExito("Ticket actualizado");
     } catch (error) {
       notificarError(error instanceof Error ? error.message : "Error al actualizar el ticket");
