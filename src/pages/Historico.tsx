@@ -11,6 +11,7 @@ import { SimplePagination } from "../components/ui/pagination";
 import { FiltroBuscarPor, type BusquedaPorCampo } from "../components/ui/filtro-buscar-por";
 import { usePaginacion } from "../lib/usePaginacion";
 import { PageSpinner } from "../components/ui/spinner";
+import { EstadoVacio } from "../components/ui/estado-vacio";
 import { fmtDuracion, promedioResolucionMs } from "../lib/sla";
 import { descargarCsv } from "../lib/csv";
 
@@ -108,12 +109,12 @@ export const Historico: React.FC = () => {
       {cargando ? (
         <PageSpinner />
       ) : filtered.length === 0 ? (
-        <div className="rounded-lg border border-dashed bg-card py-12 text-center">
-          <History className="mx-auto mb-4 h-12 w-12 text-muted-foreground/40" />
-          <h3 className="text-lg font-medium">
-            {hayFiltrosActivos ? "Nadie coincide con la búsqueda." : "Sin personal registrado"}
-          </h3>
-        </div>
+        <EstadoVacio
+          icono={History}
+          titulo="Sin personal registrado"
+          conFiltros={hayFiltrosActivos}
+          tituloFiltros="Nadie coincide con la búsqueda."
+        />
       ) : (
         <>
           <div className="overflow-hidden rounded-lg border bg-card shadow-sm">

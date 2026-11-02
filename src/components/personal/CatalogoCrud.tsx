@@ -8,6 +8,7 @@ import { Field, FieldLabel } from "../ui/field";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "../ui/dialog";
 import { SimplePagination } from "../ui/pagination";
 import { PageSpinner } from "../ui/spinner";
+import { EstadoVacio } from "../ui/estado-vacio";
 import { confirmar, notificarExito, notificarError } from "../../lib/alertas";
 import type { Catalogo } from "../../types/catalogo";
 import type { CatalogoService } from "../../services/catalogosService";
@@ -157,15 +158,13 @@ export const CatalogoCrud = forwardRef<CatalogoCrudHandle, Props>(
       {loading ? (
         <PageSpinner />
       ) : items.length === 0 ? (
-        <div className="rounded-lg border border-dashed bg-card py-12 text-center">
-          <Tag className="mx-auto mb-4 h-12 w-12 text-muted-foreground/40" />
-          <h3 className="text-lg font-medium">
-            {soloPapelera ? "Papelera vacía" : "Sin registros"}
-          </h3>
-          <p className="text-muted-foreground">
-            {soloPapelera ? "No hay elementos eliminados." : `Crea ${primero} ${singular} para empezar.`}
-          </p>
-        </div>
+        <EstadoVacio
+          icono={Tag}
+          titulo="Sin registros"
+          detalle={`Crea ${primero} ${singular} para empezar.`}
+          soloPapelera={soloPapelera}
+          textoPapelera="No hay elementos eliminados."
+        />
       ) : (
         <>
           <div className="overflow-hidden rounded-lg border bg-card shadow-sm">
