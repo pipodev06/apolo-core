@@ -131,8 +131,8 @@ export const authService = {
   // reset por admin, que necesita la Admin SDK (Cloud Function).
   cambiarPassword: async (data: { passwordNueva: string; passwordActual?: string; userId?: string }) => {
     if (data.userId) {
-      const fn = httpsCallable(functions, "resetearPassword");
-      await fn({ userId: data.userId, passwordNueva: data.passwordNueva });
+      const fn = httpsCallable(functions, "adminCuentas");
+      await fn({ accion: "resetearPassword", userId: data.userId, passwordNueva: data.passwordNueva });
       return;
     }
     const user = auth.currentUser;
