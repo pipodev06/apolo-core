@@ -49,7 +49,7 @@ export const TicketEdit: React.FC = () => {
         ...(reabierto ? { solutionDescription: "", solutionImages: [] } : {}),
       });
       // Reabierto: la solución vieja se descarta, también sus imágenes.
-      if (reabierto) borrarImagenes(ticket?.solutionImages ?? []);
+      if (reabierto) borrarImagenes(ticket?.solutionImages ?? [], id);
       notificarExito("Ticket actualizado correctamente");
       navigate(vieneDeDetalle ? `/tickets/${id}` : "/tickets");
       return true;

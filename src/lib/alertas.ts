@@ -20,7 +20,8 @@ interface ConfirmOpts {
 // de SweetAlert2). Un inline style siempre gana ese empate.
 export async function confirmar(opts: ConfirmOpts): Promise<boolean> {
   const result = await Swal.fire({
-    title: opts.title,
+    // titleText/text: siempre texto plano (title interpretaría HTML).
+    titleText: opts.title,
     text: opts.text,
     icon: "warning",
     showCancelButton: true,
@@ -48,7 +49,7 @@ export async function confirmar(opts: ConfirmOpts): Promise<boolean> {
 function notificar(icon: "success" | "error", title: string) {
   Swal.fire({
     icon,
-    title,
+    titleText: title,
     confirmButtonText: "Aceptar",
     background: "var(--background)",
     color: "var(--foreground)",

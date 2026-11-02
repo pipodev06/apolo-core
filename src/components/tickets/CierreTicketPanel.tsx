@@ -68,7 +68,7 @@ export const CierreTicketPanel: React.FC<{ ticket: Ticket }> = ({ ticket }) => {
       });
       imagenes.alGuardar();
       // Reabierto: la solución vieja se descarta, también sus imágenes.
-      if (reabierto) borrarImagenes(ticket.solutionImages ?? []);
+      if (reabierto) borrarImagenes(ticket.solutionImages ?? [], ticket.id);
       // Guardado: el panel vuelve a mostrar el ticket en vivo.
       setStatus(null);
       setSolutionDescription(null);

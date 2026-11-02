@@ -43,7 +43,8 @@ service firebase.storage {
       return cuentaActiva()
              && puedeSubirImagenes()
              && request.resource.size < 5 * 1024 * 1024
-             && request.resource.contentType.matches('image/.*')
+             // Sin SVG: puede llevar script si se abre en una pestaña.
+             && request.resource.contentType.matches('image/(webp|png|jpeg|gif)')
              && request.resource.metadata.uploadedBy == request.auth.uid;
     }
 

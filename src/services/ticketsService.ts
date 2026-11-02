@@ -15,6 +15,7 @@ import {
 } from "firebase/firestore";
 import { httpsCallable } from "firebase/functions";
 import { ref, deleteObject } from "firebase/storage";
+import { esImagenDeTicket } from "../lib/useImagenesSinGuardar";
 import { auth, db, functions, storage } from "../firebase";
 import type { Ticket } from "../types/ticket";
 import { generateTicketCode } from "../lib/ticketNumber";
@@ -223,8 +224,10 @@ export const ticketsService = {
       ...(ticket?.solutionImages ?? []),
       ...eventos.flatMap((e) => (e.data().imagenes as string[] | undefined) ?? []),
     ];
-    // Una imagen que ya no existe no frena el borrado del ticket.
-    await Promise.all(imagenes.map((url) => deleteObject(ref(storage, url)).catch(() => {})));
+    // Solo las de este ticket en nuestro bucket; una que ya no existe no frena el borrado.
+    await Promise.all(
+      imagenes.filter((url) => esImagenDeTicket(url, id)).map((url) => deleteObject(ref(storage, url)).catch(() => {}))
+    );
 
     for (let i = 0; i < eventos.length; i += 450) {
       const batch = writeBatch(db);

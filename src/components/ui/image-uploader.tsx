@@ -4,7 +4,7 @@ import { IconUpload as Upload, IconPhoto as Photo, IconX as X } from "@tabler/ic
 import { cn } from "@/lib/utils"
 import { auth, storage } from "@/firebase"
 import { compressToWebp } from "@/lib/image"
-import type { ImagenesSinGuardar } from "@/lib/useImagenesSinGuardar"
+import { esImagenDeTicket, type ImagenesSinGuardar } from "@/lib/useImagenesSinGuardar"
 import { Spinner } from "@/components/ui/spinner"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
@@ -74,6 +74,8 @@ export function ImageThumbnails({ value, onChange, sesion, disabled, className }
 // Imágenes ya guardadas (solo lectura): miniaturas que abren la original en
 // otra pestaña. Componente único para el detalle del ticket y los comentarios.
 export function ImagenesAdjuntas({ urls, size = "md", className }: { urls?: string[]; size?: "sm" | "md"; className?: string }) {
+  // Solo imágenes de nuestro Storage: una URL externa guardada a mano no se muestra.
+  urls = urls?.filter((u) => esImagenDeTicket(u))
   if (!urls?.length) return null
   return (
     <div className={cn("flex flex-wrap", size === "sm" ? "gap-1.5" : "gap-2", className)}>
@@ -180,7 +182,7 @@ export function ImageUploader({
       <input
         ref={inputRef}
         type="file"
-        accept="image/*"
+        accept="image/png,image/jpeg,image/webp,image/gif"
         multiple
         className="hidden"
         onChange={(e) => handleFiles(e.target.files)}
