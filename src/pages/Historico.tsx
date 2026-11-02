@@ -1,15 +1,15 @@
 import React, { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { IconSearch as Search, IconFilterOff as FilterX, IconHistory as History, IconEye as Eye, IconDownload as Download } from "@tabler/icons-react";
+import { IconHistory as History, IconEye as Eye, IconDownload as Download } from "@tabler/icons-react";
 import { useCatalogos } from "../context/CatalogosContext";
 import { useTickets } from "../context/TicketsContext";
 import type { Empleado } from "../types/empleado";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "../components/ui/table";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
-import { Input } from "../components/ui/input";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { SimplePagination } from "../components/ui/pagination";
+import { FiltroBuscarPor, type BusquedaPorCampo } from "../components/ui/filtro-buscar-por";
+import { usePaginacion } from "../lib/usePaginacion";
 import { PageSpinner } from "../components/ui/spinner";
 import { fmtDuracion, promedioResolucionMs } from "../lib/sla";
 import { descargarCsv } from "../lib/csv";
@@ -27,13 +27,10 @@ export const Historico: React.FC = () => {
   const navigate = useNavigate();
   const { empleados, empleadosListos } = useCatalogos();
   const { tickets, loading: ticketsLoading } = useTickets();
-  const [page, setPage] = useState(1);
 
-  // Borrador vs aplicado, mismo patrón que el resto de los filtros de Personal.
-  const [dQuery, setDQuery] = useState("");
-  const [dCampo, setDCampo] = useState("");
-  const [query, setQuery] = useState("");
-  const [fCampo, setFCampo] = useState("");
+  // Búsqueda aplicada (el borrador vive en FiltroBuscarPor). campo: "" = todos, o "cargo" | "area".
+  const [busqueda, setBusqueda] = useState<BusquedaPorCampo>({ query: "", campo: "" });
+  const { query, campo: fCampo } = busqueda;
 
   // Historial es por empleado (a quién se le asignó el ticket), no por quien
   // lo creó -- "createdBy" apunta a la cuenta de usuario que reportó, no
@@ -69,34 +66,7 @@ export const Historico: React.FC = () => {
   }, [filas, query, fCampo]);
 
   const hayFiltrosActivos = !!query;
-
-  const aplicarFiltros = () => {
-    setQuery(dQuery);
-    setFCampo(dCampo);
-  };
-
-  const limpiarFiltros = () => {
-    setDQuery("");
-    setDCampo("");
-    setQuery("");
-    setFCampo("");
-  };
-
-  // Reinicia a la página 1 cuando cambian los filtros aplicados (mismo
-  // patrón que EmpleadosTab: ajuste durante el render, no en un efecto).
-  const filtrosKey = `${query}|${fCampo}`;
-  const [prevFiltrosKey, setPrevFiltrosKey] = useState(filtrosKey);
-  if (filtrosKey !== prevFiltrosKey) {
-    setPrevFiltrosKey(filtrosKey);
-    setPage(1);
-  }
-
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const pageSafe = Math.min(page, totalPages);
-  const paginados = useMemo(
-    () => filtered.slice((pageSafe - 1) * PAGE_SIZE, pageSafe * PAGE_SIZE),
-    [filtered, pageSafe]
-  );
+  const { pagina, totalPages, paginados, numero, setPage } = usePaginacion(filtered, PAGE_SIZE, `${query}|${fCampo}`);
 
   const cargando = !empleadosListos || ticketsLoading;
 
@@ -126,53 +96,14 @@ export const Historico: React.FC = () => {
         </Button>
       </div>
 
-      <div className="flex flex-wrap items-end gap-3 rounded-lg border bg-card p-2 shadow-sm">
-        <div>
-          <Select
-            items={[
-              { value: "__all__", label: "Todos los campos" },
-              { value: "cargo", label: "Cargo" },
-              { value: "area", label: "Área" },
-            ]}
-            value={dCampo || "__all__"}
-            onValueChange={(v) => setDCampo(v === "__all__" || v == null ? "" : v)}
-          >
-            <SelectTrigger className="w-full sm:w-44">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                <SelectItem value="__all__">Todos los campos</SelectItem>
-                <SelectItem value="cargo">Cargo</SelectItem>
-                <SelectItem value="area">Área</SelectItem>
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="min-w-[220px] flex-1">
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              type="text"
-              value={dQuery}
-              onChange={(e) => setDQuery(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && aplicarFiltros()}
-              placeholder="Buscar..."
-              className="pl-9"
-            />
-          </div>
-        </div>
-        <Button onClick={aplicarFiltros}>
-          <Search className="h-4 w-4" />
-          Buscar
-        </Button>
-        {hayFiltrosActivos && (
-          <Button variant="outline" onClick={limpiarFiltros} title="Limpiar filtros">
-            <FilterX className="h-4 w-4" />
-            Limpiar
-          </Button>
-        )}
-      </div>
+      <FiltroBuscarPor
+        campos={[
+          { value: "cargo", label: "Cargo" },
+          { value: "area", label: "Área" },
+        ]}
+        activo={hayFiltrosActivos}
+        onAplicar={setBusqueda}
+      />
 
       {cargando ? (
         <PageSpinner />
@@ -202,7 +133,7 @@ export const Historico: React.FC = () => {
               <TableBody>
                 {paginados.map((f, i) => (
                   <TableRow key={f.empleado.id}>
-                    <TableCell>{(pageSafe - 1) * PAGE_SIZE + i + 1}</TableCell>
+                    <TableCell>{numero(i)}</TableCell>
                     <TableCell>
                       <div className="flex items-center">
                         <div className="mr-3 flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary">
@@ -234,7 +165,7 @@ export const Historico: React.FC = () => {
 
           {totalPages > 1 && (
             <div className="flex justify-end">
-              <SimplePagination page={pageSafe} totalPages={totalPages} onPageChange={setPage} />
+              <SimplePagination page={pagina} totalPages={totalPages} onPageChange={setPage} />
             </div>
           )}
         </>

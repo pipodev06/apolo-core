@@ -4,11 +4,10 @@ import type { User } from "../../../types/user";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "../../../components/ui/table";
 import { Badge } from "../../../components/ui/badge";
 import { Button } from "../../../components/ui/button";
-import { Input } from "../../../components/ui/input";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "../../../components/ui/select";
+import { FiltroBuscarPor, type BusquedaPorCampo } from "../../../components/ui/filtro-buscar-por";
 import { SimplePagination } from "../../../components/ui/pagination";
 import { PageSpinner } from "../../../components/ui/spinner";
-import { IconShield as Shield, IconUser as UserIcon, IconPlus as Plus, IconSearch as Search, IconFilterOff as FilterX } from "@tabler/icons-react";
+import { IconShield as Shield, IconUser as UserIcon, IconPlus as Plus } from "@tabler/icons-react";
 import { confirmar, notificarExito, notificarError } from "../../../lib/alertas";
 import { esAdmin, esSuperAdmin, roleLabel } from "../../../lib/roles";
 import { cn } from "../../../lib/cn";
@@ -17,6 +16,7 @@ import { NuevoUsuarioModal } from "../../../components/admin/NuevoUsuarioModal";
 import { EditarPasswordModal } from "../../../components/admin/EditarPasswordModal";
 import { EditarUsuarioModal } from "../../../components/admin/EditarUsuarioModal";
 import { AccionesFila } from "../../../components/ui/acciones-fila";
+import { usePaginacion } from "../../../lib/usePaginacion";
 
 const PAGE_SIZE = 10;
 
@@ -45,16 +45,10 @@ export const UsuariosTab: React.FC<Props> = ({ soloPapelera = false }) => {
   const [showNuevo, setShowNuevo] = useState(false);
   const [editandoPassword, setEditandoPassword] = useState<User | null>(null);
   const [editandoUsuario, setEditandoUsuario] = useState<User | null>(null);
-  const [page, setPage] = useState(1);
 
-  // Borrador: lo que el usuario va eligiendo antes de aplicar.
-  // dCampo: "" = todos los campos, o "rol" | "estado" para acotar la búsqueda a ese campo.
-  const [dQuery, setDQuery] = useState("");
-  const [dCampo, setDCampo] = useState("");
-
-  // Aplicado: lo que realmente filtra la lista, se actualiza con "Filtrar".
-  const [query, setQuery] = useState("");
-  const [fCampo, setFCampo] = useState("");
+  // Búsqueda aplicada (el borrador vive en FiltroBuscarPor). campo: "" = todos,
+  // o "rol" | "estado" para acotar la búsqueda a ese campo.
+  const [busqueda, setBusqueda] = useState<BusquedaPorCampo>({ query: "", campo: "" });
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
@@ -132,44 +126,20 @@ export const UsuariosTab: React.FC<Props> = ({ soloPapelera = false }) => {
   };
 
   const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
+    const q = busqueda.query.trim().toLowerCase();
     return users.filter((u) => {
       if (!q) return true;
-      if (fCampo === "rol") return roleLabel(u.role).toLowerCase().includes(q);
-      if (fCampo === "estado") return (u.active ? "activo" : "inactivo").includes(q);
+      if (busqueda.campo === "rol") return roleLabel(u.role).toLowerCase().includes(q);
+      if (busqueda.campo === "estado") return (u.active ? "activo" : "inactivo").includes(q);
       return u.username.toLowerCase().includes(q) || (u.email ?? "").toLowerCase().includes(q);
     });
-  }, [users, query, fCampo]);
+  }, [users, busqueda]);
 
-  const hayFiltrosActivos = !!query;
-
-  const aplicarFiltros = () => {
-    setQuery(dQuery);
-    setFCampo(dCampo);
-  };
-
-  const limpiarFiltros = () => {
-    setDQuery("");
-    setDCampo("");
-    setQuery("");
-    setFCampo("");
-  };
-
-  // Reinicia a la página 1 cuando cambian los filtros aplicados. Se ajusta
-  // durante el render (patrón de React para "resetear estado cuando cambia
-  // una dependencia"), no en un efecto: evita un render extra innecesario.
-  const filtrosKey = `${query}|${fCampo}`;
-  const [prevFiltrosKey, setPrevFiltrosKey] = useState(filtrosKey);
-  if (filtrosKey !== prevFiltrosKey) {
-    setPrevFiltrosKey(filtrosKey);
-    setPage(1);
-  }
-
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const pageSafe = Math.min(page, totalPages);
-  const paginados = useMemo(
-    () => filtered.slice((pageSafe - 1) * PAGE_SIZE, pageSafe * PAGE_SIZE),
-    [filtered, pageSafe]
+  const hayFiltrosActivos = !!busqueda.query;
+  const { pagina, totalPages, paginados, numero, setPage } = usePaginacion(
+    filtered,
+    PAGE_SIZE,
+    `${busqueda.query}|${busqueda.campo}`
   );
 
   return (
@@ -184,54 +154,11 @@ export const UsuariosTab: React.FC<Props> = ({ soloPapelera = false }) => {
         </div>
       )}
 
-      {/* Filtros */}
-      <div className="flex flex-wrap items-end gap-3 rounded-lg border bg-card p-2 shadow-sm">
-        <div>
-          <Select
-            items={[
-              { value: "__all__", label: "Todos los campos" },
-              { value: "rol", label: "Rol" },
-              ...(!soloPapelera ? [{ value: "estado", label: "Estado" }] : []),
-            ]}
-            value={dCampo || "__all__"}
-            onValueChange={(v) => setDCampo(v === "__all__" || v == null ? "" : v)}
-          >
-            <SelectTrigger className="w-full sm:w-44">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                <SelectItem value="__all__">Todos los campos</SelectItem>
-                <SelectItem value="rol">Rol</SelectItem>
-                {!soloPapelera && <SelectItem value="estado">Estado</SelectItem>}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="min-w-55 flex-1">
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              type="text"
-              value={dQuery}
-              onChange={(e) => setDQuery(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && aplicarFiltros()}
-              placeholder="Buscar..."
-              className="pl-9"
-            />
-          </div>
-        </div>
-        <Button onClick={aplicarFiltros}>
-          <Search className="h-4 w-4" />
-          Buscar
-        </Button>
-        {hayFiltrosActivos && (
-          <Button variant="outline" onClick={limpiarFiltros} title="Limpiar filtros">
-            <FilterX className="h-4 w-4" />
-            Limpiar
-          </Button>
-        )}
-      </div>
+      <FiltroBuscarPor
+        campos={[{ value: "rol", label: "Rol" }, ...(!soloPapelera ? [{ value: "estado", label: "Estado" }] : [])]}
+        activo={hayFiltrosActivos}
+        onAplicar={setBusqueda}
+      />
 
       {loading ? (
         <PageSpinner />
@@ -266,7 +193,7 @@ export const UsuariosTab: React.FC<Props> = ({ soloPapelera = false }) => {
             <TableBody>
             {paginados.map((user, i) => (
               <TableRow key={user.id}>
-                <TableCell>{(pageSafe - 1) * PAGE_SIZE + i + 1}</TableCell>
+                <TableCell>{numero(i)}</TableCell>
                 <TableCell>
                   <div className="flex items-center">
                     <div className="mr-3 flex h-8 w-8 items-center justify-center rounded-full bg-muted">
@@ -323,7 +250,7 @@ export const UsuariosTab: React.FC<Props> = ({ soloPapelera = false }) => {
 
           {totalPages > 1 && (
             <div className="flex justify-end">
-              <SimplePagination page={pageSafe} totalPages={totalPages} onPageChange={setPage} />
+              <SimplePagination page={pagina} totalPages={totalPages} onPageChange={setPage} />
             </div>
           )}
         </>
