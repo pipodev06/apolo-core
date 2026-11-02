@@ -37,3 +37,6 @@ docs/
 .vercel
 .env*
 AGENTS.md
+
+# Logs de scripts/check-*
+.check/
