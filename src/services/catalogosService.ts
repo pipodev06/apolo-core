@@ -49,7 +49,7 @@ async function propagarRenombre(cascadas: Cascada[], campoViejo: string, nombreN
 // por string, para propagar el renombre (ver propagarRenombre arriba).
 export type ColeccionCatalogo = "cargos" | "areas" | "categorias";
 
-export function crearCatalogoService(coleccion: ColeccionCatalogo, cascadas: Cascada[] = []) {
+function crearCatalogoService(coleccion: ColeccionCatalogo, cascadas: Cascada[] = []) {
   return {
     // Para que CatalogoCrud tome la lista viva de CatalogosContext.
     coleccion,

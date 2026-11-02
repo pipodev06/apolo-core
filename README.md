@@ -101,7 +101,22 @@ Con el super_admin, en este orden:
 | El login dice "Usuario o contraseña incorrectos" con datos correctos | Falta habilitar *Correo electrónico/contraseña* en Authentication (paso 1). |
 | Algunas acciones de admin (reanalizar con IA, eliminar definitivo, resetear contraseña) tardan unos segundos la primera vez | *Cold start* de Cloud Functions: arrancan en frío tras un rato sin uso. Las siguientes llamadas son rápidas (ver [Rendimiento](#rendimiento)). |
 | Una lista queda vacía o da error de índice | Faltó `firestore:indexes` en el deploy. |
-| El deploy de funciones pide `GROQ_API_KEY` | Falta el paso 4. |
+| El deploy de funciones pide `GROQ_API_KEY` | Falta crear el secret (`firebase functions:secrets:set GROQ_API_KEY`). |
+| "Error al llamar a Groq" | Mira el log de la función: un `401 invalid_api_key` es la key mal copiada; créala de nuevo y redespliega `functions:asignarTicketIA,functions:reanalizarTicketIA`. |
+| El deploy falla con "Permission denied on secret" | Se borró y recreó el secret y perdió su permiso: `gcloud secrets add-iam-policy-binding GROQ_API_KEY --member="serviceAccount:<número>-compute@developer.gserviceaccount.com" --role="roles/secretmanager.secretAccessor"` y vuelve a desplegar. Para limpiar versiones usa `firebase functions:secrets:prune`, no borres el secret. |
+| La IA no asigna y no hay error | La asignación está en modo manual (Administración → Configuración), o el área no tiene técnicos activos. |
+
+## Cloud Functions
+
+Solo lo que necesita servidor (el resto lo hace la app con reglas de Firestore):
+
+| Función | Tipo | Qué hace |
+|---|---|---|
+| `asignarTicketIA` | Al crear un ticket | En modo IA, la IA (Groq) elige área, urgencia y categoría y asigna al técnico activo con menos carga |
+| `reanalizarTicketIA` | Llamada (admin) | Botón *Analizar / Reanalizar con IA* del detalle del ticket |
+| `adminCuentas` | Llamada | Acciones que necesitan Admin SDK: resetear la contraseña de otro, cambiar el usuario, eliminar una cuenta definitivamente |
+
+Plan Blaze, pero con el uso normal todo entra en la capa gratuita. El límite que manda es la cuota gratis de Groq (tokens por día).
 
 ## Categorías de ticket
 
@@ -146,7 +161,8 @@ Desactivar a un técnico **no** reasigna sus tickets: la app avisa si tiene tick
 
 - **Costo cero**: ninguna Function reserva instancias siempre encendidas (`minInstances`), porque eso cobra un monto fijo al mes aunque nadie use la app. El precio es que el primer análisis con IA (o acción de cuentas) tras un rato sin uso tarda unos segundos (*cold start*); el login no depende de Functions. Con el uso normal de un equipo chico, todo entra en la capa gratuita del plan Blaze.
 - **Caché local de Firestore** (IndexedDB): al recargar, las listas se pintan al instante con lo que ya estaba guardado y luego se sincronizan. Al cerrar sesión la caché se borra.
-- **Un solo listener por colección** para tickets, personal y categorías, compartido por todas las pantallas.
+- **Un solo listener por colección** para tickets, personal y categorías (y áreas/cargos para quien tiene acceso a Personal o Administración), compartido por todas las pantallas; usuarios y accesos se escuchan solo dentro de Administración. Las papeleras leen al entrar.
+- **La IA cuenta la carga de cada técnico con `count()`** en vez de leer todos los tickets abiertos. Las funciones corren con CPU fraccionada (`cpu: "gcf_gen1"`) y un tope de 10 instancias.
 - Los permisos de cada usuario quedan en caché en el navegador, así las pantallas no esperan a Firestore para pintarse.
 
 ## Cambiar de proyecto Firebase
@@ -156,18 +172,20 @@ Si borras el proyecto Firebase y creas otro, **no hay que definir tablas ni esqu
 1. Nuevo proyecto en plan Blaze, con Firestore, Storage y Authentication activados.
 2. `.env` (local) **y** las variables de Vercel con el nuevo `firebaseConfig`.
 3. `.firebaserc` con el nuevo id.
-4. `GROQ_API_KEY` y el permiso *Service Account Token Creator*.
-5. `firebase deploy --only firestore:rules,firestore:indexes,storage,functions`.
-6. `/setup` para el primer super_admin. Los datos del proyecto anterior (usuarios, tickets, imágenes) **no se migran**: se pierden con él.
+4. Authentication → *Sign-in method* → habilitar **Correo electrónico/contraseña**.
+5. `firebase functions:secrets:set GROQ_API_KEY` (escribe solo el nombre; la key se pega cuando la pide).
+6. `firebase deploy --only firestore:indexes` y esperar a que los índices queden **Habilitados**; después `firebase deploy --only firestore:rules,storage,functions` y `firebase functions:artifacts:setpolicy`.
+7. Firestore → TTL: política sobre `notificaciones.expiraEn` (borra las notificaciones leídas a los 7 días).
+8. `/setup` para el primer super_admin. Los datos del proyecto anterior (usuarios, tickets, imágenes) **no se migran**: se pierden con él.
 
 ## Gestión desde la app
 
 Todo el día a día se gestiona logueado como `admin`/`super_admin`:
 
-- **Usuarios y roles** → `/administracion/usuarios` (crear, desactivar, cambiar rol o contraseña). Solo un `super_admin` toca a otro `super_admin` o a una cuenta protegida: para un admin esas acciones aparecen deshabilitadas. Desactivar o mandar a la papelera a alguien le corta el acceso al instante (las reglas leen su cuenta en cada petición).
+- **Usuarios y roles** → `/administracion/usuarios` (crear, desactivar, cambiar rol o contraseña). Un `admin` solo gestiona cuentas *Usuario*; las cuentas admin, super_admin y protegidas solo las toca un `super_admin` (para un admin esas acciones aparecen deshabilitadas). Desactivar o mandar a la papelera a alguien le corta el acceso al instante (las reglas leen su cuenta en cada petición).
 - **Configuración** → `/administracion/modo`: asignación manual o por IA, máximo de tickets abiertos por empleado y horas de SLA por urgencia.
 - **Categorías de ticket** → `/administracion/categorias`.
-- **Permisos por sección** → `/administracion/accesos`.
+- **Permisos por sección** → `/administracion/accesos`, incluido **Subir imágenes** (Usuario arranca sin él, Admin con él; el de un admin solo lo cambia un super_admin).
 - **Personal, cargos y áreas** → `/personal`.
 - **Papelera** (restaurar / eliminar definitivo) → `/papelera`.
 
@@ -180,8 +198,14 @@ Cada usuario cambia su propia contraseña con el ícono de llave del encabezado.
 
 ## Seguridad (resumen)
 
-- Login vía Cloud Function con bloqueo tras 5 intentos fallidos en 15 minutos.
-- Toda lectura de Firestore exige sesión, salvo `publico/estado` (solo indica si la app ya fue inicializada).
-- Las imágenes adjuntas solo las puede borrar quien las subió o un admin.
+- **Login nativo de Firebase Auth** (usuario + contraseña; internamente `usuario@apolo.local`). El límite de intentos lo aplica Firebase.
+- **Roles leídos de la cuenta en cada petición**: desactivar o mandar a la papelera a alguien le corta el acceso al instante. Una cuenta de Auth sin perfil en `users` no accede a nada.
+- **Un admin solo gestiona cuentas Usuario**; las cuentas admin, super_admin y protegidas las gestiona solo un super_admin.
+- **Permiso "Subir imágenes"** por cuenta en la Matriz de Accesos (solo png/jpeg/webp/gif; se muestran y borran solo las del propio Storage).
+- **Historial y notificaciones** se escriben en la misma operación que el ticket, y las reglas validan el destinatario y que el cambio sea real (no se pueden falsificar ni mandar notificaciones sueltas).
+- **IA**: máximo 10 tickets por usuario por hora; el texto del ticket se manda como datos, no como instrucciones.
+- **Cabeceras de seguridad** en Vercel (`vercel.json`): CSP, anti-clickjacking, `nosniff`, `Referrer-Policy`.
+- Toda lectura de Firestore exige una cuenta activa, salvo `publico/estado` (solo indica si la app ya fue inicializada).
+- App Check (reCAPTCHA v3) está listo en el código pero **inactivo** hasta poner `VITE_RECAPTCHA_SITE_KEY` (ver [App Check](#app-check-recomendado)).
 
 La consola de Firebase solo hace falta para infraestructura: logs (`firebase functions:log`), rotar `GROQ_API_KEY` o revisar datos puntuales.

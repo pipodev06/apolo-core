@@ -55,4 +55,4 @@ const getAuthCuentas = () => {
   return authCuentas;
 };
 
-export { app, db, functions, auth, storage, getAuthCuentas };
+export { db, functions, auth, storage, getAuthCuentas };
