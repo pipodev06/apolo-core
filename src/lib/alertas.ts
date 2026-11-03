@@ -36,7 +36,7 @@ export async function confirmar(opts: ConfirmOpts): Promise<boolean> {
       popup: "rounded-xl border border-border shadow-xl",
       confirmButton: `${btnBase} ${
         opts.danger
-          ? "border border-destructive bg-destructive text-white hover:bg-destructive/90"
+          ? "border border-red-600 bg-red-600 text-white hover:bg-red-600/90"
           : "border border-primary bg-primary text-primary-foreground hover:bg-primary/90"
       }`,
       cancelButton: `${btnBase} border border-border bg-secondary text-secondary-foreground hover:bg-secondary/80`,
@@ -58,7 +58,7 @@ function notificar(icon: "success" | "error", title: string) {
       popup: "rounded-xl border border-border shadow-xl",
       confirmButton: `${btnBase} ${
         icon === "error"
-          ? "border border-destructive bg-destructive text-white hover:bg-destructive/90"
+          ? "border border-red-600 bg-red-600 text-white hover:bg-red-600/90"
           : "border border-primary bg-primary text-primary-foreground hover:bg-primary/90"
       }`,
     },
