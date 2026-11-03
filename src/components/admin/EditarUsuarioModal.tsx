@@ -13,6 +13,7 @@ import { SelectOpciones } from "../ui/select-opciones";
 import { usersService } from "../../services/usersService";
 import { roleLabel } from "../../lib/roles";
 import { useCatalogos } from "../../context/CatalogosContext";
+import { esTecnico } from "../../types/empleado";
 import { notificarExito, notificarError } from "../../lib/alertas";
 import type { User } from "../../types/user";
 
@@ -50,7 +51,7 @@ export const EditarUsuarioModal: React.FC<Props> = ({
   esSuperAdminActual,
 }) => {
   const { empleados: todosEmpleados } = useCatalogos();
-  const empleados = useMemo(() => todosEmpleados.filter((e) => e.activo), [todosEmpleados]);
+  const empleados = useMemo(() => todosEmpleados.filter((e) => e.activo && esTecnico(e)), [todosEmpleados]);
   const {
     register,
     control,

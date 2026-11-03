@@ -9,6 +9,7 @@ import { useTickets } from "../../context/TicketsContext";
 import { calcularCarga, estaOcupado } from "../../lib/carga";
 import { STATUS_LABELS, transicionEstadoValida } from "../../lib/ticketStatus";
 import type { TicketFormData } from "./TicketForm";
+import { esTecnico } from "../../types/empleado";
 
 const SIN_ASIGNAR = "__none__";
 
@@ -47,10 +48,10 @@ export const CamposGestionTicket: React.FC<{
     if (ticket.assignedTo && empleados.length > 0) setValue("assignedTo", ticket.assignedTo);
   }, [empleados, ticket.assignedTo, setValue]);
 
-  // Activos + el asignado actual aunque esté inactivo (para que su opción exista).
+  // Técnicos activos + el asignado actual aunque ya no lo sea (para que su opción exista).
   const ticketsParaCarga = tickets.filter((t) => t.id !== ticket.id);
   const opcionesEmpleados = empleados
-    .filter((e) => e.activo || e.id === ticket.assignedTo)
+    .filter((e) => (e.activo && esTecnico(e)) || e.id === ticket.assignedTo)
     .map((e) => ({ ...e, carga: calcularCarga(ticketsParaCarga, e.id) }))
     .sort((a, b) => (a.carga !== b.carga ? a.carga - b.carga : a.nombre.localeCompare(b.nombre)))
     .map((e) => ({

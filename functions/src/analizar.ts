@@ -91,15 +91,18 @@ export async function analizarYAsignar(params: AnalizarYAsignarParams): Promise<
     .where("activo", "==", true)
     .get();
 
-  if (empleadosSnap.empty) {
-    logger.warn(`Ticket ${ticketId}: área "${analisis.area}" sin empleados activos`);
+  // Solo técnicos: sin el campo (fichas antiguas) cuenta como técnico.
+  const tecnicos = empleadosSnap.docs.filter((d) => d.get("tecnico") !== false);
+
+  if (tecnicos.length === 0) {
+    logger.warn(`Ticket ${ticketId}: área "${analisis.area}" sin técnicos activos`);
     update.area = analisis.area;
     await ticketRef.update(update);
     await registrarCambiosIA(db, ticketId, ticket, update);
-    return { ok: false, motivo: `El área "${analisis.area}" no tiene empleados activos.` };
+    return { ok: false, motivo: `El área "${analisis.area}" no tiene técnicos activos.` };
   }
 
-  const empleados = empleadosSnap.docs.map((d) => ({ id: d.id, nombre: d.data().nombre as string }));
+  const empleados = tecnicos.map((d) => ({ id: d.id, nombre: d.data().nombre as string }));
 
   // Carga = tickets abiertos (asignado/en_proceso, fuera de la papelera) de
   // cada técnico del área, con count(): cuesta ~1 lectura por técnico en vez

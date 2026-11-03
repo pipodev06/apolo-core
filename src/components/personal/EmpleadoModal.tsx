@@ -7,9 +7,10 @@ import { Input } from "../ui/input";
 import { Button } from "../ui/button";
 import { Field, FieldError, FieldGroup, FieldLabel } from "../ui/field";
 import { SelectOpciones } from "../ui/select-opciones";
+import { Checkbox } from "../ui/checkbox";
 import { empleadosService } from "../../services/empleadosService";
 import { useCatalogos } from "../../context/CatalogosContext";
-import type { Empleado } from "../../types/empleado";
+import { esTecnico, type Empleado } from "../../types/empleado";
 import { notificarExito, notificarError } from "../../lib/alertas";
 
 const schema = z.object({
@@ -18,6 +19,7 @@ const schema = z.object({
   area: z.string().optional(),
   email: z.string().email("Email inválido").optional().or(z.literal("")),
   telefono: z.string().optional(),
+  tecnico: z.boolean(),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -53,6 +55,7 @@ export const EmpleadoModal: React.FC<Props> = ({ open, onClose, onSaved, emplead
       area: empleado?.area || "",
       email: empleado?.email || "",
       telefono: empleado?.telefono || "",
+      tecnico: empleado ? esTecnico(empleado) : true,
     });
   }, [open, empleado, reset]);
 
@@ -88,7 +91,7 @@ export const EmpleadoModal: React.FC<Props> = ({ open, onClose, onSaved, emplead
       <DialogContent className="sm:max-w-xl">
         <DialogHeader>
           <DialogTitle>{isEdit ? "Editar empleado" : "Nuevo empleado"}</DialogTitle>
-          <DialogDescription>Personal disponible para asignar tickets.</DialogDescription>
+          <DialogDescription>Empleados de la empresa; los marcados como técnicos reciben tickets.</DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)}>
         <FieldGroup>
@@ -168,6 +171,22 @@ export const EmpleadoModal: React.FC<Props> = ({ open, onClose, onSaved, emplead
               />
             </Field>
           </div>
+
+          <Controller
+            name="tecnico"
+            control={control}
+            render={({ field }) => (
+              <label className="flex cursor-pointer items-start gap-2 text-base">
+                <Checkbox checked={field.value} onCheckedChange={(v) => field.onChange(!!v)} className="mt-0.5" />
+                <span>
+                  Técnico
+                  <span className="block text-sm text-muted-foreground">
+                    Recibe tickets de su área (IA y asignación manual) y se puede vincular a una cuenta.
+                  </span>
+                </span>
+              </label>
+            )}
+          />
 
           <DialogFooter>
             <Button type="button" variant="secondary" onClick={onClose} disabled={isSubmitting}>

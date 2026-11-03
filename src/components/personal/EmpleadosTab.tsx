@@ -4,7 +4,7 @@ import { empleadosService } from "../../services/empleadosService";
 import { useTickets } from "../../context/TicketsContext";
 import { useCatalogos } from "../../context/CatalogosContext";
 import { useListaConPapelera } from "../../lib/useListaConPapelera";
-import type { Empleado } from "../../types/empleado";
+import { esTecnico, type Empleado } from "../../types/empleado";
 import { calcularCarga, estaOcupado } from "../../lib/carga";
 import { TablaCard, TableHeader, TableBody, TableRow, TableHead, TableCell } from "../ui/table";
 import { Badge } from "../ui/badge";
@@ -227,7 +227,9 @@ export const EmpleadosTab = forwardRef<EmpleadosTabHandle, Props>(({ soloPapeler
                 </TableCell>
                 {!soloPapelera && (
                   <TableCell>
-                    {(() => {
+                    {!esTecnico(e) ? (
+                      <Badge variant="gray">No técnico</Badge>
+                    ) : (() => {
                       const carga = calcularCarga(tickets, e.id);
                       const ocupado = estaOcupado(carga, maxTicketsAbiertos);
                       return (

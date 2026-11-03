@@ -10,6 +10,7 @@ import { Field, FieldError, FieldGroup, FieldLabel } from "../ui/field";
 import { SelectOpciones } from "../ui/select-opciones";
 import { usersService } from "../../services/usersService";
 import { useCatalogos } from "../../context/CatalogosContext";
+import { esTecnico } from "../../types/empleado";
 import { notificarExito, notificarError } from "../../lib/alertas";
 import { PasswordInput } from "../ui/password-input";
 
@@ -35,7 +36,7 @@ interface Props {
 
 export const NuevoUsuarioModal: React.FC<Props> = ({ open, onClose, onCreated, esSuperAdminActual }) => {
   const { empleados: todosEmpleados } = useCatalogos();
-  const empleados = useMemo(() => todosEmpleados.filter((e) => e.activo), [todosEmpleados]);
+  const empleados = useMemo(() => todosEmpleados.filter((e) => e.activo && esTecnico(e)), [todosEmpleados]);
   const {
     register,
     control,
