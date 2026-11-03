@@ -50,7 +50,7 @@ Cada instalación usa **su propio proyecto Firebase**: no alcanza con clonar y c
    firebase functions:secrets:set GROQ_API_KEY
    ```
    Consigue la key en [console.groq.com](https://console.groq.com) → API Keys (alcanza el free tier). Si no vas a usar IA, carga cualquier valor y deja la asignación en modo **manual**.
-5. **Despliega reglas, índices, Storage y funciones** (siempre juntos, las reglas dependen de las funciones):
+5. **Despliega reglas, índices, Storage y funciones** (los índices tardan unos minutos en quedar *Habilitados*; hasta entonces la IA no puede contar la carga):
    ```bash
    (cd functions && npm install)
    firebase deploy --only firestore:rules,firestore:indexes,storage,functions
@@ -209,3 +209,21 @@ Cada usuario cambia su propia contraseña con el ícono de llave del encabezado.
 - App Check (reCAPTCHA v3) está listo en el código pero **inactivo** hasta poner `VITE_RECAPTCHA_SITE_KEY` (ver [App Check](#app-check-recomendado)).
 
 La consola de Firebase solo hace falta para infraestructura: logs (`firebase functions:log`), rotar `GROQ_API_KEY` o revisar datos puntuales.
+
+### Comandos útiles de Firebase
+
+| Para qué | Comando |
+|---|---|
+| Ver a qué proyecto apunta la CLI | `firebase use` |
+| Desplegar solo reglas | `firebase deploy --only firestore:rules,storage` |
+| Desplegar solo índices | `firebase deploy --only firestore:indexes` |
+| Desplegar todas las funciones | `firebase deploy --only functions` |
+| Forzar funciones que el deploy salta por "sin cambios" | `firebase deploy --only functions:asignarTicketIA,functions:reanalizarTicketIA` |
+| Cambiar la key de Groq (rotar) | `firebase functions:secrets:set GROQ_API_KEY` y luego forzar las dos funciones de IA (comando de arriba): cada función queda fija a la versión del secret del momento del deploy |
+| Ver versiones del secret | `firebase functions:secrets:get GROQ_API_KEY` |
+| Borrar versiones viejas que ninguna función usa | `firebase functions:secrets:prune` |
+| Borrar una versión puntual | `firebase functions:secrets:destroy GROQ_API_KEY@1` |
+| Ver logs de las funciones | `firebase functions:log` (o `--only asignarTicketIA`) |
+| Borrar imágenes viejas de builds (ahorro) | `firebase functions:artifacts:setpolicy` |
+
+No borres el secret entero: se pierde su permiso y el siguiente deploy falla (ver *Problemas comunes*). Para cambiar la key, crea una versión nueva con `secrets:set`.
