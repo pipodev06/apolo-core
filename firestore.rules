@@ -410,7 +410,8 @@ service cloud.firestore {
       allow read: if logueado();
       allow create, update: if esAdmin()
                             && nonEmptyStr(request.resource.data.nombre, 120)
-                            && request.resource.data.activo is bool;
+                            && request.resource.data.activo is bool
+                            && request.resource.data.get('tecnico', true) is bool;
       // Borrado físico: solo un admin y solo desde la papelera.
       allow delete: if esAdmin() && resource.data.get('deletedAt', null) != null;
     }

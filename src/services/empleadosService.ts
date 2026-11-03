@@ -12,7 +12,7 @@ import {
 import { db } from "../firebase";
 import type { Empleado } from "../types/empleado";
 
-type EmpleadoInput = Pick<Empleado, "nombre" | "cargo" | "area" | "email" | "telefono" | "activo">;
+type EmpleadoInput = Pick<Empleado, "nombre" | "cargo" | "area" | "email" | "telefono" | "activo" | "tecnico">;
 
 export const empleadosService = {
   create: async (data: EmpleadoInput) => {
@@ -24,6 +24,7 @@ export const empleadosService = {
       email: data.email || "",
       telefono: data.telefono || "",
       activo: data.activo ?? true,
+      tecnico: data.tecnico ?? true,
       deletedAt: null,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
