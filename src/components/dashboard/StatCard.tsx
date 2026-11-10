@@ -6,7 +6,7 @@ import { cn } from "../../lib/cn";
 type Tone = "indigo" | "amber" | "purple" | "green" | "blue";
 
 // Tonos categóricos de las métricas: una de las 2 excepciones de color fijo
-// fuera de los tokens de shadcn (ver AGENTS.md).
+// fuera de los tokens de shadcn (ver CLAUDE.md).
 const tones: Record<Tone, string> = {
   indigo: "bg-indigo-50 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-400",
   amber: "bg-amber-50 text-amber-600 dark:bg-amber-950 dark:text-amber-400",
