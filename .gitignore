@@ -32,7 +32,7 @@ Thumbs.db
 .claude/settings.local.json
 skills-lock.json
 CLAUDE.md
-docs/
+deuda-fix-bugs-fix-mejoras.md
 
 .vercel
 .env*
