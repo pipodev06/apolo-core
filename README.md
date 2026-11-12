@@ -1,229 +1,54 @@
 # apolo-core
 
-Sistema de gestión de tickets de incidencias para equipos de TI. SPA en **React 19 + Vite + TypeScript + Tailwind v4** con **Firebase** (Auth, Firestore, Storage, Cloud Functions). El frontend se despliega en **Vercel**.
+Sistema de tickets de soporte de TI con asignación automática por IA, para equipos que atienden incidencias internas. Cada empresa usa su propio proyecto de Firebase.
 
-Incluye roles (super admin / admin / usuario), matriz de accesos por sección, personal con cargos y áreas, categorías de ticket, SLA por urgencia, notificaciones in-app, dashboard de métricas, histórico por empleado, export CSV, papelera con restauración y asignación automática de tickets por IA (Groq).
+## Qué hace
+- Crea, asigna y cierra tickets con categorías, urgencia y SLA por urgencia.
+- Asigna tickets solo con IA (Groq): elige área, urgencia y categoría, y al técnico activo con menos carga. También funciona en modo manual.
+- Roles (super admin, admin, usuario) con matriz de accesos por sección, personal con cargos y áreas.
+- Dashboard de métricas, histórico por empleado, historial de cambios de cada ticket y exportación a CSV.
+- Notificaciones dentro de la app y papelera con restauración.
 
-Es una app **single-tenant**: cada empresa usa su propio proyecto de Firebase.
+## Tecnologías
+- Frontend: React 19 + Vite + TypeScript + Tailwind CSS v4 + shadcn/ui + Recharts
+- Backend: Firebase (Auth, Firestore, Storage, Cloud Functions v2) · IA: Groq
+- Hosting: Vercel (frontend) y Firebase (reglas y funciones)
 
-## Stack
-- Frontend: React 19, Vite 8, TypeScript, TailwindCSS v4, shadcn/ui, Recharts
-- Backend (BaaS): Firebase — Firestore, Auth (email/contraseña), Storage, Cloud Functions v2
-- Hosting del frontend: Vercel (`vercel.json`, build `pnpm run build` → `dist`)
-- IA de asignación: Groq, modelo `openai/gpt-oss-120b` (Cloud Functions `asignarTicketIA` / `reanalizarTicketIA`)
-- Contraseñas: las guarda Firebase Auth. El login es por usuario; internamente cada cuenta usa el email `usuario@apolo.local`
+## Requisitos
+- Node 24 y pnpm (las Cloud Functions usan Node 22)
+- Firebase CLI: `npm i -g firebase-tools` y `firebase login`
+- Un proyecto Firebase en plan **Blaze** (lo exigen las Cloud Functions; el uso normal entra en la capa gratuita)
+- Una API key de [Groq](https://console.groq.com) (alcanza el plan gratis)
 
-## Desarrollo
-```bash
-cp .env.example .env   # y completa los valores de tu proyecto Firebase
-pnpm install
-pnpm dev
-```
-
-## Build
-```bash
-pnpm build
-```
-
-> La configuración web de Firebase (`VITE_FIREBASE_*` en `.env`) no es un secreto: es el mismo `firebaseConfig` que viaja en el bundle de cualquier sitio Firebase. La seguridad real está en `firestore.rules`, `storage.rules` y las Cloud Functions.
-
-## Puesta en marcha con Firebase (desde cero)
-
-Cada instalación usa **su propio proyecto Firebase**: no alcanza con clonar y completar el `.env`, también hay que desplegar reglas y Cloud Functions en tu proyecto.
-
-### Requisitos
-- Node 22 y pnpm
-- Firebase CLI (`npm i -g firebase-tools`, luego `firebase login`)
-- Un proyecto Firebase en plan **Blaze** (Cloud Functions lo exige; el uso normal entra en la capa gratuita)
-
-### Pasos
-
-1. **Crea el proyecto** en [console.firebase.google.com](https://console.firebase.google.com) y, dentro de él:
-   - **Firestore Database** → *Crear base de datos* (modo producción; las reglas se despliegan después).
-   - **Storage** → *Comenzar* (crea el bucket).
-   - **Authentication** → *Comenzar* → *Sign-in method* → habilita **Correo electrónico/contraseña**.
-   - **Project Settings → General → Tus apps** → agrega una app **Web** para obtener el `firebaseConfig`.
-2. **Apunta el frontend a tu proyecto**: `cp .env.example .env` y completa las variables `VITE_FIREBASE_*` con ese `firebaseConfig`.
-3. **Apunta la CLI a tu proyecto**: `.firebaserc` trae el id del proyecto original. Reemplázalo por el tuyo o ejecuta `firebase use --add`.
-4. **Secreto de la IA** (Groq). Créalo aunque no vayas a usar la asignación por IA, porque el deploy de funciones lo pide:
-   ```bash
-   firebase functions:secrets:set GROQ_API_KEY
-   ```
-   Consigue la key en [console.groq.com](https://console.groq.com) → API Keys (alcanza el free tier). Si no vas a usar IA, carga cualquier valor y deja la asignación en modo **manual**.
-5. **Despliega reglas, índices, Storage y funciones** (los índices tardan unos minutos en quedar *Habilitados*; hasta entonces la IA no puede contar la carga):
+## Cómo levantarlo
+1. `git clone https://github.com/pipodev06/apolo-core.git && cd apolo-core`
+2. En [la consola de Firebase](https://console.firebase.google.com), crea el proyecto y activa Firestore (modo producción), Storage y Authentication con **Correo electrónico/contraseña**. Agrega una app **Web** para obtener su `firebaseConfig`.
+3. `cp .env.example .env` y completa las variables con ese `firebaseConfig` (ver Configuración).
+4. Apunta la CLI a tu proyecto: `firebase use --add` (reemplaza el id que trae `.firebaserc`).
+5. Crea el secreto de la IA, aunque no la uses (el deploy lo pide): `firebase functions:secrets:set GROQ_API_KEY`
+6. Despliega reglas, índices, Storage y funciones:
    ```bash
    (cd functions && npm install)
    firebase deploy --only firestore:rules,firestore:indexes,storage,functions
    ```
-6. **Frontend**:
-   - Local: `pnpm install && pnpm dev`
-   - Vercel: importa el repo y carga las mismas variables `VITE_FIREBASE_*` en *Project Settings → Environment Variables*.
-7. **Crea el primer usuario** (ver abajo).
+7. `pnpm install && pnpm dev` → abre en http://localhost:5173
+8. **Crea el primer usuario de inmediato:** en una instalación nueva, `/login` lleva a `/setup`, donde se crea el super admin. Hasta que lo hagas, cualquiera que entre a `/setup` podría crearlo. Las demás cuentas se crean en *Administración → Usuarios*.
 
-### App Check (recomendado)
-
-Sin App Check, cualquiera que copie la API key del navegador puede crear cuentas de Auth vacías y gastar tu cuota de lecturas. App Check exige que las peticiones salgan de tu app:
-
-1. Crea una clave **reCAPTCHA v3** para tu dominio (y `localhost`) en [Google Cloud → reCAPTCHA](https://console.cloud.google.com/security/recaptcha) del mismo proyecto. Copia la *site key* (es pública).
-2. Firebase Console → **App Check** → tu app web → **reCAPTCHA v3** → pega la *secret key* y sube el **TTL del token a 24 h** (cada renovación es una verificación de reCAPTCHA: hay 10,000 gratis al mes).
-3. Pon la site key en `VITE_RECAPTCHA_SITE_KEY` (`.env` y variables de Vercel).
-4. En local (`pnpm dev`) la consola del navegador imprime un *debug token*: regístralo en App Check → *Manage debug tokens*.
-5. Revisa en App Check que las peticiones salen como **verificadas** y recién entonces pulsa **Enforce** en Cloud Firestore y Cloud Storage. Si lo exiges antes, la app deja de funcionar.
-
-### Primer usuario (super_admin)
-
-El sistema no trae usuarios precargados. **Haz este paso apenas despliegues**, porque hasta que se complete cualquiera que entre a `/setup` puede crear el primer super_admin:
-
-1. Abre la app. En una instalación nueva, `/login` redirige solo a **`/setup`**.
-2. Completa usuario (3 a 60 caracteres: letras, números, punto, guion o guion bajo), contraseña (mín. 8) y email (opcional). La app crea la cuenta en Firebase Auth y, en una sola transacción:
-   - el usuario `super_admin` (`users/` y permisos en `access/`);
-   - la configuración inicial `config/app` (serie `TK01`, asignación manual, máx. 5 tickets abiertos por técnico);
-   - la marca pública `publico/estado` (`inicializado: true`);
-   - las [categorías sugeridas](#categorías-de-ticket).
-3. Desde ese momento `/setup` redirige a `/login` y las reglas de Firestore rechazan cualquier otro intento.
-4. El resto de cuentas se crean desde **Administración → Usuarios**.
-
-### Cargar datos de ejemplo (para una demo)
-
-Con el super_admin, en este orden:
-
-1. **Personal → Áreas y Cargos**: por ejemplo áreas *Soporte*, *Redes*, *Sistemas*; cargos *Técnico de soporte*, *Administrador de redes*.
-2. **Personal → Empleados**: los técnicos a los que se asignan tickets, cada uno con su área.
-3. **Administración → Categorías**: ya vienen cargadas desde el setup; ajústalas si hace falta (ver abajo).
-4. **Administración → Usuarios**: cuentas de prueba (por ejemplo una Admin y una Usuario) y márcalas como **Cuenta protegida**. **No publiques sus contraseñas** (README, redes, etc.): con una cuenta admin pública cualquiera puede crear sus propios admins y gastar tu capa gratuita. Si una cuenta *Usuario* se vincula a un técnico de Personal, también ve y puede cerrar los tickets asignados a ese técnico.
-5. **Administración → Accesos**: una cuenta *Usuario* nueva arranca solo con *Tickets* y *Notificaciones*. Si quieres que vea su resumen, activa *Dashboard* (admins y super_admins ven todo siempre).
-6. Crea algunos tickets con distintas urgencias y categorías para que el Dashboard tenga datos.
-
-### Problemas comunes
-
-| Síntoma | Causa / solución |
-|---|---|
-| El login dice "Usuario o contraseña incorrectos" con datos correctos | Falta habilitar *Correo electrónico/contraseña* en Authentication (paso 1). |
-| Algunas acciones de admin (reanalizar con IA, eliminar definitivo, resetear contraseña) tardan unos segundos la primera vez | *Cold start* de Cloud Functions: arrancan en frío tras un rato sin uso. Las siguientes llamadas son rápidas (ver [Rendimiento](#rendimiento)). |
-| Una lista queda vacía o da error de índice | Faltó `firestore:indexes` en el deploy. |
-| El deploy de funciones pide `GROQ_API_KEY` | Falta crear el secret (`firebase functions:secrets:set GROQ_API_KEY`). |
-| "Error al llamar a Groq" | Mira el log de la función: un `401 invalid_api_key` es la key mal copiada; créala de nuevo y redespliega `functions:asignarTicketIA,functions:reanalizarTicketIA`. |
-| El deploy falla con "Permission denied on secret" | Se borró y recreó el secret y perdió su permiso: `gcloud secrets add-iam-policy-binding GROQ_API_KEY --member="serviceAccount:<número>-compute@developer.gserviceaccount.com" --role="roles/secretmanager.secretAccessor"` y vuelve a desplegar. Para limpiar versiones usa `firebase functions:secrets:prune`, no borres el secret. |
-| La IA no asigna y no hay error | La asignación está en modo manual (Administración → Configuración), o el área no tiene técnicos activos. |
-
-## Cloud Functions
-
-Solo lo que necesita servidor (el resto lo hace la app con reglas de Firestore):
-
-| Función | Tipo | Qué hace |
+## Configuración
+| Variable | Para qué | Ejemplo de formato |
 |---|---|---|
-| `asignarTicketIA` | Al crear un ticket | En modo IA, la IA (Groq) elige área, urgencia y categoría y asigna al técnico activo con menos carga |
-| `reanalizarTicketIA` | Llamada (admin) | Botón *Analizar / Reanalizar con IA* del detalle del ticket |
-| `adminCuentas` | Llamada | Acciones que necesitan Admin SDK: resetear la contraseña de otro, cambiar el usuario, eliminar una cuenta definitivamente |
+| `VITE_FIREBASE_API_KEY`, `VITE_FIREBASE_AUTH_DOMAIN`, `VITE_FIREBASE_PROJECT_ID`, `VITE_FIREBASE_STORAGE_BUCKET`, `VITE_FIREBASE_MESSAGING_SENDER_ID`, `VITE_FIREBASE_APP_ID`, `VITE_FIREBASE_MEASUREMENT_ID` | `firebaseConfig` de la app web (es público: la seguridad está en las reglas y las funciones) | valores de *Project Settings → Tus apps* |
+| `VITE_RECAPTCHA_SITE_KEY` | Opcional: activa App Check con reCAPTCHA v3 | site key pública de reCAPTCHA v3 |
+| `GROQ_API_KEY` | Secreto de Cloud Functions para la IA (no va en `.env`) | `firebase functions:secrets:set GROQ_API_KEY` |
 
-Plan Blaze, pero con el uso normal todo entra en la capa gratuita. El límite que manda es la cuota gratis de Groq (tokens por día).
+**App Check (recomendado):** crea la clave reCAPTCHA v3 para tu dominio y `localhost`, regístrala en *Firebase → App Check* con TTL de 24 h y ponla en `VITE_RECAPTCHA_SITE_KEY`. Activa **Enforce** en Firestore y Storage solo cuando App Check muestre las peticiones como verificadas; si lo activas antes, la app deja de funcionar.
 
-## Categorías de ticket
+## Despliegue
+- **Frontend:** importa el repo en Vercel y carga las variables `VITE_*` en *Project Settings → Environment Variables*. Build: `pnpm build` → `dist`.
+- **Reglas y funciones:** `firebase deploy --only firestore:rules,firestore:indexes,storage,functions`.
+- **Cambiar la key de Groq:** `firebase functions:secrets:set GROQ_API_KEY` y vuelve a desplegar `functions:asignarTicketIA,functions:reanalizarTicketIA`. No borres el secreto entero: pierde su permiso y el siguiente deploy falla.
 
-Las categorías clasifican el tipo de incidencia. Son un catálogo que se administra en **Administración → Categorías** (crear, editar, activar/desactivar, mandar a la papelera).
+Sitio de ejemplo: https://apolo-core.vercel.app
 
-El proyecto trae esta lista sugerida (`functions/src/categorias.ts`). Se crea sola en el setup inicial; en una instalación anterior, usa el botón **Cargar categorías sugeridas** de *Administración → Categorías*, que agrega solo las que falten:
-
-| Categoría | Para qué |
-|---|---|
-| Hardware | PC, laptop, monitor o periféricos que fallan o no encienden |
-| Software | Instalación, actualización, licencias o errores de aplicaciones |
-| Red e Internet | Sin conexión, Wi-Fi, VPN, lentitud de red |
-| Impresoras y escáneres | Atascos, drivers, impresión o escaneo en red |
-| Correo electrónico | Cuenta, buzón lleno, envío/recepción, firmas |
-| Accesos y contraseñas | Altas, bajas, contraseñas bloqueadas, permisos en sistemas |
-| Telefonía | Anexos, centralita, celulares corporativos |
-| Sistemas internos | ERP, sistemas propios de la empresa, reportes |
-| Seguridad informática | Virus, correos sospechosos, accesos no autorizados |
-| Solicitud de equipo | Pedidos de equipos o accesorios nuevos |
-| Otros | Lo que no encaje en las anteriores |
-
-Dónde se usan:
-- Al **crear o editar un ticket** aparece el campo *Categoría* con las categorías **activas** (opcional: "Sin categoría").
-- Con la asignación por **IA**, si el ticket llega sin categoría, la IA elige una de las activas junto con el área y la urgencia. Si quien lo creó ya eligió una, no la cambia.
-- **Listado de tickets**: filtro por categoría; también entra en la búsqueda y en el export CSV.
-- **Dashboard**: gráfico *Tickets por Categoría*.
-- Si una categoría se desactiva, deja de ofrecerse en tickets nuevos pero los que ya la tienen la conservan. Si se renombra, el cambio se aplica también a los tickets.
-
-## Historial de actividad
-
-Cada ticket guarda automáticamente sus cambios (en la misma escritura que el cambio; los de la IA los registra su Function), con **quién** los hizo: un usuario o el *Asistente IA*.
-
-- Asignaciones: *Asignado a X*, *Reasignado de X a Y*, *Asignación removida*.
-- Estado y urgencia con el valor anterior y el nuevo: *Estado: Pendiente → Asignado*.
-- Categoría y solución agregada.
-
-Al reasignar, el estado solo genera un evento si cambia. Por ejemplo, un ticket *Asignado* que la IA pasa a otro técnico sigue *Asignado*: se registra la reasignación, no un cambio de estado. *Asignado el* muestra la hora de la última asignación.
-
-Desactivar a un técnico **no** reasigna sus tickets: la app avisa si tiene tickets abiertos y el detalle del ticket lo marca como *Inactivo*. Para pasarlos a otro, usa *Editar* o *Reanalizar con IA* (la IA solo elige técnicos activos).
-
-## Rendimiento
-
-- **Costo cero**: ninguna Function reserva instancias siempre encendidas (`minInstances`), porque eso cobra un monto fijo al mes aunque nadie use la app. El precio es que el primer análisis con IA (o acción de cuentas) tras un rato sin uso tarda unos segundos (*cold start*); el login no depende de Functions. Con el uso normal de un equipo chico, todo entra en la capa gratuita del plan Blaze.
-- **Caché local de Firestore** (IndexedDB): al recargar, las listas se pintan al instante con lo que ya estaba guardado y luego se sincronizan. Al cerrar sesión la caché se borra.
-- **Un solo listener por colección** para tickets, personal y categorías (y áreas/cargos para quien tiene acceso a Personal o Administración), compartido por todas las pantallas; usuarios y accesos se escuchan solo dentro de Administración. Las papeleras leen al entrar.
-- **La IA cuenta la carga de cada técnico con `count()`** en vez de leer todos los tickets abiertos. Las funciones corren con CPU fraccionada (`cpu: "gcf_gen1"`) y un tope de 10 instancias.
-- Los permisos de cada usuario quedan en caché en el navegador, así las pantallas no esperan a Firestore para pintarse.
-
-## Cambiar de proyecto Firebase
-
-Si borras el proyecto Firebase y creas otro, **no hay que definir tablas ni esquemas** (Firestore es NoSQL: las colecciones se crean solas con el primer documento). Pero sí hay que repetir los pasos de [Puesta en marcha](#puesta-en-marcha-con-firebase-desde-cero), porque reglas, índices, funciones y secretos viven en el proyecto Firebase, no en el repo desplegado:
-
-1. Nuevo proyecto en plan Blaze, con Firestore, Storage y Authentication activados.
-2. `.env` (local) **y** las variables de Vercel con el nuevo `firebaseConfig`.
-3. `.firebaserc` con el nuevo id.
-4. Authentication → *Sign-in method* → habilitar **Correo electrónico/contraseña**.
-5. `firebase functions:secrets:set GROQ_API_KEY` (escribe solo el nombre; la key se pega cuando la pide).
-6. `firebase deploy --only firestore:indexes` y esperar a que los índices queden **Habilitados**; después `firebase deploy --only firestore:rules,storage,functions` y `firebase functions:artifacts:setpolicy`.
-7. Firestore → TTL: política sobre `notificaciones.expiraEn` (borra las notificaciones leídas a los 7 días).
-8. `/setup` para el primer super_admin. Los datos del proyecto anterior (usuarios, tickets, imágenes) **no se migran**: se pierden con él.
-
-## Gestión desde la app
-
-Todo el día a día se gestiona logueado como `admin`/`super_admin`:
-
-- **Usuarios y roles** → `/administracion/usuarios` (crear, desactivar, cambiar rol o contraseña). Un `admin` solo gestiona cuentas *Usuario*; las cuentas admin, super_admin y protegidas solo las toca un `super_admin` (para un admin esas acciones aparecen deshabilitadas). Desactivar o mandar a la papelera a alguien le corta el acceso al instante (las reglas leen su cuenta en cada petición).
-- **Configuración** → `/administracion/modo`: asignación manual o por IA, máximo de tickets abiertos por empleado y horas de SLA por urgencia.
-- **Categorías de ticket** → `/administracion/categorias`.
-- **Permisos por sección** → `/administracion/accesos`, incluido **Subir imágenes** (Usuario arranca sin él, Admin con él; el de un admin solo lo cambia un super_admin).
-- **Personal, cargos y áreas** → `/personal`.
-- **Papelera** (restaurar / eliminar definitivo) → `/papelera`.
-
-Cada usuario cambia su propia contraseña con el ícono de llave del encabezado.
-
-### Visibilidad de tickets
-
-- **Admin / super_admin**: ven todos los tickets.
-- **Usuario**: ve los que creó y, si su cuenta está vinculada a un técnico de Personal, los que tiene asignados (y puede cerrarlos).
-
-## Seguridad (resumen)
-
-- **Login nativo de Firebase Auth** (usuario + contraseña; internamente `usuario@apolo.local`). El límite de intentos lo aplica Firebase.
-- **Roles leídos de la cuenta en cada petición**: desactivar o mandar a la papelera a alguien le corta el acceso al instante. Una cuenta de Auth sin perfil en `users` no accede a nada.
-- **Un admin solo gestiona cuentas Usuario**; las cuentas admin, super_admin y protegidas las gestiona solo un super_admin.
-- **Permiso "Subir imágenes"** por cuenta en la Matriz de Accesos (solo png/jpeg/webp/gif; se muestran y borran solo las del propio Storage).
-- **Historial y notificaciones** se escriben en la misma operación que el ticket, y las reglas validan el destinatario y que el cambio sea real (no se pueden falsificar ni mandar notificaciones sueltas).
-- **IA**: máximo 10 tickets por usuario por hora; el texto del ticket se manda como datos, no como instrucciones.
-- **Cabeceras de seguridad** en Vercel (`vercel.json`): CSP, anti-clickjacking, `nosniff`, `Referrer-Policy`.
-- Toda lectura de Firestore exige una cuenta activa, salvo `publico/estado` (solo indica si la app ya fue inicializada).
-- App Check (reCAPTCHA v3) está listo en el código pero **inactivo** hasta poner `VITE_RECAPTCHA_SITE_KEY` (ver [App Check](#app-check-recomendado)).
-
-La consola de Firebase solo hace falta para infraestructura: logs (`firebase functions:log`), rotar `GROQ_API_KEY` o revisar datos puntuales.
-
-### Comandos útiles de Firebase
-
-| Para qué | Comando |
-|---|---|
-| Ver a qué proyecto apunta la CLI | `firebase use` |
-| Desplegar solo reglas | `firebase deploy --only firestore:rules,storage` |
-| Desplegar solo índices | `firebase deploy --only firestore:indexes` |
-| Desplegar todas las funciones | `firebase deploy --only functions` |
-| Forzar funciones que el deploy salta por "sin cambios" | `firebase deploy --only functions:asignarTicketIA,functions:reanalizarTicketIA` |
-| Cambiar la key de Groq (rotar) | `firebase functions:secrets:set GROQ_API_KEY` y luego forzar las dos funciones de IA (comando de arriba): cada función queda fija a la versión del secret del momento del deploy |
-| Ver versiones del secret | `firebase functions:secrets:get GROQ_API_KEY` |
-| Borrar versiones viejas que ninguna función usa | `firebase functions:secrets:prune` |
-| Borrar una versión puntual | `firebase functions:secrets:destroy GROQ_API_KEY@1` |
-| Ver logs de las funciones | `firebase functions:log` (o `--only asignarTicketIA`) |
-| Borrar imágenes viejas de builds (ahorro) | `firebase functions:artifacts:setpolicy` |
-
-No borres el secret entero: se pierde su permiso y el siguiente deploy falla (ver *Problemas comunes*). Para cambiar la key, crea una versión nueva con `secrets:set`.
+## Licencia
+[MIT](LICENSE).
